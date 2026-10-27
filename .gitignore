@@ -1,0 +1,71 @@
+# --- Internal: planning docs, AI agents, discussions (kept locally, never pushed) ---
+/docs/
+/dictably.txt
+AGENTS.md
+CLAUDE.md
+.cursor/
+.cursorrules
+.cursorignore
+.claude/
+.windsurf/
+.github/copilot-instructions.md
+
+# Review artifacts (Playwright screenshots / reports)
+web/e2e/__screenshots__/
+playwright-report/
+test-results/
+blob-report/
+
+# --- Private data: real recordings must never reach git ---
+asr/bench/data/
+*.wav
+*.mp3
+*.m4a
+*.mp4
+*.mov
+*.webm
+*.ogg
+*.flac
+# small synthetic fixtures for tests are allowed
+!web/e2e/fixtures/**
+!backend/tests/fixtures/**
+
+# --- Secrets ---
+.env
+.env.*
+!.env.example
+.modal.toml
+*.pem
+*.key
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+.turbo/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+.pnpm-store/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+htmlcov/
+.coverage
+*.egg-info/
+dist/
+build/
+
+# --- Misc ---
+coverage/
+*.log
+.DS_Store
+Thumbs.db
+.idea/
