@@ -19,8 +19,7 @@ def transcribe_assemblyai(audio_path: Path) -> Transcript:
     api_key = os.environ.get("ASSEMBLYAI_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError(
-            "ASSEMBLYAI_API_KEY missing. Set it in tools/demo-kit/.env "
-            "or use --mode fixture."
+            "ASSEMBLYAI_API_KEY missing. Set it in tools/demo-kit/.env or use --mode fixture."
         )
 
     headers = {"authorization": api_key}
@@ -170,16 +169,14 @@ def _split_long(
         return [(start_ms, end_ms, text, words)]
 
     u_words = [
-        w
-        for w in all_words
-        if start_ms <= int(w.get("start") or 0) <= end_ms and w.get("text")
+        w for w in all_words if start_ms <= int(w.get("start") or 0) <= end_ms and w.get("text")
     ]
     if len(u_words) < 2:
         return [(start_ms, end_ms, text, [])]
 
     chunks: list[tuple[int, int, str, list[Word]]] = []
     cur: list[dict] = [u_words[0]]
-    for prev, nxt in zip(u_words, u_words[1:]):
+    for prev, nxt in zip(u_words, u_words[1:], strict=False):
         gap = int(nxt["start"]) - int(prev["end"])
         span = int(nxt["end"]) - int(cur[0]["start"])
         if span > max_ms and gap >= 300:

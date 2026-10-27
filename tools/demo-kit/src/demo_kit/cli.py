@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from dotenv import load_dotenv
@@ -28,7 +27,7 @@ def _default_slug(source: Path | None, explicit: str | None) -> str:
 
 @app.command()
 def transcribe(
-    source: Optional[Path] = typer.Argument(
+    source: Path | None = typer.Argument(
         None,
         help="Audio/video file (not needed for --mode fixture)",
     ),
@@ -37,7 +36,7 @@ def transcribe(
         "--mode",
         help="fixture | assemblyai (demos) | local (no diarization — not for demos)",
     ),
-    slug: Optional[str] = typer.Option(None, "--slug"),
+    slug: str | None = typer.Option(None, "--slug"),
     fixture: str = typer.Option("sample", "--fixture", help="Fixture name under fixtures/"),
 ) -> None:
     """Write out/<slug>/transcript.json (+ audio). Prefer assemblyai for real demos."""
@@ -126,13 +125,13 @@ def render(
 
 @app.command("all")
 def run_all(
-    source: Optional[Path] = typer.Argument(
+    source: Path | None = typer.Argument(
         None,
         help="Audio file; omit with --transcribe-mode fixture",
     ),
     transcribe_mode: str = typer.Option("fixture", "--transcribe-mode"),
     minutes_mode: str = typer.Option("fixture", "--minutes-mode"),
-    slug: Optional[str] = typer.Option(None, "--slug"),
+    slug: str | None = typer.Option(None, "--slug"),
     fixture: str = typer.Option("sample", "--fixture"),
     open_browser: bool = typer.Option(False, "--open"),
 ) -> None:

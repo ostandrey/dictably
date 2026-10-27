@@ -78,7 +78,9 @@ def test_manual_writes_request_without_minutes(sample_slug: str) -> None:
     assert path.name == "minutes_request.md"
     body = path.read_text(encoding="utf-8")
     assert "System prompt" in body
-    assert "summary: 2–4 points" in body or "summary: 2-4 points" in body or (
-        "Do not repeat agreements" in body
+    assert (
+        "summary: 2–4 points" in body
+        or "summary: 2-4 points" in body
+        or ("Do not repeat agreements" in body)
     )
     assert "[S1" in body or "[S2" in body

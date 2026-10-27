@@ -7,7 +7,6 @@ from demo_kit.models import Minutes, Participant, Transcript
 from demo_kit.paths import ensure_out
 from demo_kit.validate import load_minutes, load_transcript, point_start_ms
 
-
 UI = {
     "uk": {
         "transcript": "Стенограма",
@@ -93,16 +92,16 @@ def build_html(
     audio_name: str,
     slug: str,
 ) -> str:
-    lang = minutes.language if minutes.language in UI else (
-        "uk" if transcript.language.startswith("uk") else "en"
+    lang = (
+        minutes.language
+        if minutes.language in UI
+        else ("uk" if transcript.language.startswith("uk") else "en")
     )
     ui = UI[lang]
     speaker_ids = [s.id for s in transcript.speakers] or sorted(
         {seg.speaker for seg in transcript.segments}
     )
-    tone_map = {
-        sid: SPEAKER_TONES[i % len(SPEAKER_TONES)] for i, sid in enumerate(speaker_ids)
-    }
+    tone_map = {sid: SPEAKER_TONES[i % len(SPEAKER_TONES)] for i, sid in enumerate(speaker_ids)}
     party_label = {p.id: p.label for p in minutes.parties}
     defaults = _speaker_defaults(speaker_ids, minutes.participants, party_label)
 
@@ -141,9 +140,7 @@ def build_html(
         by_party.setdefault(a.party_id, []).append(item_html(a.text, a.segment_ids))
     for t in minutes.tasks:
         due = f" · {_esc(t.due_text)}" if t.due_text else ""
-        by_party.setdefault(t.party_id, []).append(
-            item_html(t.text, t.segment_ids, extra=due)
-        )
+        by_party.setdefault(t.party_id, []).append(item_html(t.text, t.segment_ids, extra=due))
     for pid, items in by_party.items():
         label = party_label.get(pid, pid)
         sections.append(_group(f"{ui['agreements']} — {label}", items))
@@ -191,9 +188,9 @@ def build_html(
     )
 
     recorded = transcript.recorded_at or ""
-    meta_bits = [f'{ui["duration"]} {fmt_ms(transcript.duration_ms)}']
+    meta_bits = [f"{ui['duration']} {fmt_ms(transcript.duration_ms)}"]
     if recorded:
-        meta_bits.append(f'{ui["recorded"]} {_esc(recorded)}')
+        meta_bits.append(f"{ui['recorded']} {_esc(recorded)}")
     header_meta = " · ".join(meta_bits)
 
     payload = {
@@ -499,9 +496,4 @@ def _group(title: str, items: list[str]) -> str:
 
 
 def _esc(s: str) -> str:
-    return (
-        s.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-    )
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")

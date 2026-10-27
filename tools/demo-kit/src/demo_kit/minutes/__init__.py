@@ -42,9 +42,7 @@ def run_minutes(
             encoding="utf-8",
         )
         if minutes_path.is_file():
-            minutes = Minutes.model_validate_json(
-                minutes_path.read_text(encoding="utf-8")
-            )
+            minutes = Minutes.model_validate_json(minutes_path.read_text(encoding="utf-8"))
             minutes = validate_minutes(transcript, minutes)
             minutes_path.write_text(
                 minutes.model_dump_json(indent=2),

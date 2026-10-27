@@ -10,15 +10,11 @@ def generate_minutes(transcript: Transcript) -> Minutes:
     try:
         import anthropic
     except ImportError as e:
-        raise RuntimeError(
-            "anthropic SDK not installed. Run: uv sync --extra anthropic"
-        ) from e
+        raise RuntimeError("anthropic SDK not installed. Run: uv sync --extra anthropic") from e
 
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not api_key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY missing. Use --mode manual or fixture for T-000."
-        )
+        raise RuntimeError("ANTHROPIC_API_KEY missing. Use --mode manual or fixture for T-000.")
 
     client = anthropic.Anthropic(api_key=api_key)
     system = SYSTEM_PROMPT.format(language=transcript.language)

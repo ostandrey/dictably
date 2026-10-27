@@ -58,9 +58,7 @@ def validate_minutes(transcript: Transcript, minutes: Minutes) -> Minutes:
     minutes.decisions = [p for p in minutes.decisions if p.segment_ids]
     minutes.agreements = [a for a in minutes.agreements if a.segment_ids]
     minutes.tasks = [t for t in minutes.tasks if t.segment_ids]
-    minutes.deadlines_and_facts = [
-        p for p in minutes.deadlines_and_facts if p.segment_ids
-    ]
+    minutes.deadlines_and_facts = [p for p in minutes.deadlines_and_facts if p.segment_ids]
     minutes.open_questions = [p for p in minutes.open_questions if p.segment_ids]
 
     if errors:
