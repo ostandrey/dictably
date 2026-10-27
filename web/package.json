@@ -1,0 +1,35 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/run-with-placeholders.mjs next dev",
+    "build": "node scripts/check-env.mjs && node scripts/check-i18n-keys.mjs && next build",
+    "build:local": "node scripts/check-i18n-keys.mjs && node scripts/run-with-placeholders.mjs next build",
+    "i18n:check": "node scripts/check-i18n-keys.mjs",
+    "start": "pnpm dlx serve out -l 4173",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "og": "node scripts/generate-og.mjs",
+    "e2e": "pnpm build:local && playwright test",
+    "e2e:shots": "pnpm build:local && playwright test e2e/landing.spec.ts -g screenshots",
+    "lh": "node scripts/lighthouse.mjs"
+  },
+  "dependencies": {
+    "next": "16.4.3",
+    "next-intl": "^4.14.9",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.3",
+    "typescript": "^5"
+  },
+  "packageManager": "pnpm@10.18.2"
+}

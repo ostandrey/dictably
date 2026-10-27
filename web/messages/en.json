@@ -1,0 +1,110 @@
+{
+  "meta": {
+    "title": "Dictably — Meeting minutes you can click to hear",
+    "description": "Upload any call or meeting recording. Get a speaker-separated transcript and minutes with agreements and tasks linked to the exact second."
+  },
+  "nav": {
+    "how": "How it works",
+    "example": "Example",
+    "pricing": "Pricing",
+    "faq": "FAQ",
+    "cta": "Get early access",
+    "ctaShort": "Early access"
+  },
+  "hero": {
+    "h1": "Meeting minutes you can click to hear.",
+    "sub": "Upload any call or meeting recording. Get a speaker-separated transcript and the minutes that matter — agreements and tasks for each side, every point linked to the exact second it was said.",
+    "cta": "Get early access",
+    "secondary": "See a real example ↓",
+    "under": "No bot joins your call. Any language. Recordings auto-delete after 30 days."
+  },
+  "problem": {
+    "line1": "After a 40-minute call, someone spends an hour writing the minutes.",
+    "line2": "A week later, nobody agrees on who promised what.",
+    "line3": "And finding where it was said means scrubbing through the recording again."
+  },
+  "how": {
+    "title": "How it works",
+    "step1Title": "Upload the recording.",
+    "step1Body": "Zoom, Meet or Teams export, a phone call, a voice recorder on the table — audio or video, up to 3 hours. Nothing joins your meeting.",
+    "step2Title": "We transcribe and separate speakers.",
+    "step2Body": "Any language, including mixed-language calls. Rename \"Speaker 2\" to \"Olena, Ministry\" once.",
+    "step3Title": "Get the minutes.",
+    "step3Body": "Decisions, agreements and tasks — split by side, with owners and deadlines when they were said. Click any point to hear that moment. Export to DOCX and send."
+  },
+  "example": {
+    "title": "Example from a real meeting",
+    "subtitle": "A call between a ministry and a support team — the minutes in seconds.",
+    "hint": "Click a timestamp → the transcript jumps there.",
+    "transcriptLabel": "Transcript",
+    "minutesLabel": "Minutes"
+  },
+  "why": {
+    "title": "Why Dictably",
+    "item1Title": "Proof for every point.",
+    "item1Body": "Each agreement links to the moment it was said. No more \"we never agreed to that\".",
+    "item2Title": "Sides, not just speakers.",
+    "item2Body": "See what you promised and what they promised — the way minutes are actually used.",
+    "item3Title": "Any language.",
+    "item3Body": "Strong on European languages — English, Ukrainian, Polish, German, Spanish and more — and on calls that switch between them.",
+    "item4Title": "No bot in your meeting.",
+    "item4Body": "Works with any file, including offline meetings and phone calls.",
+    "item5Title": "Private by default.",
+    "item5Body": "Recordings auto-delete after 30 days. Never used to train models."
+  },
+  "pricing": {
+    "title": "Pricing",
+    "planned": "Planned",
+    "proTitle": "Pro — {price}/month",
+    "proBody": "{hours} hours, minutes for every recording, DOCX / SRT / TXT export.",
+    "packTitle": "Pay as you go — {price}",
+    "packBody": "{hours} hours, valid {months} months.",
+    "foundingTitle": "Founding members — {price}/month, locked for life.",
+    "foundingBody": "First {seats} people. Price stays while you stay subscribed.",
+    "foundingCta": "Become a founding member"
+  },
+  "faq": {
+    "title": "FAQ",
+    "q1": "Which languages?",
+    "a1": "Around 100. Best quality in English and major European languages, including Ukrainian and Polish. Mixed-language calls are supported.",
+    "q2": "How long can a recording be?",
+    "a2": "Up to 3 hours or 2 GB per file. Audio and video: mp3, m4a, wav, mp4, mov and more.",
+    "q3": "Do I need a bot in Zoom/Teams?",
+    "a3": "No. Upload the recording after the meeting — or record right in the browser (coming soon).",
+    "q4": "Who can see my recordings?",
+    "a4": "Only you. Files are encrypted, deleted after 30 days (or sooner, by you), and never used for training.",
+    "q5": "Is it legal to record meetings?",
+    "a5": "Rules differ by country — always tell participants you are recording.",
+    "q6": "When does it launch?",
+    "a6": "Early access starts with founding members. Leave your email and we'll process one of your recordings for free."
+  },
+  "final": {
+    "h2": "Stop rewriting meetings. Start sending minutes.",
+    "cta": "Get early access",
+    "under": "Free minutes from one of your real recordings."
+  },
+  "footer": {
+    "privacy": "Privacy",
+    "contact": "Contact",
+    "rights": "© Dictably"
+  },
+  "privacy": {
+    "title": "Privacy — early access · Dictably",
+    "metaDescription": "What Dictably collects during early access: forms, analytics, and recordings you send for free minutes.",
+    "h1": "Privacy — early access",
+    "intro": "Dictably is in early access. This page explains what we collect right now.",
+    "whoTitle": "Who we are",
+    "whoBody": "{controller} (\"we\"). Contact: {email}.",
+    "collectTitle": "What we collect",
+    "collectBody": "Early-access form: your email and the answers you choose to give. The form is hosted by Tally.\n\nSite analytics: Cloudflare Web Analytics — no cookies, no cross-site tracking, aggregated visits only.\n\nRecordings you send us for free minutes: the audio or video file, the transcript and the minutes we make from it.",
+    "processTitle": "How recordings are processed",
+    "processBody": "We transcribe them with AssemblyAI and generate the minutes with Anthropic's Claude. Both process the data on our behalf and do not use it to train their models. Files are stored privately and deleted within 30 days, or sooner if you ask. Please send only recordings whose participants know they are being recorded.",
+    "dontTitle": "What we don't do",
+    "dontBody": "We don't sell your data, don't show ads and don't share your recordings with anyone else.",
+    "rightsTitle": "Your rights",
+    "rightsBody": "Ask us at any time to see, correct or delete your data: {email}. We reply within 30 days.",
+    "changesTitle": "Changes",
+    "changesBody": "When the product launches, this page will be replaced by a full privacy policy. Last updated: {date}.",
+    "back": "← Back to Dictably"
+  }
+}

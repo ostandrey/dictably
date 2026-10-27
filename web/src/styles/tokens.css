@@ -1,0 +1,51 @@
+/* Dictably design tokens — starter set from DESIGN.md §3; refined in T-004 */
+
+:root {
+  --paper: #f6f4ef;
+  --ink: #1b1a17;
+  --muted: #6b675f;
+  --rule: #e2ded5;
+  /* #E4472B fails WCAG AA as small text / white-on-fill; keep signal hue, darken for text & CTA */
+  --accent: #e4472b;
+  --accent-text: #b93820;
+  --accent-fill: #c53a22;
+  --accent-ink: #ffffff;
+  --speaker-ochre: #b8842a;
+  --speaker-teal: #2f6f6a;
+  --speaker-plum: #7a4e6e;
+  --speaker-olive: #5f6b3a;
+  --speaker-slate: #5a6570;
+  --speaker-rust: #a24f2f;
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --space: 4px;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur: 160ms;
+
+  /* T-000a: Onest only (Lighthouse). Serif/mono restore in T-004. */
+  --font-serif: var(--font-onest), Onest, Georgia, serif;
+  --font-sans: var(--font-onest), Onest, system-ui, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", monospace;
+
+  --text-xs: 0.8125rem; /* 13 */
+  --text-sm: 0.9375rem; /* 15 */
+  --text-base: 1.0625rem; /* 17 */
+  --text-lg: 1.3125rem; /* 21 */
+  --text-xl: 1.75rem; /* 28 */
+  --text-2xl: 2.5rem; /* 40 */
+  --text-3xl: 3.5rem; /* 56 */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #121211;
+    --ink: #eceae4;
+    --muted: #9a968d;
+    --rule: #2a2926;
+    --accent: #e4472b;
+    --accent-text: #f07860;
+    --accent-fill: #e4472b;
+    --accent-ink: #121211;
+  }
+}
