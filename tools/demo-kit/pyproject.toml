@@ -1,0 +1,37 @@
+[project]
+name = "demo-kit"
+version = "0.1.0"
+description = "Dictably T-000 demo-kit: transcribe → minutes → HTML"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "typer>=0.12",
+  "pydantic>=2.7",
+  "httpx>=0.27",
+  "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.52"]
+# local ASR is heavy — not for demos (no diarization); prefer assemblyai
+local = ["faster-whisper>=1.1"]
+
+[project.scripts]
+demo = "demo_kit.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/demo_kit"]
+
+[tool.uv]
+package = true
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

@@ -1,0 +1,77 @@
+{
+  "language": "uk",
+  "title": "Нарада МОН і команди підтримки",
+  "parties": [
+    { "id": "ministry", "label": "МОН" },
+    { "id": "support", "label": "Команда підтримки" }
+  ],
+  "participants": [
+    {
+      "speaker": "A",
+      "suggested_name": "Олена",
+      "suggested_role": "представниця МОН",
+      "party_id": "ministry"
+    },
+    {
+      "speaker": "B",
+      "suggested_name": "Ірина",
+      "suggested_role": "PM, команда підтримки",
+      "party_id": "support"
+    },
+    {
+      "speaker": "C",
+      "suggested_name": "Марія",
+      "suggested_role": "CEO, команда підтримки",
+      "party_id": "support"
+    }
+  ],
+  "summary": [
+    {
+      "text": "МОН просить оновити таблицю під різні субвенції СТЕМ і пілотних закладів за новим наказом.",
+      "segment_ids": ["S1", "S2"]
+    },
+    {
+      "text": "У черзі 15 документів від 15 закладів; закупівлі обладнання мають вкластись у 3 місяці.",
+      "segment_ids": ["S5", "S6"]
+    }
+  ],
+  "decisions": [
+    {
+      "text": "Зафіксувати домовленості сторін на цій нараді.",
+      "segment_ids": ["S7"]
+    }
+  ],
+  "agreements": [
+    {
+      "party_id": "support",
+      "text": "Пришвидшити перевірку документації із закупівлі меблів протягом місяця",
+      "segment_ids": ["S7"]
+    },
+    {
+      "party_id": "support",
+      "text": "Щотижня надсилати звіт зі статусом усіх 250 закладів",
+      "segment_ids": ["S8"]
+    },
+    {
+      "party_id": "ministry",
+      "text": "Надіслати новий наказ щодо СТЕМ (ще не підписаний) — уже надіслано",
+      "segment_ids": ["S4"]
+    }
+  ],
+  "tasks": [
+    {
+      "party_id": "support",
+      "owner_speaker": "B",
+      "text": "Оновити таблицю під новий наказ СТЕМ",
+      "due_text": null,
+      "segment_ids": ["S3"]
+    }
+  ],
+  "deadlines_and_facts": [
+    {
+      "text": "Заклади мають закупити обладнання протягом 3 місяців; тендер триває місяць",
+      "segment_ids": ["S6"]
+    }
+  ],
+  "open_questions": []
+}

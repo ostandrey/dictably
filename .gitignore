@@ -29,6 +29,10 @@ asr/bench/data/
 # small synthetic fixtures for tests are allowed
 !web/e2e/fixtures/**
 !backend/tests/fixtures/**
+!tools/demo-kit/fixtures/**
+
+# Demo-kit outputs (recordings + generated pages)
+tools/demo-kit/out/
 
 # --- Secrets ---
 .env
