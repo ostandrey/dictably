@@ -1,4 +1,4 @@
-# Abbreviated T-001: CI for web/ + tools/demo-kit/ only (no backend, no deploy).
+# CI: web + demo-kit + backend (T-001/T-002). No deploy.
 name: ci
 
 on:
@@ -6,6 +6,9 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -17,6 +20,7 @@ jobs:
     outputs:
       web: ${{ steps.filter.outputs.web }}
       demokit: ${{ steps.filter.outputs.demokit }}
+      backend: ${{ steps.filter.outputs.backend }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -28,6 +32,10 @@ jobs:
               - '.github/workflows/ci.yml'
             demokit:
               - 'tools/demo-kit/**'
+              - '.github/workflows/ci.yml'
+            backend:
+              - 'backend/**'
+              - 'infra/**'
               - '.github/workflows/ci.yml'
 
   web:
@@ -56,8 +64,10 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
       - name: Playwright e2e
         run: pnpm exec playwright test
-      - name: Lighthouse (median ≥ 95)
+      - name: Lighthouse (CI perf ≥ 90; a11y/bp/seo ≥ 95)
         run: pnpm lh
+        env:
+          CI: true
       - name: Upload Playwright report on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -65,6 +75,59 @@ jobs:
           name: playwright-report
           path: web/playwright-report
           if-no-files-found: ignore
+
+  backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: dictably
+          POSTGRES_PASSWORD: dictably
+          POSTGRES_DB: dictably_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dictably -d dictably_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://dictably:dictably@127.0.0.1:5432/dictably_test
+      TEST_DATABASE_URL: postgresql+asyncpg://dictably:dictably@127.0.0.1:5432/dictably_test
+      REDIS_URL: redis://127.0.0.1:6379/0
+      ASR_PROVIDER: fake
+      LLM_PROVIDER: fake
+      STORAGE_PROVIDER: local
+      ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked --group dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run alembic upgrade head
+      - run: uv run alembic check
+      - run: uv run pytest
 
   demo-kit:
     needs: changes

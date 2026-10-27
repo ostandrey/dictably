@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dictably
+      POSTGRES_PASSWORD: dictably
+      POSTGRES_DB: dictably
+    # Host port offset — avoids collision with local postgresql-x64 on 5432 (B1).
+    ports:
+      - "55432:5432"
+    volumes:
+      - dictably_pg:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dictably -d dictably"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    # Host port offset — avoids collision with local/WSL redis on 6379 (B1).
+    ports:
+      - "56379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ../backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://dictably:dictably@postgres:5432/dictably
+      REDIS_URL: redis://redis:6379/0
+      ASR_PROVIDER: fake
+      LLM_PROVIDER: fake
+      STORAGE_PROVIDER: local
+      LOCAL_STORAGE_PATH: /data/storage
+      ENV: dev
+    volumes:
+      - dictably_storage:/data/storage
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn dictably.main:app --host 0.0.0.0 --port 8000"
+
+  worker:
+    build:
+      context: ../backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://dictably:dictably@postgres:5432/dictably
+      REDIS_URL: redis://redis:6379/0
+      ASR_PROVIDER: fake
+      LLM_PROVIDER: fake
+      STORAGE_PROVIDER: local
+      LOCAL_STORAGE_PATH: /data/storage
+      ENV: dev
+    volumes:
+      - dictably_storage:/data/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["arq", "dictably.worker.settings.WorkerSettings"]
+
+volumes:
+  dictably_pg:
+  dictably_storage:

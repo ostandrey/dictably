@@ -42,6 +42,10 @@ tools/demo-kit/out/
 *.pem
 *.key
 
+# Local media storage (STORAGE_PROVIDER=local)
+/data/
+backend/data/
+
 # --- Node / Next.js ---
 node_modules/
 .next/

@@ -13,6 +13,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..", "out");
 const port = 4177;
 const PASSES = 3;
+// T-001 N2: shared CI runners are noisier — Perf ≥ 90 in CI; local stays ≥ 95.
+const PERF_MIN = process.env.CI ? Number(process.env.LH_PERF_MIN || 90) : 95;
+const OTHER_MIN = 95;
 
 if (!existsSync(path.join(root, "index.html"))) {
   console.error("Missing out/index.html — run pnpm build:local first");
@@ -163,16 +166,23 @@ server.listen(port, "127.0.0.1", async () => {
       results.push(med);
       console.log(" median", med);
     }
-    const fail = results.filter((r) =>
-      [r.performance, r.accessibility, r.bestPractices, r.seo].some(
-        (n) => n < 95,
-      ),
+    const fail = results.filter(
+      (r) =>
+        r.performance < PERF_MIN ||
+        r.accessibility < OTHER_MIN ||
+        r.bestPractices < OTHER_MIN ||
+        r.seo < OTHER_MIN,
     );
     if (fail.length) {
-      console.error("Lighthouse median below 95:", fail);
+      console.error(
+        `Lighthouse median below thresholds (perf≥${PERF_MIN}, others≥${OTHER_MIN}):`,
+        fail,
+      );
       process.exitCode = 1;
     } else {
-      console.log("All median categories ≥ 95");
+      console.log(
+        `All median categories OK (perf≥${PERF_MIN}, others≥${OTHER_MIN})`,
+      );
     }
   } catch (e) {
     console.error(e);

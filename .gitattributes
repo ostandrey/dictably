@@ -1,0 +1,15 @@
+# Normalize line endings so Windows + CI (Linux) see the same files (T-001 N3).
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.webm binary
+*.wav binary
+*.mp3 binary
+*.m4a binary

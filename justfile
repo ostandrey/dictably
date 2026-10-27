@@ -1,9 +1,9 @@
-# Abbreviated T-001 — web + demo-kit only (no backend yet).
+# Dictably local commands (T-001/T-002). Optional: winget install Casey.Just
 
 default:
     @just --list
 
-check: check-web check-demo-kit
+check: check-web check-demo-kit check-backend
 
 check-web:
     cd web && pnpm lint
@@ -15,7 +15,33 @@ check-demo-kit:
     cd tools/demo-kit && uv run ruff format --check .
     cd tools/demo-kit && uv run pytest
 
-# Heavier local gates (also run in CI on web path changes)
+check-backend:
+    cd backend && uv run ruff check .
+    cd backend && uv run ruff format --check .
+    cd backend && uv run alembic upgrade head
+    cd backend && uv run alembic check
+    cd backend && uv run pytest
+
+# Postgres + Redis on host ports 55432 / 56379 (B1)
+infra-up:
+    docker compose -f infra/docker-compose.yml up -d postgres redis
+
+infra-down:
+    docker compose -f infra/docker-compose.yml down
+
+# Full stack: postgres, redis, api, worker
+dev:
+    docker compose -f infra/docker-compose.yml up --build
+
+migrate:
+    cd backend && uv run alembic upgrade head
+
+api:
+    cd backend && uv run uvicorn dictably.main:app --reload --port 8000
+
+worker:
+    cd backend && uv run arq dictably.worker.settings.WorkerSettings
+
 e2e:
     cd web && pnpm e2e
 
