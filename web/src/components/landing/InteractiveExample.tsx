@@ -26,13 +26,14 @@ export function InteractiveExample({ copy, compact = false }: Props) {
   const groups = copy.locale === "uk" ? demoMinutesUk : demoMinutesEn;
   const initial = lines[1] ?? lines[0];
   const pct = initial ? (initial.seconds / 840) * 100 : 0;
-  /** Hero: minutes only (lighter LCP). Full section: both panels. */
   const showTranscript = !compact;
+  const hint = compact ? copy.example.hintCompact : copy.example.hint;
 
   return (
     <div
       className={`demo ${compact ? "demo--compact" : ""}`}
       data-demo
+      data-demo-compact={compact ? "true" : undefined}
       data-duration="840"
     >
       <div className="demo__player">
@@ -113,7 +114,7 @@ export function InteractiveExample({ copy, compact = false }: Props) {
         ) : null}
       </div>
 
-      <p className="demo__hint">{copy.example.hint}</p>
+      <p className="demo__hint">{hint}</p>
     </div>
   );
 }

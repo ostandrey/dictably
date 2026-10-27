@@ -23,8 +23,7 @@
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --dur: 160ms;
 
-  /* T-000a: Onest only (Lighthouse). Serif/mono restore in T-004. */
-  --font-serif: var(--font-onest), Onest, Georgia, serif;
+  --font-serif: var(--font-source-serif), "Source Serif 4", Georgia, serif;
   --font-sans: var(--font-onest), Onest, system-ui, sans-serif;
   --font-mono: ui-monospace, "Cascadia Code", monospace;
 

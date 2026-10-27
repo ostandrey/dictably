@@ -84,11 +84,24 @@ a {
   font-size: var(--text-sm);
   font-weight: 550;
   line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
   transition:
     background var(--dur) var(--ease),
     color var(--dur) var(--ease),
     border-color var(--dur) var(--ease);
+}
+
+.hero__cta .btn-primary {
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+@media (max-width: 379px) {
+  .hero__cta .btn-primary {
+    font-size: 0.875rem;
+    padding-inline: 0.85rem;
+  }
 }
 
 .btn-primary {
@@ -217,8 +230,7 @@ a {
 
 .hero__title {
   margin: 0;
-  /* Sans for LCP — Onest is the preloaded UI font; serif stays on transcript/body */
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
   font-size: clamp(2rem, 5vw, 3.25rem);
   font-weight: 600;
   line-height: 1.12;

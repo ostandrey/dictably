@@ -43,9 +43,8 @@ export const site = {
     process.env.NEXT_PUBLIC_CONTROLLER_NAME,
     "[CONTROLLER — set NEXT_PUBLIC_CONTROLLER_NAME]",
   ),
-  privacyUpdated:
-    process.env.NEXT_PUBLIC_PRIVACY_UPDATED?.trim() ||
-    new Date().toISOString().slice(0, 10),
+  /** Bump manually when privacy copy changes (F3). */
+  privacyUpdated: "2026-10-27",
   tally: {
     en: envOrPlaceholder(
       "NEXT_PUBLIC_TALLY_FORM_EN",

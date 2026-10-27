@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import path from "node:path";
 
-const ROOT = path.join("e2e", "__screenshots__", "T-000a");
+const ROOT = path.join("e2e", "__screenshots__", "T-000a.1");
 
 export const VIEWPORTS = [
   { name: "375", width: 375, height: 812 },

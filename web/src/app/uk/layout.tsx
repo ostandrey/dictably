@@ -1,9 +1,17 @@
 import type { Metadata } from "next";
-import { Onest } from "next/font/google";
+import { Onest, Source_Serif_4 } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { DocumentBody } from "@/components/layout/DocumentBody";
 import { site } from "@/lib/site";
+
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "600"],
+  variable: "--font-source-serif",
+  display: "swap",
+  adjustFontFallback: true,
+});
 
 const onest = Onest({
   subsets: ["latin", "cyrillic"],
@@ -35,7 +43,10 @@ export default async function UkRootLayout({
   setRequestLocale("uk");
   const messages = await getMessages();
   return (
-    <DocumentBody lang="uk" className={onest.variable}>
+    <DocumentBody
+      lang="uk"
+      className={`${sourceSerif.variable} ${onest.variable}`}
+    >
       <NextIntlClientProvider messages={messages}>
         {children}
       </NextIntlClientProvider>

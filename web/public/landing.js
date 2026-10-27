@@ -88,7 +88,8 @@
     const timeEl = demo.querySelector(".demo__time");
     const transcript = demo.querySelector(".demo__transcript");
     if (playhead) {
-      playhead.style.left = Math.min(100, Math.max(0, (seconds / duration) * 100)) + "%";
+      playhead.style.left =
+        Math.min(100, Math.max(0, (seconds / duration) * 100)) + "%";
     }
     if (timeEl) timeEl.textContent = formatTime(seconds);
     demo.querySelectorAll(".demo__line.is-active").forEach((el) => {
@@ -103,6 +104,15 @@
     }
   }
 
+  function seekFromCompact(seconds) {
+    const section = document.getElementById("example");
+    const full = section && section.querySelector("[data-demo]");
+    if (!full) return;
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Seek after scroll starts so the active line is visible
+    window.setTimeout(() => seek(full, seconds), 320);
+  }
+
   document.addEventListener("click", (e) => {
     const tallyBtn = e.target.closest("[data-cta='tally']");
     if (tallyBtn) {
@@ -114,7 +124,12 @@
     if (seekBtn) {
       const demo = seekBtn.closest("[data-demo]");
       if (!demo) return;
-      seek(demo, Number(seekBtn.getAttribute("data-seek")));
+      const seconds = Number(seekBtn.getAttribute("data-seek"));
+      if (demo.getAttribute("data-demo-compact") === "true") {
+        seekFromCompact(seconds);
+        return;
+      }
+      seek(demo, seconds);
     }
   });
 })();

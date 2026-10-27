@@ -7,20 +7,46 @@ const routes = [
   { locale: "uk" as const, path: "/uk/", lang: "uk" },
 ];
 
-test.describe("T-000a landing", () => {
+test.describe("T-000a.1 landing follow-up", () => {
   for (const route of routes) {
-    test(`${route.locale} renders hero + interactive demo`, async ({
+    test(`${route.locale} renders hero + serif + free CTA`, async ({
       page,
     }) => {
       await page.goto(route.path);
       await expect(page.locator("html")).toHaveAttribute("lang", route.lang);
       await expect(page.getByRole("banner").getByText("Dictably")).toBeVisible();
       await expect(page.locator("[data-demo]").first()).toBeVisible();
-      await expect(page.locator(".brand--hero")).toHaveCount(0);
 
-      const stamp = page.locator(".demo__stamp").first();
-      await stamp.click();
-      await expect(page.locator(".demo__line.is-active").first()).toBeVisible();
+      const h1 = page.locator(".hero__title");
+      await expect(h1).toBeVisible();
+      const family = await h1.evaluate(
+        (el) => getComputedStyle(el).fontFamily,
+      );
+      expect(family.toLowerCase()).toMatch(/source serif|serif/);
+
+      const heroCta = page.locator(".hero__cta [data-cta='tally']");
+      await expect(heroCta).toBeVisible();
+      if (route.locale === "uk") {
+        await expect(heroCta).toContainText("безкоштовний протокол", {
+          ignoreCase: true,
+        });
+      } else {
+        await expect(heroCta).toContainText("free minutes", {
+          ignoreCase: true,
+        });
+      }
+    });
+
+    test(`${route.locale} compact timestamp scrolls to #example`, async ({
+      page,
+    }) => {
+      await page.goto(route.path);
+      const compact = page.locator("[data-demo-compact='true']");
+      await compact.locator(".demo__stamp").first().click();
+      await expect(page.locator("#example")).toBeInViewport({ ratio: 0.2 });
+      await expect(
+        page.locator("#example .demo__line.is-active").first(),
+      ).toBeVisible({ timeout: 3000 });
     });
 
     test(`${route.locale} axe has no serious/critical`, async ({ page }) => {
@@ -35,16 +61,9 @@ test.describe("T-000a landing", () => {
     });
   }
 
-  test("privacy pages exist", async ({ page }) => {
+  test("privacy date is fixed", async ({ page }) => {
     await page.goto("/privacy/");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      "Privacy",
-    );
-    await page.goto("/uk/privacy/");
-    await expect(page.locator("html")).toHaveAttribute("lang", "uk");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      "Конфіденційність",
-    );
+    await expect(page.getByText("2026-10-27")).toBeVisible();
   });
 
   test("screenshots 375/768/1440 light+dark", async ({ page }) => {

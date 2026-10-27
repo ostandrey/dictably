@@ -8,15 +8,15 @@
     "example": "Example",
     "pricing": "Pricing",
     "faq": "FAQ",
-    "cta": "Get early access",
-    "ctaShort": "Early access"
+    "cta": "Get free minutes",
+    "ctaShort": "Free minutes"
   },
   "hero": {
     "h1": "Meeting minutes you can click to hear.",
-    "sub": "Upload any call or meeting recording. Get a speaker-separated transcript and the minutes that matter — agreements and tasks for each side, every point linked to the exact second it was said.",
-    "cta": "Get early access",
-    "secondary": "See a real example ↓",
-    "under": "No bot joins your call. Any language. Recordings auto-delete after 30 days."
+    "sub": "Upload a call or meeting recording. Get the transcript and the minutes — what each side agreed to, linked to the exact second.",
+    "cta": "Get free minutes",
+    "secondary": "See an example ↓",
+    "under": "We'll process one of your real recordings for free. No bot in your call. Any language."
   },
   "problem": {
     "line1": "After a 40-minute call, someone spends an hour writing the minutes.",
@@ -36,6 +36,7 @@
     "title": "Example from a real meeting",
     "subtitle": "A call between a ministry and a support team — the minutes in seconds.",
     "hint": "Click a timestamp → the transcript jumps there.",
+    "hintCompact": "Click a timestamp to hear it in the full example ↓",
     "transcriptLabel": "Transcript",
     "minutesLabel": "Minutes"
   },
@@ -80,7 +81,7 @@
   },
   "final": {
     "h2": "Stop rewriting meetings. Start sending minutes.",
-    "cta": "Get early access",
+    "cta": "Get free minutes",
     "under": "Free minutes from one of your real recordings."
   },
   "footer": {
