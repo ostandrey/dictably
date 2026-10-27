@@ -7,7 +7,8 @@ import { site } from "@/lib/site";
 
 const sourceSerif = Source_Serif_4({
   subsets: ["latin", "cyrillic"],
-  weight: ["400", "600"],
+  // One weight keeps UK mobile LH ≥ 95 (cyrillic 400+600 was tipping LCP)
+  weight: ["600"],
   variable: "--font-source-serif",
   display: "swap",
   adjustFontFallback: true,

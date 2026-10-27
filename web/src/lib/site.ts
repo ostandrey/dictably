@@ -45,6 +45,8 @@ export const site = {
   ),
   /** Bump manually when privacy copy changes (F3). */
   privacyUpdated: "2026-10-27",
+  /** Hero signature autoplay (T-000a.2). Flip to false to disable without code edits. */
+  heroAutoplay: true,
   tally: {
     en: envOrPlaceholder(
       "NEXT_PUBLIC_TALLY_FORM_EN",

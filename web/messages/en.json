@@ -36,7 +36,6 @@
     "title": "Example from a real meeting",
     "subtitle": "A call between a ministry and a support team — the minutes in seconds.",
     "hint": "Click a timestamp → the transcript jumps there.",
-    "hintCompact": "Click a timestamp to hear it in the full example ↓",
     "transcriptLabel": "Transcript",
     "minutesLabel": "Minutes"
   },

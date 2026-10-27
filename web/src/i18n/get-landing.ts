@@ -46,7 +46,6 @@ export async function getLandingCopy(locale: string): Promise<LandingCopy> {
       title: t("example.title"),
       subtitle: t("example.subtitle"),
       hint: t("example.hint"),
-      hintCompact: t("example.hintCompact"),
       transcriptLabel: t("example.transcriptLabel"),
       minutesLabel: t("example.minutesLabel"),
     },

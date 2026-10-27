@@ -58,7 +58,6 @@ export type LandingCopy = {
     title: string;
     subtitle: string;
     hint: string;
-    hintCompact: string;
     transcriptLabel: string;
     minutesLabel: string;
   };

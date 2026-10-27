@@ -53,12 +53,12 @@ export function LandingPage({ copy }: Props) {
             </div>
             <p className="hero__under">{copy.hero.under}</p>
           </div>
-          <div className="hero__demo">
-            <InteractiveExample copy={copy} compact />
+          <div className="hero__demo" data-hero-demo>
+            <InteractiveExample copy={copy} variant="hero" />
           </div>
         </section>
 
-        <section className="problem shell" aria-label="Problem">
+        <section className="problem shell" aria-label="Problem" data-reveal>
           {copy.problem.lines.map((line) => (
             <p key={line} className="problem__line">
               {line}
@@ -66,8 +66,9 @@ export function LandingPage({ copy }: Props) {
           ))}
         </section>
 
-        <section id="how" className="section shell">
+        <section id="how" className="section shell" data-reveal>
           <h2 className="section__title">{copy.how.title}</h2>
+          <div className="section__rule" aria-hidden="true" />
           <ol className="steps">
             {copy.how.steps.map((step, i) => (
               <li key={step.title} className="steps__item">
@@ -83,14 +84,16 @@ export function LandingPage({ copy }: Props) {
           </ol>
         </section>
 
-        <section id="example" className="section section--example shell">
+        <section id="example" className="section section--example shell" data-reveal>
           <h2 className="section__title">{copy.example.title}</h2>
+          <div className="section__rule" aria-hidden="true" />
           <p className="section__sub">{copy.example.subtitle}</p>
-          <InteractiveExample copy={copy} />
+          <InteractiveExample copy={copy} variant="full" />
         </section>
 
-        <section id="why" className="section shell">
+        <section id="why" className="section shell" data-reveal>
           <h2 className="section__title">{copy.why.title}</h2>
+          <div className="section__rule" aria-hidden="true" />
           <ul className="why">
             {copy.why.items.map((item) => (
               <li key={item.title} className="why__item">
@@ -101,11 +104,12 @@ export function LandingPage({ copy }: Props) {
           </ul>
         </section>
 
-        <section id="pricing" className="section shell">
+        <section id="pricing" className="section shell" data-reveal>
           <div className="section__head">
             <h2 className="section__title">{copy.pricing.title}</h2>
             <span className="badge">{copy.pricing.planned}</span>
           </div>
+          <div className="section__rule" aria-hidden="true" />
           <ul className="pricing">
             <li className="pricing__item">
               <h3 className="pricing__title">{copy.pricing.proTitle}</h3>
@@ -129,8 +133,9 @@ export function LandingPage({ copy }: Props) {
           </ul>
         </section>
 
-        <section id="faq" className="section shell">
+        <section id="faq" className="section shell" data-reveal>
           <h2 className="section__title">{copy.faq.title}</h2>
+          <div className="section__rule" aria-hidden="true" />
           <div className="faq">
             {copy.faq.items.map((item) => (
               <details key={item.q} className="faq__item">
@@ -141,20 +146,26 @@ export function LandingPage({ copy }: Props) {
           </div>
         </section>
 
-        <section className="final shell">
+        <section className="final shell" data-final-cta>
           <h2 className="final__title">{copy.final.h2}</h2>
           <TallyButton locale={locale} label={copy.final.cta} />
           <p className="final__under">{copy.final.under}</p>
         </section>
       </main>
 
-      <footer className="site-footer shell">
+      <footer className="site-footer shell" data-site-footer>
         <span>{copy.footer.rights}</span>
         <div className="site-footer__links">
           <a href={copy.nav.privacyHref}>{copy.footer.privacy}</a>
           <a href={`mailto:${site.contactEmail}`}>{copy.footer.contact}</a>
         </div>
       </footer>
+
+      <div className="sticky-cta" data-sticky-cta aria-hidden="true">
+        <div className="sticky-cta__inner">
+          <TallyButton locale={locale} label={copy.hero.cta} />
+        </div>
+      </div>
     </>
   );
 }
