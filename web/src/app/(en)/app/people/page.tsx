@@ -25,9 +25,11 @@ export default async function PeoplePage() {
       logoutLabel={t("app.logout")}
       brandName={site.name}
       nav="people"
+      adminHref="/admin/"
       navRecordings={t("app.navRecordings")}
       navPeople={t("app.navPeople")}
       navSettings={t("app.navSettings")}
+      navAdmin={t("app.navAdmin")}
     >
       <p className="dy-muted" data-people="soon">
         {t("app.peopleSoon")}

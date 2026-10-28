@@ -73,7 +73,10 @@ class User(Base, TimestampMixin):
 
 class Session(Base, TimestampMixin):
     __tablename__ = "sessions"
-    __table_args__ = (Index("ix_sessions_token_hash", "token_hash", unique=True),)
+    __table_args__ = (
+        Index("ix_sessions_token_hash", "token_hash", unique=True),
+        Index("ix_sessions_user_id", "user_id"),
+    )
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=new_uuid)
     token_hash: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -89,10 +92,11 @@ class Session(Base, TimestampMixin):
 
 class Media(Base, TimestampMixin):
     __tablename__ = "media"
+    __table_args__ = (Index("ix_media_user_id_created_at", "user_id", text("created_at DESC")),)
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=new_uuid)
     user_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     filename: Mapped[str] = mapped_column(String(512), nullable=False)
     mime: Mapped[str | None] = mapped_column(String(128))
@@ -153,10 +157,13 @@ class Analysis(Base, TimestampMixin):
     """LLM minutes for a recording (ARCHITECTURE §6). Latest by created_at wins."""
 
     __tablename__ = "analyses"
+    __table_args__ = (
+        Index("ix_analyses_media_id_created_at", "media_id", text("created_at DESC")),
+    )
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=new_uuid)
     media_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("media.id", ondelete="CASCADE"), nullable=False, index=True
+        PGUUID(as_uuid=True), ForeignKey("media.id", ondelete="CASCADE"), nullable=False
     )
     template: Mapped[str] = mapped_column(String(64), default="default", nullable=False)
     provider: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -173,6 +180,7 @@ class Analysis(Base, TimestampMixin):
 
 class Job(Base, TimestampMixin):
     __tablename__ = "jobs"
+    __table_args__ = (Index("ix_jobs_status_created_at", "status", text("created_at DESC")),)
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=new_uuid)
     media_id: Mapped[UUID | None] = mapped_column(
@@ -187,6 +195,24 @@ class Job(Base, TimestampMixin):
     )
 
     media: Mapped[Media | None] = relationship(back_populates="jobs")
+
+
+class AuditLog(Base, TimestampMixin):
+    """Append-only admin/user action log (ARCHITECTURE §6)."""
+
+    __tablename__ = "audit_log"
+    __table_args__ = (
+        Index("ix_audit_log_created_at", "created_at"),
+        Index("ix_audit_log_user_id", "user_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=new_uuid)
+    user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    action: Mapped[str] = mapped_column(String(64), nullable=False)
+    target: Mapped[str | None] = mapped_column(String(256))
+    ip: Mapped[str | None] = mapped_column(String(64))
 
 
 class CreditLedger(Base, TimestampMixin):

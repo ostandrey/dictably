@@ -16,8 +16,24 @@ type MediaList = { items: MediaItem[] };
 type Transcript = components["schemas"]["TranscriptOut"];
 type Speaker = components["schemas"]["SpeakerOut"];
 type Analysis = components["schemas"]["AnalysisOut"];
+type AdminUser = components["schemas"]["AdminUserOut"];
+type AdminMedia = components["schemas"]["AdminMediaOut"];
+type AdminJob = components["schemas"]["AdminJobOut"];
+type AdminCosts = components["schemas"]["AdminCostsOut"];
 
-export type { AuthConfig, User, MediaItem, MediaList, Transcript, Speaker, Analysis };
+export type {
+  AuthConfig,
+  User,
+  MediaItem,
+  MediaList,
+  Transcript,
+  Speaker,
+  Analysis,
+  AdminUser,
+  AdminMedia,
+  AdminJob,
+  AdminCosts,
+};
 
 export class ApiError extends Error {
   constructor(
@@ -142,6 +158,51 @@ export function regenerateAnalysis(id: string): Promise<Analysis> {
 /** Cookie-authenticated audio URL for &lt;audio src&gt;. */
 export function mediaAudioUrl(id: string): string {
   return `/api/media/${id}/audio`;
+}
+
+export async function adminListUsers(): Promise<{ items: AdminUser[] }> {
+  const data = await apiFetch<{ items?: AdminUser[] }>("/api/admin/users");
+  return { items: data.items ?? [] };
+}
+
+export async function adminListMedia(
+  status?: string,
+): Promise<{ items: AdminMedia[] }> {
+  const q = status ? `?status=${encodeURIComponent(status)}` : "";
+  const data = await apiFetch<{ items?: AdminMedia[] }>(`/api/admin/media${q}`);
+  return { items: data.items ?? [] };
+}
+
+export async function adminListJobs(
+  status?: string,
+): Promise<{ items: AdminJob[] }> {
+  const q = status ? `?status=${encodeURIComponent(status)}` : "";
+  const data = await apiFetch<{ items?: AdminJob[] }>(`/api/admin/jobs${q}`);
+  return { items: data.items ?? [] };
+}
+
+export function adminRetryJob(jobId: string): Promise<AdminJob> {
+  return apiFetch<AdminJob>(`/api/admin/jobs/${jobId}/retry`, {
+    method: "POST",
+  });
+}
+
+export function adminDeleteMedia(mediaId: string): Promise<void> {
+  return apiFetch<void>(`/api/admin/media/${mediaId}`, { method: "DELETE" });
+}
+
+export function adminGrantHours(
+  userId: string,
+  hours: number,
+): Promise<AdminUser> {
+  return apiFetch<AdminUser>(`/api/admin/users/${userId}/grant`, {
+    method: "POST",
+    body: JSON.stringify({ hours }),
+  });
+}
+
+export function adminCosts(period: "day" | "month" = "day"): Promise<AdminCosts> {
+  return apiFetch<AdminCosts>(`/api/admin/costs?period=${period}`);
 }
 
 type UploadOptions = {

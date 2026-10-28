@@ -25,9 +25,11 @@ export default async function AppSignInPage() {
       logoutLabel={t("app.logout")}
       brandName={site.name}
       nav="recordings"
+      adminHref="/admin/"
       navRecordings={t("app.navRecordings")}
       navPeople={t("app.navPeople")}
       navSettings={t("app.navSettings")}
+      navAdmin={t("app.navAdmin")}
     >
       <SignInPanel
         nextPath="/app/"

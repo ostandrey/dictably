@@ -128,3 +128,59 @@ class AnalysisOut(BaseModel):
     created_at: datetime
     regenerations_left: int = 0
     result: MinutesResultOut
+
+
+class AdminUserOut(BaseModel):
+    id: UUID
+    email: str
+    name: str | None
+    role: str
+    locale: str
+    created_at: datetime
+    balance_seconds: int = 0
+
+
+class AdminUserListOut(BaseModel):
+    items: list[AdminUserOut] = Field(default_factory=list)
+
+
+class AdminMediaOut(BaseModel):
+    id: UUID
+    user_id: UUID
+    owner_email: str
+    filename: str
+    status: str
+    duration_ms: int | None = None
+    error: str | None = None
+    created_at: datetime
+
+
+class AdminMediaListOut(BaseModel):
+    items: list[AdminMediaOut] = Field(default_factory=list)
+
+
+class AdminJobOut(BaseModel):
+    id: UUID
+    media_id: UUID | None
+    kind: str
+    status: str
+    attempts: int
+    last_error: str | None = None
+    created_at: datetime
+
+
+class AdminJobListOut(BaseModel):
+    items: list[AdminJobOut] = Field(default_factory=list)
+
+
+class AdminGrantIn(BaseModel):
+    hours: float = Field(gt=0, le=1000)
+
+
+class AdminCostsOut(BaseModel):
+    period: str
+    since: str
+    llm_usd: float = 0
+    gpu_usd: float = 0
+    api_usd: float = 0
+    total_usd: float = 0

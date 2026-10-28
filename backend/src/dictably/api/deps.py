@@ -30,6 +30,22 @@ async def require_user(
     return user
 
 
+async def require_admin(
+    user: Annotated[User, Depends(require_user)],
+) -> User:
+    """Admin-only. Non-admins get 404 (hide existence of admin surface)."""
+    if user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    return user
+
+
+async def require_admin_csrf(
+    user: Annotated[User, Depends(require_admin)],
+    _: Annotated[None, Depends(require_csrf)],
+) -> User:
+    return user
+
+
 async def require_user_csrf(
     user: Annotated[User, Depends(require_user)],
     _: Annotated[None, Depends(require_csrf)],

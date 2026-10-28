@@ -9,16 +9,18 @@ type Props = {
   backHref: string;
   backLabel: string;
   /** Active nav item for /app shell. */
-  nav?: "recordings" | "people" | "settings";
+  nav?: "recordings" | "people" | "settings" | "admin";
   /** Locale-prefixed recordings home (e.g. /app/ or /uk/app/). */
   recordingsHref?: string;
   settingsHref?: string;
   peopleHref?: string;
+  adminHref?: string;
   logoutLabel?: string;
   brandName?: string;
   navRecordings?: string;
   navPeople?: string;
   navSettings?: string;
+  navAdmin?: string;
   /** On settings page: show quota + account in main (mobile M1). */
   showAccountInMain?: boolean;
   children: ReactNode;
@@ -51,11 +53,13 @@ export function AppShell({
   recordingsHref = "/app/",
   settingsHref = "/app/settings/",
   peopleHref = "/app/people/",
+  adminHref = "/admin/",
   logoutLabel = "Sign out",
   brandName = "Dictably",
   navRecordings = "Recordings",
   navPeople = "People",
   navSettings = "Settings",
+  navAdmin = "Admin",
   showAccountInMain = false,
   children,
 }: Props) {
@@ -172,6 +176,16 @@ export function AppShell({
           >
             {navSettings}
           </a>
+          {user?.role === "admin" ? (
+            <a
+              href={adminHref}
+              className={nav === "admin" ? "is-active" : undefined}
+              aria-current={nav === "admin" ? "page" : undefined}
+              data-nav="admin"
+            >
+              {navAdmin}
+            </a>
+          ) : null}
         </nav>
 
         <div className="app-sidebar__foot" data-shell="sidebar-foot">
@@ -215,6 +229,16 @@ export function AppShell({
         >
           {navSettings}
         </a>
+        {user?.role === "admin" ? (
+          <a
+            href={adminHref}
+            className={nav === "admin" ? "is-active" : undefined}
+            aria-current={nav === "admin" ? "page" : undefined}
+            data-nav="admin"
+          >
+            {navAdmin}
+          </a>
+        ) : null}
       </nav>
     </div>
   );

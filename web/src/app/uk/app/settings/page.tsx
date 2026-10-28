@@ -25,9 +25,11 @@ export default async function UkSettingsPage() {
       logoutLabel={t("app.logout")}
       brandName={site.name}
       nav="settings"
+      adminHref="/uk/admin/"
       navRecordings={t("app.navRecordings")}
       navPeople={t("app.navPeople")}
       navSettings={t("app.navSettings")}
+      navAdmin={t("app.navAdmin")}
       showAccountInMain
     >
       <p className="dy-muted" data-settings="body">

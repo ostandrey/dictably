@@ -1,6 +1,13 @@
 /** Generated OpenAPI client surface — regenerate with `pnpm gen:api`. */
 export {
   ApiError,
+  adminCosts,
+  adminDeleteMedia,
+  adminGrantHours,
+  adminListJobs,
+  adminListMedia,
+  adminListUsers,
+  adminRetryJob,
   deleteMedia,
   devLogin,
   getAnalysis,
@@ -19,6 +26,10 @@ export {
   uploadMedia,
 } from "./client";
 export type {
+  AdminCosts,
+  AdminJob,
+  AdminMedia,
+  AdminUser,
   Analysis,
   AuthConfig,
   MediaItem,
