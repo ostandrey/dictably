@@ -8,7 +8,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/app/", "/uk/app/", "/admin/", "/uk/admin/", "/api/"],
+      // /app stays crawlable enough to see noindex (T-003 nit); block admin, lab, API.
+      disallow: ["/admin/", "/uk/admin/", "/lab/", "/api/"],
     },
     sitemap: `${site.url}/sitemap.xml`,
   };

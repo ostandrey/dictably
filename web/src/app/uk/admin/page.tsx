@@ -16,9 +16,10 @@ export default async function UkAdminPage() {
   return (
     <AppShell
       heading={t("app.adminH1")}
-      body={t("app.adminBody")}
       backHref={localePath("uk")}
       backLabel={t("app.back")}
-    />
+    >
+      <p className="app-shell__body">{t("app.adminBody")}</p>
+    </AppShell>
   );
 }

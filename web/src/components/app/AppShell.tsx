@@ -1,14 +1,15 @@
+import type { ReactNode } from "react";
 import { site } from "@/lib/site";
 
 type Props = {
   heading: string;
-  body: string;
   backHref: string;
   backLabel: string;
+  children: ReactNode;
 };
 
-/** Minimal shell for /app and /admin (auth arrives in T-011). */
-export function AppShell({ heading, body, backHref, backLabel }: Props) {
+/** Minimal shell for /app and /admin. */
+export function AppShell({ heading, backHref, backLabel, children }: Props) {
   return (
     <div className="app-shell">
       <header className="app-shell__header">
@@ -18,7 +19,7 @@ export function AppShell({ heading, body, backHref, backLabel }: Props) {
       </header>
       <main className="app-shell__main shell">
         <h1 className="app-shell__title">{heading}</h1>
-        <p className="app-shell__body">{body}</p>
+        {children}
         <p>
           <a href={backHref} className="btn-secondary">
             {backLabel}

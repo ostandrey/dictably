@@ -44,7 +44,7 @@ export const site = {
     "[CONTROLLER — set NEXT_PUBLIC_CONTROLLER_NAME]",
   ),
   /** Bump manually when privacy copy changes (F3). */
-  privacyUpdated: "2026-10-27",
+  privacyUpdated: "2026-10-28",
   /** Hero signature autoplay (T-000a.2). Flip to false to disable without code edits. */
   heroAutoplay: true,
   cloudflareBeacon: process.env.NEXT_PUBLIC_CF_BEACON?.trim() ?? "",

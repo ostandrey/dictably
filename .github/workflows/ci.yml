@@ -45,6 +45,33 @@ jobs:
     defaults:
       run:
         working-directory: web
+    # T-011 e2e: Playwright starts API via webServer; needs Postgres + Redis.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: dictably
+          POSTGRES_PASSWORD: dictably
+          POSTGRES_DB: dictably
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dictably -d dictably"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://dictably:dictably@127.0.0.1:5432/dictably
+      REDIS_URL: redis://127.0.0.1:6379/0
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -55,6 +82,17 @@ jobs:
           node-version: 22
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Sync backend (API for Playwright webServer)
+        working-directory: backend
+        run: |
+          uv sync --locked --group dev
+          uv run alembic upgrade head
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
@@ -67,6 +105,9 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
       - name: Playwright e2e
         run: pnpm exec playwright test
+        env:
+          DATABASE_URL: postgresql+asyncpg://dictably:dictably@127.0.0.1:5432/dictably
+          REDIS_URL: redis://127.0.0.1:6379/0
       - name: Lighthouse (CI perf ≥ 90; a11y/bp/seo ≥ 95)
         run: pnpm lh
         env:

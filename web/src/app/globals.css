@@ -1090,6 +1090,25 @@ a {
   font-weight: 600;
   margin: 0 0 calc(var(--space) * 4);
 }
+.sign-in__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--space) * 3);
+  margin: calc(var(--space) * 5) 0;
+}
+
+.sign-in__hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.sign-in__error {
+  margin: calc(var(--space) * 3) 0 0;
+  color: var(--accent-text);
+  font-size: var(--text-sm);
+}
+
 .app-shell__body {
   color: var(--muted);
   margin: 0 0 calc(var(--space) * 8);

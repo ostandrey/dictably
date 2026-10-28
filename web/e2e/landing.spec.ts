@@ -111,14 +111,14 @@ test.describe("T-000a.2 hero motion + sticky", () => {
     await page.goto("/privacy/");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByText("2026-10-27")).toBeVisible();
+    await expect(page.getByText("2026-10-28")).toBeVisible();
   });
 
   test("privacy UK page", async ({ page }) => {
     await page.goto("/uk/privacy/");
     await expect(page.locator("html")).toHaveAttribute("lang", "uk");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByText("2026-10-27")).toBeVisible();
+    await expect(page.getByText("2026-10-28")).toBeVisible();
   });
 
   test("screenshots 320/375/768/1440 light+dark (reduced-motion)", async ({

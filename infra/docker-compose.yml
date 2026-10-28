@@ -39,6 +39,10 @@ services:
       STORAGE_PROVIDER: local
       LOCAL_STORAGE_PATH: /data/storage
       ENV: dev
+      DEV_LOGIN: "1"
+      PUBLIC_APP_URL: http://127.0.0.1:3000
+      COOKIE_SECURE: "0"
+      TRUSTED_PROXY_HOPS: "1"
     volumes:
       - dictably_storage:/data/storage
     ports:

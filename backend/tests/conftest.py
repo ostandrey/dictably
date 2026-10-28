@@ -13,6 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 os.environ["ASR_PROVIDER"] = "fake"
 os.environ["LLM_PROVIDER"] = "fake"
 os.environ["ENV"] = "test"
+os.environ["DEV_LOGIN"] = "1"
+os.environ["PUBLIC_APP_URL"] = "http://test"
+os.environ["COOKIE_SECURE"] = "0"
 os.environ.setdefault(
     "DATABASE_URL",
     "postgresql+asyncpg://dictably:dictably@127.0.0.1:55432/dictably",
@@ -29,6 +32,8 @@ from alembic.config import Config
 from dictably.core.config import Settings, get_settings
 from dictably.db.session import get_db, reset_engine
 from dictably.main import create_app
+
+APP_ORIGIN = "http://test"
 
 
 def _alembic_upgrade(url: str) -> None:
@@ -48,6 +53,18 @@ def _alembic_upgrade(url: str) -> None:
         get_settings.cache_clear()
 
 
+async def _truncate(session: AsyncSession) -> None:
+    for table in (
+        "credit_ledger",
+        "jobs",
+        "media",
+        "sessions",
+        "users",
+    ):
+        await session.execute(text(f"TRUNCATE {table} CASCADE"))
+    await session.commit()
+
+
 @pytest.fixture(scope="session")
 def settings() -> Settings:
     get_settings.cache_clear()
@@ -62,15 +79,7 @@ async def db_session(settings: Settings) -> AsyncIterator[AsyncSession]:
     engine = create_async_engine(settings.test_database_url, pool_pre_ping=True)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with factory() as session:
-        for table in (
-            "credit_ledger",
-            "jobs",
-            "media",
-            "sessions",
-            "users",
-        ):
-            await session.execute(text(f"TRUNCATE {table} CASCADE"))
-        await session.commit()
+        await _truncate(session)
         yield session
         await session.rollback()
     await engine.dispose()
@@ -80,9 +89,13 @@ async def db_session(settings: Settings) -> AsyncIterator[AsyncSession]:
 @pytest_asyncio.fixture
 async def client(settings: Settings) -> AsyncIterator[AsyncClient]:
     await reset_engine()
+    get_settings.cache_clear()
     app = create_app()
     engine = create_async_engine(settings.test_database_url, pool_pre_ping=True)
     factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with factory() as warm:
+        await _truncate(warm)
 
     async def _override_db() -> AsyncIterator[AsyncSession]:
         async with factory() as session:
@@ -90,8 +103,13 @@ async def client(settings: Settings) -> AsyncIterator[AsyncClient]:
 
     app.dependency_overrides[get_db] = _override_db
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Origin": APP_ORIGIN},
+    ) as ac:
         yield ac
     app.dependency_overrides.clear()
     await engine.dispose()
     await reset_engine()
+    get_settings.cache_clear()
