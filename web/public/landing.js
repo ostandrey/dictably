@@ -66,36 +66,88 @@
     });
   }
 
+  function activeLineSelector() {
+    return ".dy-turn.is-playing, .demo__line.is-active";
+  }
+
+  function clearActiveLines(demo) {
+    demo.querySelectorAll(".dy-turn.is-playing").forEach((el) => {
+      el.classList.remove("is-playing");
+      const tc = el.querySelector(".dy-timecode");
+      if (tc) tc.classList.remove("is-active");
+    });
+    demo.querySelectorAll(".demo__line.is-active").forEach((el) => {
+      el.classList.remove("is-active");
+    });
+    demo.querySelectorAll(".dy-item.is-active").forEach((el) => {
+      el.classList.remove("is-active");
+      const tc = el.querySelector(".dy-timecode");
+      if (tc) tc.classList.remove("is-active");
+    });
+  }
+
+  function markActiveLine(line) {
+    if (!line) return;
+    if (line.classList.contains("dy-turn")) {
+      line.classList.add("is-playing");
+      const tc = line.querySelector(".dy-timecode");
+      if (tc) tc.classList.add("is-active");
+    } else {
+      line.classList.add("is-active");
+    }
+  }
+
   /** S3: playhead via transform translateX(px), no layout anim / reflow. */
   function setPlayhead(demo, seconds) {
     const wave = demo.querySelector("[data-demo-wave]");
     const playhead = demo.querySelector("[data-demo-playhead]");
+    const played = demo.querySelector("[data-demo-played]");
     const duration = Number(demo.getAttribute("data-duration") || "840");
     if (!wave || !playhead) return;
-    const w = wave.clientWidth || 0;
-    const x = Math.min(1, Math.max(0, seconds / duration)) * w;
+    const ratio = Math.min(1, Math.max(0, seconds / duration));
+    const track = wave.querySelector(".dy-wave__track") || wave;
+    const w = track.clientWidth || wave.clientWidth || 0;
+    const x = ratio * w;
     playhead.style.transform = "translateX(" + x + "px)";
+    if (played) played.style.width = ratio * 100 + "%";
   }
 
   function setTime(demo, seconds, announce) {
     const timeEl = demo.querySelector("[data-demo-time]");
     if (!timeEl) return;
     timeEl.setAttribute("aria-live", announce ? "polite" : "off");
-    timeEl.textContent = formatTime(seconds);
+    const formatted = formatTime(seconds);
+    const bold = timeEl.querySelector("b");
+    const total = timeEl.getAttribute("data-total");
+    if (bold) {
+      bold.textContent = formatted;
+    } else if (total) {
+      timeEl.innerHTML = "<b>" + formatted + "</b> / " + total;
+    } else {
+      timeEl.textContent = formatted;
+    }
   }
 
   function seek(demo, seconds, opts) {
     const options = opts || {};
     setPlayhead(demo, seconds);
     setTime(demo, seconds, Boolean(options.announce));
-    demo.querySelectorAll(".demo__line.is-active").forEach((el) => {
-      el.classList.remove("is-active");
-    });
+    clearActiveLines(demo);
     const line = nearestLine(demo, seconds);
     if (line) {
-      line.classList.add("is-active");
+      markActiveLine(line);
+      const item = demo.querySelector(
+        '.dy-item[data-seek="' + Math.floor(seconds) + '"], .dy-item[data-link-seconds="' + Math.floor(seconds) + '"]',
+      );
+      if (item) {
+        item.classList.add("is-active");
+        const tc = item.querySelector(".dy-timecode");
+        if (tc) tc.classList.add("is-active");
+      }
       if (!options.silentScroll) {
-        const transcript = demo.querySelector(".demo__transcript");
+        const transcript = demo.querySelector(
+          "[data-demo-transcript], .demo__transcript",
+        );
         if (transcript) {
           line.scrollIntoView({ block: "nearest", behavior: "smooth" });
         }
@@ -345,10 +397,8 @@
       });
       const line = nearestLine(demo, focus);
       if (line) {
-        demo.querySelectorAll(".demo__line.is-active").forEach((el) => {
-          el.classList.remove("is-active");
-        });
-        line.classList.add("is-active");
+        clearActiveLines(demo);
+        markActiveLine(line);
         lightWords(line, state.lineProgress);
       }
       if (state.reveal && !revealed.has(state.reveal)) {
@@ -385,13 +435,16 @@
 
     function syncPlayhead() {
       const timeEl = demo.querySelector("[data-demo-time]");
-      const text = (timeEl && timeEl.textContent) || "00:00";
+      const bold = timeEl && timeEl.querySelector("b");
+      const text = ((bold && bold.textContent) || (timeEl && timeEl.textContent) || "00:00")
+        .trim()
+        .split(/\s/)[0];
       const parts = text.split(":").map(Number);
       const seconds =
         (parts[0] || 0) * 60 + (parts[1] || 0) ||
         Number(
           (
-            demo.querySelector(".demo__line.is-active") ||
+            demo.querySelector(activeLineSelector()) ||
             demo.querySelector("[data-line-seconds]")
           )?.getAttribute("data-line-seconds"),
         ) ||
@@ -435,16 +488,20 @@
     demo.querySelectorAll("[data-link-seconds]").forEach((item) => {
       item.addEventListener("mouseenter", () => {
         const seconds = Number(item.getAttribute("data-link-seconds"));
-        demo.querySelectorAll(".demo__line.is-linked").forEach((el) => {
-          el.classList.remove("is-linked");
-        });
+        demo
+          .querySelectorAll(".demo__line.is-linked, .dy-turn.is-linked")
+          .forEach((el) => {
+            el.classList.remove("is-linked");
+          });
         const line = nearestLine(demo, seconds);
         if (line) line.classList.add("is-linked");
       });
       item.addEventListener("mouseleave", () => {
-        demo.querySelectorAll(".demo__line.is-linked").forEach((el) => {
-          el.classList.remove("is-linked");
-        });
+        demo
+          .querySelectorAll(".demo__line.is-linked, .dy-turn.is-linked")
+          .forEach((el) => {
+            el.classList.remove("is-linked");
+          });
       });
     });
   }
@@ -515,11 +572,11 @@
 
   function syncAllPlayheads() {
     document.querySelectorAll("[data-demo]").forEach((demo) => {
-      const active = demo.querySelector(".demo__line.is-active");
+      const active = demo.querySelector(activeLineSelector());
       const seconds = active
         ? Number(active.getAttribute("data-line-seconds"))
-        : Number(demo.getAttribute("data-duration")) * 0.23;
-      setPlayhead(demo, seconds || 192);
+        : Number(demo.getAttribute("data-duration")) * 0.08;
+      setPlayhead(demo, seconds || 195);
     });
   }
 

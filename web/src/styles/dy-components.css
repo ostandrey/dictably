@@ -72,7 +72,7 @@
 
 /* Transcript line */
 .dy-transcript { display: flex; flex-direction: column; gap: var(--space-6); max-width: 680px; }
-.dy-turn { display: grid; grid-template-columns: 1fr auto; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); margin: 0 calc(var(--space-3) * -1); border-radius: var(--radius-sm); transition: background var(--duration-base); }
+.dy-turn { display: grid; grid-template-columns: 1fr auto; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); margin: 0 calc(var(--space-3) * -1); border-radius: var(--radius-sm); transition: background var(--duration-base); border: 0; background: transparent; width: 100%; text-align: start; font: inherit; color: inherit; cursor: pointer; }
 .dy-turn__text { grid-column: 1 / -1; font: 400 17px/28px var(--font-sans); color: var(--ink); margin: 0; }
 .dy-turn__text + .dy-turn__text { margin-top: var(--space-2); }
 .dy-turn.is-playing { background: var(--accent-soft); }
@@ -83,11 +83,13 @@
 .dy-minutes { display: flex; flex-direction: column; gap: var(--space-8); max-width: 520px; }
 .dy-minutes__group { display: flex; flex-direction: column; gap: var(--space-2); }
 .dy-minutes__heading { display: flex; align-items: center; gap: var(--space-2); font: 600 16px/24px var(--font-sans); margin: 0 0 var(--space-1); }
-.dy-item { display: grid; grid-template-columns: 18px 1fr auto; align-items: start; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); margin: 0 calc(var(--space-3) * -1); border-radius: var(--radius-sm); cursor: pointer; transition: background var(--duration-fast); }
+.dy-item { display: grid; grid-template-columns: 18px 1fr auto; align-items: start; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); margin: 0 calc(var(--space-3) * -1); border: 0; border-radius: var(--radius-sm); background: transparent; width: 100%; font: inherit; color: inherit; cursor: pointer; transition: background var(--duration-fast); }
 .dy-item:hover, .dy-item.is-hover { background: var(--surface); }
 .dy-item.is-active { background: var(--accent-soft); }
-.dy-item__check { width: 16px; height: 16px; margin-top: 6px; border-radius: 4px; border: 1.5px solid var(--line-strong); }
-.dy-item__text { font: 400 17px/28px var(--font-sans); margin: 0; }
+.dy-item__check { width: 16px; height: 16px; margin-top: 6px; border-radius: 4px; border: 1.5px solid var(--line-strong); flex: none; }
+.dy-item__check.is-done { background: var(--success); border-color: var(--success); }
+.dy-item__text { font: 400 17px/28px var(--font-sans); margin: 0; text-align: start; }
+.dy-item__text.is-done { color: var(--ink-muted); text-decoration: line-through; }
 .dy-item__meta { grid-column: 2; display: flex; flex-wrap: wrap; gap: var(--space-3); font: 400 13px/20px var(--font-sans); color: var(--ink-muted); }
 
 /* Player */
@@ -96,8 +98,9 @@
 .dy-play .dy-icon { fill: currentColor; stroke: none; width: 16px; height: 16px; }
 .dy-play:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .dy-wave { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; cursor: pointer; }
-.dy-wave__head { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: var(--radius-full); background: var(--ink); pointer-events: none; }
-.dy-wave__head::before { content: ""; position: absolute; top: -4px; left: -4px; width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--ink); box-shadow: 0 0 0 2px var(--surface-raised); }
+.dy-wave__track { position: relative; height: 6px; border-radius: var(--radius-full); background: var(--line); }
+.dy-wave__played { position: absolute; inset: 0 auto 0 0; border-radius: var(--radius-full); background: var(--accent); pointer-events: none; }
+.dy-wave__head { position: absolute; top: -2px; left: 0; width: 10px; height: 10px; margin-left: -5px; border-radius: var(--radius-full); background: var(--ink); box-shadow: 0 0 0 2px var(--surface-raised); pointer-events: none; will-change: transform; }
 .dy-wave__hover { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--ink-muted); opacity: .5; pointer-events: none; }
 .dy-wave__bars { display: flex; align-items: center; gap: 2px; height: 32px; }
 .dy-wave__bar { flex: 1; min-width: 2px; border-radius: var(--radius-full); background: var(--line-strong); }

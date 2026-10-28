@@ -56,6 +56,9 @@ test.describe("T-012 upload + my recordings", () => {
   test("client blocks oversized file without posting", async ({ page }) => {
     await page.goto("/app/");
     await ensureSignedIn(page);
+    await expect(
+      page.locator("[data-recordings='empty'], [data-recordings='row']").first(),
+    ).toBeVisible();
 
     const before = await page.locator("[data-recordings='row']").count();
     await page.evaluate(() => {

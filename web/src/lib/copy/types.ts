@@ -31,16 +31,17 @@ export type LandingCopy = {
   };
   nav: {
     how: string;
-    example: string;
     pricing: string;
     faq: string;
     cta: string;
     ctaShort: string;
+    signIn: string;
     langSwitch: string;
     langHref: string;
     privacyHref: string;
   };
   hero: {
+    badge: string;
     h1: string;
     sub: string;
     cta: string;
@@ -48,7 +49,9 @@ export type LandingCopy = {
     under: string;
   };
   problem: {
+    lead: string;
     lines: string[];
+    proof: string;
   };
   how: {
     title: string;
@@ -62,17 +65,24 @@ export type LandingCopy = {
     minutesLabel: string;
   };
   why: {
-    title: string;
     items: { title: string; body: string }[];
   };
   pricing: {
     title: string;
-    planned: string;
-    proTitle: string;
-    proBody: string;
     packTitle: string;
+    packPrice: string;
+    packMeta: string;
     packBody: string;
+    packCta: string;
+    proTitle: string;
+    proPrice: string;
+    proMeta: string;
+    proBody: string;
+    proCta: string;
     foundingTitle: string;
+    foundingBadge: string;
+    foundingPrice: string;
+    foundingMeta: string;
     foundingBody: string;
     foundingCta: string;
   };

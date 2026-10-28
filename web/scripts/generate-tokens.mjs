@@ -96,6 +96,13 @@ shared.push(["--text-2xl", "var(--text-display-size)"]);
 shared.push(["--text-3xl", "var(--text-display-xl-size)"]);
 shared.push(["--dur", "var(--duration-base)"]);
 shared.push(["--space", "var(--space-1)"]);
+// Legacy speaker names used by InteractiveExample demo data
+shared.push(["--speaker-ochre", "var(--speaker-2)"]);
+shared.push(["--speaker-teal", "var(--speaker-1)"]);
+shared.push(["--speaker-plum", "var(--speaker-3)"]);
+shared.push(["--speaker-olive", "var(--speaker-6)"]);
+shared.push(["--speaker-slate", "var(--speaker-5)"]);
+shared.push(["--speaker-rust", "var(--speaker-4)"]);
 
 const header = `/* AUTO-GENERATED from docs/design/system/tokens.json — do not edit by hand.
  * Regenerate: pnpm tokens

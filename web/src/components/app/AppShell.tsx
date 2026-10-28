@@ -38,10 +38,10 @@ export function AppShell({
           >
             Recordings
           </a>
-          <span className="app-sidebar__soon" title="Coming later">
+          <span className="app-sidebar__soon" aria-hidden="true">
             People
           </span>
-          <span className="app-sidebar__soon" title="Coming later">
+          <span className="app-sidebar__soon" aria-hidden="true">
             Settings
           </span>
         </nav>

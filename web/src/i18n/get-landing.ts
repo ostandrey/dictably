@@ -15,16 +15,17 @@ export async function getLandingCopy(locale: string): Promise<LandingCopy> {
     },
     nav: {
       how: t("nav.how"),
-      example: t("nav.example"),
       pricing: t("nav.pricing"),
       faq: t("nav.faq"),
       cta: t("nav.cta"),
       ctaShort: t("nav.ctaShort"),
+      signIn: t("nav.signIn"),
       langSwitch: locale === "en" ? "Українська" : "English",
       langHref: locale === "en" ? localePath("uk") : localePath("en"),
       privacyHref: localePath(locale, "privacy"),
     },
     hero: {
+      badge: t("hero.badge"),
       h1: t("hero.h1"),
       sub: t("hero.sub"),
       cta: t("hero.cta"),
@@ -32,7 +33,9 @@ export async function getLandingCopy(locale: string): Promise<LandingCopy> {
       under: t("hero.under"),
     },
     problem: {
-      lines: [t("problem.line1"), t("problem.line2"), t("problem.line3")],
+      lead: t("problem.lead"),
+      lines: [t("problem.line1"), t("problem.line2")],
+      proof: t("problem.proof"),
     },
     how: {
       title: t("how.title"),
@@ -50,31 +53,34 @@ export async function getLandingCopy(locale: string): Promise<LandingCopy> {
       minutesLabel: t("example.minutesLabel"),
     },
     why: {
-      title: t("why.title"),
       items: [
         { title: t("why.item1Title"), body: t("why.item1Body") },
         { title: t("why.item2Title"), body: t("why.item2Body") },
         { title: t("why.item3Title"), body: t("why.item3Body") },
         { title: t("why.item4Title"), body: t("why.item4Body") },
-        { title: t("why.item5Title"), body: t("why.item5Body") },
       ],
     },
     pricing: {
       title: t("pricing.title"),
-      planned: t("pricing.planned"),
-      proTitle: t("pricing.proTitle", { price: money(pricing.pro.priceMonthly) }),
-      proBody: t("pricing.proBody", { hours: pricing.pro.hours }),
-      packTitle: t("pricing.packTitle", { price: money(pricing.pack.price) }),
+      packTitle: t("pricing.packTitle"),
+      packPrice: money(pricing.pack.price),
+      packMeta: t("pricing.packMeta", { hours: pricing.pack.hours }),
       packBody: t("pricing.packBody", {
-        hours: pricing.pack.hours,
         months: pricing.pack.validityMonths,
       }),
-      foundingTitle: t("pricing.foundingTitle", {
-        price: money(pricing.founding.priceMonthly),
-      }),
-      foundingBody: t("pricing.foundingBody", {
+      packCta: t("pricing.packCta"),
+      proTitle: t("pricing.proTitle"),
+      proPrice: money(pricing.pro.priceMonthly),
+      proMeta: t("pricing.proMeta"),
+      proBody: t("pricing.proBody", { hours: pricing.pro.hours }),
+      proCta: t("pricing.proCta"),
+      foundingTitle: t("pricing.foundingTitle"),
+      foundingBadge: t("pricing.foundingBadge", {
         seats: pricing.founding.seats,
       }),
+      foundingPrice: money(pricing.founding.priceMonthly),
+      foundingMeta: t("pricing.foundingMeta"),
+      foundingBody: t("pricing.foundingBody"),
       foundingCta: t("pricing.foundingCta"),
     },
     faq: {

@@ -109,6 +109,12 @@
   --text-3xl: var(--text-display-xl-size);
   --dur: var(--duration-base);
   --space: var(--space-1);
+  --speaker-ochre: var(--speaker-2);
+  --speaker-teal: var(--speaker-1);
+  --speaker-plum: var(--speaker-3);
+  --speaker-olive: var(--speaker-6);
+  --speaker-slate: var(--speaker-5);
+  --speaker-rust: var(--speaker-4);
   color-scheme: light;
 }
 
