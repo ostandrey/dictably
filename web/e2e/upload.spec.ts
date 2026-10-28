@@ -45,9 +45,12 @@ test.describe("T-012 upload + my recordings", () => {
 
     const file = uniqueFixture();
     await page.locator("[data-recordings='file']").setInputFiles(file);
-    await expect(
-      page.locator("[data-recordings='row']").filter({ hasText: file.name }),
-    ).toBeVisible({ timeout: 30_000 });
+    const row = page
+      .locator("[data-recordings='row']")
+      .filter({ hasText: file.name });
+    await expect(row).toBeVisible({ timeout: 30_000 });
+    // T-013/14: fake path reaches ready (inline process in ENV=test).
+    await expect(row).toContainText(/Ready|Готово/, { timeout: 30_000 });
   });
 
   test("client blocks oversized file without posting", async ({ page }) => {

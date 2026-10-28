@@ -19,6 +19,8 @@ from dictably.domain import media as media_domain
 from dictably.domain.media import HARD_REJECT_BYTES, ProbeResult
 from dictably.providers.storage.local import LocalStorageProvider
 
+# ProbeResult used by storage fixture soft-probe for post-upload processing.
+
 
 async def _login(client: AsyncClient, email: str = "owner@example.com") -> str:
     login = await client.post(
@@ -35,6 +37,11 @@ def storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> LocalStorageProv
     root.mkdir()
     store = LocalStorageProvider(root)
     monkeypatch.setattr("dictably.api.media.get_storage", lambda: store)
+    monkeypatch.setattr("dictably.domain.process.get_storage_provider", lambda _s=None: store)
+    monkeypatch.setattr(
+        "dictably.domain.process.probe_file",
+        lambda _p, **_k: ProbeResult(ok=True, duration_ms=12_000),
+    )
     return store
 
 
@@ -59,7 +66,7 @@ async def test_upload_list_get(
     assert up.status_code == 201, up.text
     body = up.json()
     assert body["filename"] == "standup.m4a"
-    assert body["status"] == "uploaded"
+    assert body["status"] == "ready"  # T-013/14 inline process in ENV=test
     assert body["size_bytes"] == len(b"fake-audio-bytes")
     assert body["duration_ms"] == 12_000
     media_id = body["id"]

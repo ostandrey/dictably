@@ -43,6 +43,24 @@ ALLOWED_EXTENSIONS = frozenset(
     }
 )
 
+# ffprobe format.format_name values we accept (T-013/14 B1). Multi-name
+# entries match ffprobe's combined labels; single tokens cover aliases.
+ALLOWED_FORMAT_NAMES = frozenset(
+    {
+        "mp3",
+        "mov,mp4,m4a,3gp,3g2,mj2",
+        "matroska,webm",
+        "wav",
+        "ogg",
+        "flac",
+        "aac",
+        "asf",
+    }
+)
+_ALLOWED_FORMAT_TOKENS = frozenset(
+    token for name in ALLOWED_FORMAT_NAMES for token in name.split(",") if token
+)
+
 _SAFE_NAME = re.compile(r"[^\w.\- ()\[\]]+", re.UNICODE)
 
 
@@ -51,9 +69,21 @@ class ProbeResult:
     ok: bool
     duration_ms: int | None = None
     error: str | None = None
+    format_name: str | None = None
 
 
 ProbeFn = Callable[[Path], ProbeResult]
+
+
+def format_name_allowed(format_name: str | None) -> bool:
+    """True if ffprobe format_name is on the media whitelist (B1)."""
+    if not format_name:
+        return False
+    name = format_name.strip().lower()
+    if name in ALLOWED_FORMAT_NAMES:
+        return True
+    tokens = {t.strip() for t in name.split(",") if t.strip()}
+    return bool(tokens) and tokens.issubset(_ALLOWED_FORMAT_TOKENS)
 
 
 def sanitize_filename(raw: str | None) -> str:
@@ -84,6 +114,8 @@ def probe_file(path: Path, *, soft_missing: bool = False) -> ProbeResult:
         completed = subprocess.run(
             [
                 "ffprobe",
+                "-protocol_whitelist",
+                "file",
                 "-v",
                 "error",
                 "-print_format",
@@ -119,8 +151,16 @@ def probe_file(path: Path, *, soft_missing: bool = False) -> ProbeResult:
     if not has_av:
         return ProbeResult(ok=False, error="not_media")
 
-    duration_ms: int | None = None
     fmt = payload.get("format") or {}
+    format_name = fmt.get("format_name")
+    if isinstance(format_name, str):
+        format_name = format_name.strip()
+    else:
+        format_name = None
+    if not format_name_allowed(format_name):
+        return ProbeResult(ok=False, error="not_media", format_name=format_name)
+
+    duration_ms: int | None = None
     raw_dur = fmt.get("duration")
     if raw_dur is not None:
         try:
@@ -138,7 +178,7 @@ def probe_file(path: Path, *, soft_missing: bool = False) -> ProbeResult:
             except (TypeError, ValueError):
                 continue
 
-    return ProbeResult(ok=True, duration_ms=duration_ms)
+    return ProbeResult(ok=True, duration_ms=duration_ms, format_name=format_name)
 
 
 def storage_key_for(user_id: UUID, media_id: UUID, ext: str) -> str:

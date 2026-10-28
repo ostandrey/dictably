@@ -158,6 +158,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/media/{media_id}/transcript": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Transcript */
+        get: operations["get_transcript_api_media__media_id__transcript_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -222,6 +239,37 @@ export interface components {
             created_at: string;
             /** Error */
             error?: string | null;
+        };
+        /** TranscriptOut */
+        TranscriptOut: {
+            /**
+             * Media Id
+             * Format: uuid
+             */
+            media_id: string;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model?: string | null;
+            /** Language */
+            language?: string | null;
+            /** Segments */
+            segments?: components["schemas"]["TranscriptSegmentOut"][];
+            /** Status */
+            status: string;
+        };
+        /** TranscriptSegmentOut */
+        TranscriptSegmentOut: {
+            /** Id */
+            id: string;
+            /** Speaker Id */
+            speaker_id?: string | null;
+            /** Start Ms */
+            start_ms: number;
+            /** End Ms */
+            end_ms: number;
+            /** Text */
+            text: string;
         };
         /** UserOut */
         UserOut: {
@@ -551,6 +599,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MediaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_transcript_api_media__media_id__transcript_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscriptOut"];
                 };
             };
             /** @description Validation Error */

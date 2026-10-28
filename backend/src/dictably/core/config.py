@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     # Dev login: only honored when ENV is dev or test (never prod).
     dev_login: bool = Field(default=False, alias="DEV_LOGIN")
+    # Run process_media in-process after upload (e2e / single-process local).
+    inline_media_process: bool = Field(default=False, alias="INLINE_MEDIA_PROCESS")
+    assemblyai_api_key: str = Field(default="", alias="ASSEMBLYAI_API_KEY")
+    asr_fallback: str = Field(default="assemblyai", alias="ASR_FALLBACK")
+    # MVP-0 trial budget per user (N2); PRODUCT later may use 60 min / file.
+    trial_seconds: int = Field(default=3 * 60 * 60, alias="TRIAL_SECONDS")
 
     session_ttl_days: int = Field(default=30, alias="SESSION_TTL_DAYS")
     cookie_secure: bool | None = Field(default=None, alias="COOKIE_SECURE")

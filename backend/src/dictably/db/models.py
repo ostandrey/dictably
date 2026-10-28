@@ -98,6 +98,44 @@ class Media(Base, TimestampMixin):
 
     user: Mapped[User] = relationship(back_populates="media")
     jobs: Mapped[list[Job]] = relationship(back_populates="media")
+    transcript: Mapped[Transcript | None] = relationship(back_populates="media")
+    speakers: Mapped[list[Speaker]] = relationship(back_populates="media")
+
+
+class Transcript(Base, TimestampMixin):
+    __tablename__ = "transcripts"
+
+    media_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("media.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    model: Mapped[str | None] = mapped_column(String(128))
+    language: Mapped[str | None] = mapped_column(String(16))
+    segments: Mapped[list[Any]] = mapped_column(
+        JSONB, nullable=False, insert_default=list, server_default="[]"
+    )
+    words: Mapped[list[Any]] = mapped_column(
+        JSONB, nullable=False, insert_default=list, server_default="[]"
+    )
+
+    media: Mapped[Media] = relationship(back_populates="transcript")
+
+
+class Speaker(Base, TimestampMixin):
+    __tablename__ = "speakers"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=new_uuid)
+    media_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("media.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    label: Mapped[str] = mapped_column(String(32), nullable=False)
+    display_name: Mapped[str | None] = mapped_column(String(200))
+    party: Mapped[str | None] = mapped_column(String(32))
+    color_idx: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    media: Mapped[Media] = relationship(back_populates="speakers")
 
 
 class Job(Base, TimestampMixin):

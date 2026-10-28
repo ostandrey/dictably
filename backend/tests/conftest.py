@@ -16,6 +16,7 @@ os.environ["ENV"] = "test"
 os.environ["DEV_LOGIN"] = "1"
 os.environ["PUBLIC_APP_URL"] = "http://test"
 os.environ["COOKIE_SECURE"] = "0"
+os.environ["AUTH_RATE_LIMIT_PER_MINUTE"] = "1000"
 os.environ.setdefault(
     "DATABASE_URL",
     "postgresql+asyncpg://dictably:dictably@127.0.0.1:55432/dictably",
@@ -57,6 +58,8 @@ async def _truncate(session: AsyncSession) -> None:
     for table in (
         "credit_ledger",
         "jobs",
+        "speakers",
+        "transcripts",
         "media",
         "sessions",
         "users",

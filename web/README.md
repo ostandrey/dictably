@@ -31,6 +31,8 @@ See `.env.example`. `scripts/check-env.mjs` fails the build unless these are set
 
 Optional: `NEXT_PUBLIC_CF_BEACON`.
 
+Design (T-004): `NEXT_PUBLIC_ACCENT=teal|tomato` (default `teal`), `NEXT_PUBLIC_THEME=light|dark|system` (default `light`). Tokens: `pnpm tokens` → `src/styles/tokens.css` from `docs/design/system/tokens.json`.
+
 Local/e2e: `DICTABLY_ALLOW_PLACEHOLDER_ENV=1` (via `build:local` / `dev`).
 
 ## Deploy

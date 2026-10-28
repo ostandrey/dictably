@@ -1,4 +1,6 @@
-@import "../styles/tokens.css";
+﻿@import "../styles/tokens.css";
+@import "../styles/dy-components.css";
+@import "../styles/app-shell.css";
 
 *,
 *::before,
@@ -29,17 +31,17 @@ html {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--paper);
+  background: var(--canvas);
   color: var(--ink);
   font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  line-height: 1.55;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
   -webkit-font-smoothing: antialiased;
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 a {
@@ -70,7 +72,7 @@ a {
   border: 0;
 }
 
-/* —— Buttons —— */
+/* вЂ”вЂ” Buttons вЂ”вЂ” */
 .btn-primary,
 .btn-secondary,
 .btn-text {
@@ -125,14 +127,15 @@ a {
 }
 
 .btn-primary {
-  border: 1px solid var(--accent-fill);
-  background: var(--accent-fill);
-  color: var(--accent-ink);
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: var(--on-accent);
   font-weight: 600;
+  border-radius: var(--radius-sm);
 }
 
 .btn-primary:hover {
-  filter: brightness(0.96);
+  background: var(--accent-hover);
 }
 
 .btn-primary:disabled {
@@ -141,14 +144,16 @@ a {
 }
 
 .btn-secondary {
-  border: 1px solid var(--rule);
-  background: transparent;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-raised);
   color: var(--ink);
   text-decoration: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-secondary:hover {
-  border-color: var(--ink);
+  background: var(--surface);
 }
 
 .btn-text {
@@ -159,13 +164,13 @@ a {
   padding-inline: 0.25rem;
 }
 
-/* —— Header —— */
+/* вЂ”вЂ” Header вЂ”вЂ” */
 .site-header {
   position: sticky;
   top: 0;
   z-index: 20;
-  border-bottom: 1px solid var(--rule);
-  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  background: var(--canvas);
 }
 
 .site-header__inner {
@@ -176,7 +181,7 @@ a {
 }
 
 .brand {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--text-lg);
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -241,21 +246,34 @@ a {
   }
 }
 
-/* —— Hero —— */
+/* вЂ”вЂ” Hero вЂ”вЂ” */
 .hero {
   display: grid;
   gap: 2.5rem;
-  padding: 2.5rem 0 3rem;
+  padding: 3.5rem 0 4rem;
+  margin: 0 calc(50% - 50vw);
+  padding-inline: max(1rem, calc(50vw - 560px));
+  width: 100vw;
+  box-sizing: border-box;
+  background: var(--accent-soft);
 }
 
 .hero__title {
   margin: 0;
-  font-family: var(--font-serif);
-  font-size: clamp(2rem, 5vw, 3.25rem);
-  font-weight: 600;
-  line-height: 1.12;
-  letter-spacing: -0.025em;
-  max-width: 16ch;
+  font-family: var(--font-sans);
+  font-size: var(--text-display-xl-size);
+  font-weight: var(--text-display-xl-weight);
+  line-height: var(--text-display-xl-line);
+  letter-spacing: var(--text-display-xl-tracking, -0.03em);
+  text-wrap: balance;
+  max-width: 18ch;
+}
+
+@media (max-width: 768px) {
+  .hero__title {
+    font-size: 40px;
+    line-height: 44px;
+  }
 }
 
 .hero__sub {
@@ -286,7 +304,7 @@ a {
   }
 }
 
-/* —— Problem —— */
+/* вЂ”вЂ” Problem вЂ”вЂ” */
 .problem {
   padding: 2.5rem 0 1rem;
   border-top: 1px solid var(--rule);
@@ -305,7 +323,7 @@ a {
   margin-bottom: 0;
 }
 
-/* —— Sections —— */
+/* вЂ”вЂ” Sections вЂ”вЂ” */
 .section {
   padding: 3.25rem 0;
   border-top: 1px solid var(--rule);
@@ -320,7 +338,7 @@ a {
 
 .section__title {
   margin: 0 0 0.65rem;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--text-xl);
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -366,7 +384,7 @@ a {
   padding: 0.15rem 0.4rem;
 }
 
-/* —— Steps —— */
+/* вЂ”вЂ” Steps вЂ”вЂ” */
 .steps {
   list-style: none;
   margin: 0;
@@ -397,7 +415,7 @@ a {
 
 .steps__title {
   margin: 0 0 0.35rem;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--text-lg);
   font-weight: 600;
 }
@@ -426,7 +444,7 @@ a {
   }
 }
 
-/* —— Why —— */
+/* вЂ”вЂ” Why вЂ”вЂ” */
 .why {
   list-style: none;
   margin: 0;
@@ -446,7 +464,7 @@ a {
 
 .why__title {
   margin: 0 0 0.3rem;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--text-base);
   font-weight: 600;
 }
@@ -457,7 +475,7 @@ a {
   max-width: 44rem;
 }
 
-/* —— Pricing —— */
+/* вЂ”вЂ” Pricing вЂ”вЂ” */
 .pricing {
   list-style: none;
   margin: 1.5rem 0 0;
@@ -480,7 +498,7 @@ a {
 
 .pricing__title {
   margin: 0 0 0.35rem;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--text-lg);
   font-weight: 600;
 }
@@ -509,7 +527,7 @@ a {
   }
 }
 
-/* —— FAQ —— */
+/* вЂ”вЂ” FAQ вЂ”вЂ” */
 .faq {
   display: grid;
   gap: 0;
@@ -554,7 +572,7 @@ a {
   color: var(--muted);
 }
 
-/* —— Final CTA —— */
+/* вЂ”вЂ” Final CTA вЂ”вЂ” */
 .final {
   padding: 3.5rem 0;
   border-top: 1px solid var(--rule);
@@ -564,7 +582,7 @@ a {
 .final__title {
   margin: 0 0 1.25rem;
   max-width: 16ch;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: clamp(1.75rem, 4vw, 2.5rem);
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -577,7 +595,7 @@ a {
   font-size: var(--text-xs);
 }
 
-/* —— Footer —— */
+/* вЂ”вЂ” Footer вЂ”вЂ” */
 .site-footer {
   display: flex;
   flex-wrap: wrap;
@@ -603,7 +621,7 @@ a {
   color: var(--ink);
 }
 
-/* —— Legal / privacy —— */
+/* вЂ”вЂ” Legal / privacy вЂ”вЂ” */
 .legal {
   padding: 2.5rem 0 3rem;
   max-width: 40rem;
@@ -625,7 +643,7 @@ a {
 
 .legal__title {
   margin: 0 0 0.75rem;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--text-xl);
   font-weight: 600;
 }
@@ -642,7 +660,7 @@ a {
 
 .legal__section h2 {
   margin: 0 0 0.5rem;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--text-base);
   font-weight: 600;
 }
@@ -657,7 +675,7 @@ a {
   margin-bottom: 0;
 }
 
-/* —— Interactive demo —— */
+/* вЂ”вЂ” Interactive demo вЂ”вЂ” */
 .demo {
   border: 1px solid var(--rule);
   border-radius: var(--radius-md);
@@ -807,7 +825,7 @@ a {
 
 .demo__group-title {
   margin: 0 0 0.4rem;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--text-sm);
   font-weight: 600;
 }
@@ -986,7 +1004,7 @@ a {
   font-size: var(--text-xs);
 }
 
-/* —— Mobile sticky CTA —— */
+/* вЂ”вЂ” Mobile sticky CTA вЂ”вЂ” */
 .sticky-cta {
   position: fixed;
   left: 0;
@@ -1085,7 +1103,7 @@ a {
   max-width: 40rem;
 }
 .app-shell__title {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--text-2xl);
   font-weight: 600;
   margin: 0 0 calc(var(--space) * 4);

@@ -8,7 +8,7 @@ from arq.worker import Worker
 
 from dictably.core.config import get_settings
 from dictably.worker.settings import redis_settings
-from dictably.worker.tasks import ping, smoke_providers
+from dictably.worker.tasks import ping, process_media, smoke_providers
 
 
 @pytest.mark.asyncio
@@ -22,7 +22,7 @@ async def test_ping_job_through_queue() -> None:
         assert job is not None
 
         worker = Worker(
-            functions=[ping, smoke_providers],
+            functions=[ping, smoke_providers, process_media],
             redis_settings=settings,
             max_jobs=1,
             keep_result=30,
@@ -44,7 +44,7 @@ async def test_smoke_providers_job() -> None:
         job = await redis.enqueue_job("smoke_providers")
         assert job is not None
         worker = Worker(
-            functions=[ping, smoke_providers],
+            functions=[ping, smoke_providers, process_media],
             redis_settings=settings,
             max_jobs=1,
             keep_result=30,

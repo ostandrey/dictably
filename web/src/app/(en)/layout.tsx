@@ -1,20 +1,13 @@
 import type { Metadata } from "next";
-import { Onest, Source_Serif_4 } from "next/font/google";
+import { Onest } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { DocumentBody } from "@/components/layout/DocumentBody";
 import { site } from "@/lib/site";
 
-const sourceSerif = Source_Serif_4({
-  subsets: ["latin"],
-  weight: ["600"],
-  variable: "--font-source-serif",
-  display: "swap",
-  adjustFontFallback: true,
-});
-
 const onest = Onest({
-  subsets: ["latin"],
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "500", "600"],
   variable: "--font-onest",
   display: "swap",
 });
@@ -43,10 +36,7 @@ export default async function EnRootLayout({
   setRequestLocale("en");
   const messages = await getMessages();
   return (
-    <DocumentBody
-      lang="en"
-      className={`${sourceSerif.variable} ${onest.variable}`}
-    >
+    <DocumentBody lang="en" className={onest.variable}>
       <NextIntlClientProvider messages={messages}>
         {children}
       </NextIntlClientProvider>

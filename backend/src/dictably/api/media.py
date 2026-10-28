@@ -8,11 +8,17 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dictably.api.deps import require_user, require_user_csrf
-from dictably.api.schemas import MediaListOut, MediaOut
+from dictably.api.schemas import (
+    MediaListOut,
+    MediaOut,
+    TranscriptOut,
+    TranscriptSegmentOut,
+)
 from dictably.core.config import Settings, get_settings
-from dictably.db.models import Media, User
+from dictably.db.models import Media, Transcript, User
 from dictably.db.session import get_db
 from dictably.domain import media as media_domain
+from dictably.domain import process as process_domain
 from dictably.providers.factory import get_storage_provider
 from dictably.providers.storage.base import StorageProvider
 
@@ -73,6 +79,37 @@ async def get_media(
     return _media_out(row)
 
 
+@router.get("/media/{media_id}/transcript", response_model=TranscriptOut)
+async def get_transcript(
+    media_id: UUID,
+    user: Annotated[User, Depends(require_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> TranscriptOut:
+    media = await media_domain.get_for_user(session, user.id, media_id)
+    row = await session.get(Transcript, media.id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    segments = [
+        TranscriptSegmentOut(
+            id=str(s.get("id") or ""),
+            speaker_id=s.get("speaker_id"),
+            start_ms=int(s.get("start_ms") or 0),
+            end_ms=int(s.get("end_ms") or 0),
+            text=str(s.get("text") or ""),
+        )
+        for s in (row.segments or [])
+        if isinstance(s, dict)
+    ]
+    return TranscriptOut(
+        media_id=media.id,
+        provider=row.provider,
+        model=row.model,
+        language=row.language,
+        segments=segments,
+        status=media.status,
+    )
+
+
 @router.post("/media", response_model=MediaOut, status_code=201)
 async def upload_media(
     _size_guard: Annotated[None, Depends(reject_huge_upload)],
@@ -91,4 +128,9 @@ async def upload_media(
         chunks=_file_chunks(file),
         soft_probe_missing=settings.is_test,
     )
-    return _media_out(row)
+    media_id = row.id
+    await process_domain.enqueue_or_run_process(session, media_id=media_id, settings=settings)
+    # Reload after inline processing (separate session in worker path).
+    session.expire_all()
+    refreshed = await session.get(Media, media_id)
+    return _media_out(refreshed or row)

@@ -1,50 +1,231 @@
-/* Dictably design tokens — starter set from DESIGN.md §3; refined in T-004 */
+/* AUTO-GENERATED from docs/design/system/tokens.json — do not edit by hand.
+ * Regenerate: pnpm tokens
+ */
+
 
 :root {
-  --paper: #f6f4ef;
-  --ink: #1b1a17;
-  --muted: #6b675f;
-  --rule: #e2ded5;
-  /* #E4472B fails WCAG AA as small text / white-on-fill; keep signal hue, darken for text & CTA */
-  --accent: #e4472b;
-  --accent-text: #b93820;
-  --accent-fill: #c53a22;
-  --accent-ink: #ffffff;
-  --speaker-ochre: #b8842a;
-  --speaker-teal: #2f6f6a;
-  --speaker-plum: #7a4e6e;
-  --speaker-olive: #5f6b3a;
-  --speaker-slate: #5a6570;
-  --speaker-rust: #a24f2f;
-
-  --radius-sm: 2px;
-  --radius-md: 4px;
-  --space: 4px;
-  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --dur: 160ms;
-
-  --font-serif: var(--font-source-serif), "Source Serif 4", Georgia, serif;
-  --font-sans: var(--font-onest), Onest, system-ui, sans-serif;
-  --font-mono: ui-monospace, "Cascadia Code", monospace;
-
-  --text-xs: 0.8125rem; /* 13 */
-  --text-sm: 0.9375rem; /* 15 */
-  --text-base: 1.0625rem; /* 17 */
-  --text-lg: 1.3125rem; /* 21 */
-  --text-xl: 1.75rem; /* 28 */
-  --text-2xl: 2.5rem; /* 40 */
-  --text-3xl: 3.5rem; /* 56 */
+  --canvas: #ffffff;
+  --surface: #f7f7f5;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f1f1ee;
+  --line: #e8e8e5;
+  --line-strong: #d2d2ce;
+  --ink: #1a1b1e;
+  --ink-muted: #5c5f66;
+  --ink-subtle: #71747b;
+  --accent: #0f7b6c;
+  --accent-hover: #0b6457;
+  --accent-soft: #e7f2f0;
+  --on-accent: #ffffff;
+  --evidence: #fff3bf;
+  --success: #17794a;
+  --success-soft: #e6f4ec;
+  --warning: #a35a00;
+  --warning-soft: #fdf1e1;
+  --danger: #c4302b;
+  --danger-soft: #fbeceb;
+  --on-danger: #ffffff;
+  --speaker-1: #3b6aa8;
+  --speaker-2: #c2700a;
+  --speaker-3: #7444c8;
+  --speaker-4: #c23a6a;
+  --speaker-5: #8d6a3a;
+  --speaker-6: #5f7410;
+  --shadow-sm: 0 1px 2px rgba(16,17,19,0.06);
+  --shadow-md: 0 1px 2px rgba(16,17,19,0.06), 0 6px 16px rgba(16,17,19,0.07);
+  --shadow-lg: 0 2px 4px rgba(16,17,19,0.06), 0 20px 40px rgba(16,17,19,0.14);
+  --focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px #0f7b6c;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --font-sans: var(--font-onest), "Onest", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ease: cubic-bezier(.2,.8,.2,1);
+  --text-display-xl-size: 56px;
+  --text-display-xl-line: 60px;
+  --text-display-xl-weight: 600;
+  --text-display-xl-tracking: -0.03em;
+  --text-display-size: 40px;
+  --text-display-line: 46px;
+  --text-display-weight: 600;
+  --text-display-tracking: -0.025em;
+  --text-title-size: 28px;
+  --text-title-line: 34px;
+  --text-title-weight: 600;
+  --text-title-tracking: -0.02em;
+  --text-heading-size: 20px;
+  --text-heading-line: 28px;
+  --text-heading-weight: 600;
+  --text-heading-tracking: -0.01em;
+  --text-subheading-size: 16px;
+  --text-subheading-line: 24px;
+  --text-subheading-weight: 600;
+  --text-reading-size: 17px;
+  --text-reading-line: 28px;
+  --text-reading-weight: 400;
+  --text-body-size: 15px;
+  --text-body-line: 24px;
+  --text-body-weight: 400;
+  --text-body-sm-size: 13px;
+  --text-body-sm-line: 20px;
+  --text-body-sm-weight: 400;
+  --text-label-size: 15px;
+  --text-label-line: 20px;
+  --text-label-weight: 500;
+  --text-caption-size: 12px;
+  --text-caption-line: 16px;
+  --text-caption-weight: 500;
+  --text-timecode-size: 13px;
+  --text-timecode-line: 20px;
+  --text-timecode-weight: 500;
+  --paper: var(--canvas);
+  --muted: var(--ink-muted);
+  --rule: var(--line);
+  --accent-fill: var(--accent);
+  --accent-text: var(--accent);
+  --accent-ink: var(--on-accent);
+  --font-serif: var(--font-sans);
+  --font-mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Menlo, Consolas, monospace;
+  --text-xs: var(--text-caption-size);
+  --text-sm: var(--text-body-size);
+  --text-base: var(--text-reading-size);
+  --text-lg: var(--text-heading-size);
+  --text-xl: var(--text-title-size);
+  --text-2xl: var(--text-display-size);
+  --text-3xl: var(--text-display-xl-size);
+  --dur: var(--duration-base);
+  --space: var(--space-1);
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #121211;
-    --ink: #eceae4;
-    --muted: #9a968d;
-    --rule: #2a2926;
-    --accent: #e4472b;
-    --accent-text: #f07860;
-    --accent-fill: #e4472b;
-    --accent-ink: #121211;
-  }
+:root[data-accent="tomato"] {
+  --canvas: #ffffff;
+  --surface: #f7f7f5;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f1f1ee;
+  --line: #e8e8e5;
+  --line-strong: #d2d2ce;
+  --ink: #1a1b1e;
+  --ink-muted: #5c5f66;
+  --ink-subtle: #71747b;
+  --accent: #b8401f;
+  --accent-hover: #9c3418;
+  --accent-soft: #f8ece9;
+  --on-accent: #ffffff;
+  --evidence: #fff3bf;
+  --success: #17794a;
+  --success-soft: #e6f4ec;
+  --warning: #a35a00;
+  --warning-soft: #fdf1e1;
+  --danger: #c4302b;
+  --danger-soft: #fbeceb;
+  --on-danger: #ffffff;
+  --speaker-1: #3b6aa8;
+  --speaker-2: #c2700a;
+  --speaker-3: #7444c8;
+  --speaker-4: #c23a6a;
+  --speaker-5: #8d6a3a;
+  --speaker-6: #5f7410;
+  --shadow-sm: 0 1px 2px rgba(16,17,19,0.06);
+  --shadow-md: 0 1px 2px rgba(16,17,19,0.06), 0 6px 16px rgba(16,17,19,0.07);
+  --shadow-lg: 0 2px 4px rgba(16,17,19,0.06), 0 20px 40px rgba(16,17,19,0.14);
+  --focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px #b8401f;
 }
+
+:root[data-theme="dark"] {
+  --canvas: #18191c;
+  --surface: #1f2024;
+  --surface-raised: #26272c;
+  --surface-sunken: #141518;
+  --line: #303137;
+  --line-strong: #45474e;
+  --ink: #ececef;
+  --ink-muted: #a3a6ad;
+  --ink-subtle: #8b8e96;
+  --accent: #4cc4ae;
+  --accent-hover: #6fd3c1;
+  --accent-soft: #14302b;
+  --on-accent: #0d1f1b;
+  --evidence: #4a4013;
+  --success: #4cc38a;
+  --success-soft: #173326;
+  --warning: #f0a64a;
+  --warning-soft: #3a2a12;
+  --danger: #ff7b72;
+  --danger-soft: #3d1d1c;
+  --on-danger: #2a0f0d;
+  --speaker-1: #8db8f0;
+  --speaker-2: #f0a54a;
+  --speaker-3: #b99bff;
+  --speaker-4: #ff8fb4;
+  --speaker-5: #d2a76a;
+  --speaker-6: #b9d35a;
+  --shadow-sm: 0 0 0 1px rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 0 0 1px rgba(255,255,255,0.06), 0 8px 20px rgba(0,0,0,0.3);
+  --shadow-lg: 0 0 0 1px rgba(255,255,255,0.07), 0 20px 40px rgba(0,0,0,0.4);
+  --focus-ring: 0 0 0 2px #18191c, 0 0 0 4px #4cc4ae;
+  color-scheme: dark;
+}
+
+:root[data-theme="dark"][data-accent="tomato"] {
+  --canvas: #18191c;
+  --surface: #1f2024;
+  --surface-raised: #26272c;
+  --surface-sunken: #141518;
+  --line: #303137;
+  --line-strong: #45474e;
+  --ink: #ececef;
+  --ink-muted: #a3a6ad;
+  --ink-subtle: #8b8e96;
+  --accent: #ff8a6b;
+  --accent-hover: #ffa48b;
+  --accent-soft: #3a1d16;
+  --on-accent: #2a0f08;
+  --evidence: #4a4013;
+  --success: #4cc38a;
+  --success-soft: #173326;
+  --warning: #f0a64a;
+  --warning-soft: #3a2a12;
+  --danger: #ff7b72;
+  --danger-soft: #3d1d1c;
+  --on-danger: #2a0f0d;
+  --speaker-1: #8db8f0;
+  --speaker-2: #f0a54a;
+  --speaker-3: #b99bff;
+  --speaker-4: #ff8fb4;
+  --speaker-5: #d2a76a;
+  --speaker-6: #b9d35a;
+  --shadow-sm: 0 0 0 1px rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 0 0 1px rgba(255,255,255,0.06), 0 8px 20px rgba(0,0,0,0.3);
+  --shadow-lg: 0 0 0 1px rgba(255,255,255,0.07), 0 20px 40px rgba(0,0,0,0.4);
+  --focus-ring: 0 0 0 2px #18191c, 0 0 0 4px #ff8a6b;
+  color-scheme: dark;
+}
+
+
+/* Type scale */
+.dy-type-display-xl { font: 600 56px/60px var(--font-sans); letter-spacing: -0.03em; }
+.dy-type-display { font: 600 40px/46px var(--font-sans); letter-spacing: -0.025em; }
+.dy-type-title { font: 600 28px/34px var(--font-sans); letter-spacing: -0.02em; }
+.dy-type-heading { font: 600 20px/28px var(--font-sans); letter-spacing: -0.01em; }
+.dy-type-subheading { font: 600 16px/24px var(--font-sans); }
+.dy-type-reading { font: 400 17px/28px var(--font-sans); }
+.dy-type-body { font: 400 15px/24px var(--font-sans); }
+.dy-type-body-sm { font: 400 13px/20px var(--font-sans); }
+.dy-type-label { font: 500 15px/20px var(--font-sans); }
+.dy-type-caption { font: 500 12px/16px var(--font-sans); }
+.dy-type-timecode { font: 500 13px/20px var(--font-sans); }

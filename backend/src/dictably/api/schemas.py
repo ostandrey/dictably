@@ -37,3 +37,20 @@ class MediaOut(BaseModel):
 
 class MediaListOut(BaseModel):
     items: list[MediaOut] = Field(default_factory=list)
+
+
+class TranscriptSegmentOut(BaseModel):
+    id: str
+    speaker_id: str | None = None
+    start_ms: int
+    end_ms: int
+    text: str
+
+
+class TranscriptOut(BaseModel):
+    media_id: UUID
+    provider: str
+    model: str | None = None
+    language: str | None = None
+    segments: list[TranscriptSegmentOut] = Field(default_factory=list)
+    status: str

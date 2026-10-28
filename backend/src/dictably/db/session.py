@@ -17,7 +17,9 @@ def get_engine(settings: Settings | None = None) -> AsyncEngine:
     global _engine, _session_factory
     if _engine is None:
         settings = settings or get_settings()
-        _engine = create_async_engine(settings.database_url, pool_pre_ping=True)
+        # Tests (ENV=test) always use the isolated test database.
+        url = settings.test_database_url if settings.is_test else settings.database_url
+        _engine = create_async_engine(url, pool_pre_ping=True)
         _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
     return _engine
 
