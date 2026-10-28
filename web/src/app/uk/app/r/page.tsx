@@ -20,9 +20,14 @@ export default async function UkRecordingPage() {
       backHref={localePath("uk")}
       backLabel={t("app.back")}
       recordingsHref="/uk/app/"
+      settingsHref="/uk/app/settings/"
+      peopleHref="/uk/app/people/"
       logoutLabel={t("app.logout")}
       brandName={site.name}
       nav="recordings"
+      navRecordings={t("app.navRecordings")}
+      navPeople={t("app.navPeople")}
+      navSettings={t("app.navSettings")}
     >
       <RecordingPageClient
         locale="uk"
@@ -40,7 +45,15 @@ export default async function UkRecordingPage() {
         matchCountLabel={t("app.matchCount")}
         transcriptTab={t("app.transcriptTab")}
         minutesTab={t("app.minutesTab")}
-        minutesStub={t("app.minutesStub")}
+        minutesEmpty={t("app.minutesEmpty")}
+        summaryLabel={t("app.minutesSummary")}
+        decisionsLabel={t("app.minutesDecisions")}
+        deadlinesLabel={t("app.minutesDeadlines")}
+        openQuestionsLabel={t("app.minutesOpenQuestions")}
+        agreedToLabel={t("app.minutesAgreedTo")}
+        regenerateLabel={t("app.minutesRegenerate")}
+        regeneratingLabel={t("app.minutesRegenerating")}
+        regenerateLimitLabel={t("app.minutesRegenLimit")}
       />
     </AppShell>
   );

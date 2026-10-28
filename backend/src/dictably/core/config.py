@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     inline_media_process: bool = Field(default=False, alias="INLINE_MEDIA_PROCESS")
     assemblyai_api_key: str = Field(default="", alias="ASSEMBLYAI_API_KEY")
     asr_fallback: str = Field(default="assemblyai", alias="ASR_FALLBACK")
+    anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
+    anthropic_model: str = Field(default="claude-haiku-5-5", alias="ANTHROPIC_MODEL")
     # MVP-0 trial budget per user (N2); PRODUCT later may use 60 min / file.
     trial_seconds: int = Field(default=3 * 60 * 60, alias="TRIAL_SECONDS")
 

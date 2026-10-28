@@ -19,7 +19,15 @@ type Props = {
   matchCountLabel: string;
   transcriptTab: string;
   minutesTab: string;
-  minutesStub: string;
+  minutesEmpty: string;
+  summaryLabel: string;
+  decisionsLabel: string;
+  deadlinesLabel: string;
+  openQuestionsLabel: string;
+  agreedToLabel: string;
+  regenerateLabel: string;
+  regeneratingLabel: string;
+  regenerateLimitLabel: string;
 };
 
 function subscribe() {
@@ -65,7 +73,15 @@ export function RecordingPageClient(props: Props) {
       matchCountLabel={props.matchCountLabel}
       transcriptTab={props.transcriptTab}
       minutesTab={props.minutesTab}
-      minutesStub={props.minutesStub}
+      minutesEmpty={props.minutesEmpty}
+      summaryLabel={props.summaryLabel}
+      decisionsLabel={props.decisionsLabel}
+      deadlinesLabel={props.deadlinesLabel}
+      openQuestionsLabel={props.openQuestionsLabel}
+      agreedToLabel={props.agreedToLabel}
+      regenerateLabel={props.regenerateLabel}
+      regeneratingLabel={props.regeneratingLabel}
+      regenerateLimitLabel={props.regenerateLimitLabel}
     />
   );
 }

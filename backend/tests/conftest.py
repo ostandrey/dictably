@@ -58,6 +58,7 @@ async def _truncate(session: AsyncSession) -> None:
     for table in (
         "credit_ledger",
         "jobs",
+        "analyses",
         "speakers",
         "transcripts",
         "media",

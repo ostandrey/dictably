@@ -2,6 +2,7 @@
 export {
   ApiError,
   devLogin,
+  getAnalysis,
   getAuthConfig,
   getHealth,
   getMe,
@@ -13,9 +14,11 @@ export {
   logout,
   mediaAudioUrl,
   patchSpeaker,
+  regenerateAnalysis,
   uploadMedia,
 } from "./client";
 export type {
+  Analysis,
   AuthConfig,
   MediaItem,
   MediaList,

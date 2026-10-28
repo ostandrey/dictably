@@ -15,8 +15,9 @@ type MediaItem = components["schemas"]["MediaOut"];
 type MediaList = { items: MediaItem[] };
 type Transcript = components["schemas"]["TranscriptOut"];
 type Speaker = components["schemas"]["SpeakerOut"];
+type Analysis = components["schemas"]["AnalysisOut"];
 
-export type { AuthConfig, User, MediaItem, MediaList, Transcript, Speaker };
+export type { AuthConfig, User, MediaItem, MediaList, Transcript, Speaker, Analysis };
 
 export class ApiError extends Error {
   constructor(
@@ -124,6 +125,14 @@ export function patchSpeaker(
 
 export function getPeaks(id: string): Promise<number[]> {
   return apiFetch<number[]>(`/api/media/${id}/peaks`);
+}
+
+export function getAnalysis(id: string): Promise<Analysis> {
+  return apiFetch<Analysis>(`/api/media/${id}/analysis`);
+}
+
+export function regenerateAnalysis(id: string): Promise<Analysis> {
+  return apiFetch<Analysis>(`/api/media/${id}/analysis`, { method: "POST" });
 }
 
 /** Cookie-authenticated audio URL for &lt;audio src&gt;. */

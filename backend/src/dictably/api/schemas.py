@@ -79,3 +79,52 @@ class TranscriptOut(BaseModel):
     words: list[TranscriptWordOut] = Field(default_factory=list)
     speakers: list[SpeakerOut] = Field(default_factory=list)
     status: str
+
+
+class MinutesPartyOut(BaseModel):
+    id: str
+    label: str
+
+
+class MinutesPointOut(BaseModel):
+    text: str
+    segment_ids: list[str] = Field(default_factory=list)
+    start_ms: int | None = None
+
+
+class MinutesAgreementOut(BaseModel):
+    party_id: str
+    text: str
+    segment_ids: list[str] = Field(default_factory=list)
+    start_ms: int | None = None
+
+
+class MinutesTaskOut(BaseModel):
+    party_id: str
+    text: str
+    segment_ids: list[str] = Field(default_factory=list)
+    owner_speaker: str | None = None
+    due_text: str | None = None
+    start_ms: int | None = None
+
+
+class MinutesResultOut(BaseModel):
+    language: str = "en"
+    title: str = "Minutes"
+    parties: list[MinutesPartyOut] = Field(default_factory=list)
+    summary: list[MinutesPointOut] = Field(default_factory=list)
+    decisions: list[MinutesPointOut] = Field(default_factory=list)
+    agreements: list[MinutesAgreementOut] = Field(default_factory=list)
+    tasks: list[MinutesTaskOut] = Field(default_factory=list)
+    deadlines_and_facts: list[MinutesPointOut] = Field(default_factory=list)
+    open_questions: list[MinutesPointOut] = Field(default_factory=list)
+
+
+class AnalysisOut(BaseModel):
+    id: UUID
+    media_id: UUID
+    provider: str
+    model: str | None = None
+    created_at: datetime
+    regenerations_left: int = 0
+    result: MinutesResultOut

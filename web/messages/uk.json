@@ -159,6 +159,23 @@
     "matchCount": "{current} з {total}",
     "transcriptTab": "Стенограма",
     "minutesTab": "Протокол",
-    "minutesStub": "Протокол з’явиться в наступному оновленні."
+    "minutesEmpty": "Протоколу ще немає.",
+    "minutesSummary": "Коротко",
+    "minutesDecisions": "Рішення",
+    "minutesAgreements": "Домовленості",
+    "minutesTasks": "Задачі",
+    "minutesAgreedTo": "{label} погодились",
+    "minutesDeadlines": "Строки й факти",
+    "minutesOpenQuestions": "Відкриті питання",
+    "minutesRegenerate": "Перегенерувати",
+    "minutesRegenerating": "Генеруємо…",
+    "minutesRegenLimit": "Ліміт перегенерацій вичерпано.",
+    "navRecordings": "Записи",
+    "navPeople": "Люди",
+    "navSettings": "Налаштування",
+    "peopleSoon": "Розділ «Люди» з’явиться пізніше.",
+    "settingsTitle": "Налаштування",
+    "settingsQuota": "Залишок хвилин",
+    "settingsAccount": "Акаунт"
   }
 }

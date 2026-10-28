@@ -4,6 +4,8 @@ from dictably.core.config import Settings, get_settings
 from dictably.providers.asr.assemblyai import AssemblyAIProvider
 from dictably.providers.asr.base import TranscriptionProvider
 from dictably.providers.asr.fake import FakeASRProvider
+from dictably.providers.llm.anthropic import AnthropicLLMProvider
+from dictably.providers.llm.base import MinutesProvider
 from dictably.providers.llm.fake import FakeLLMProvider
 from dictably.providers.storage.local import LocalStorageProvider
 
@@ -44,13 +46,17 @@ def get_asr_fallback(
         return None
 
 
-def get_llm_provider(settings: Settings | None = None) -> FakeLLMProvider:
+def get_llm_provider(settings: Settings | None = None) -> MinutesProvider:
     settings = settings or get_settings()
-    if settings.llm_provider != "fake":
-        raise ValueError(
-            f"LLM provider {settings.llm_provider!r} not wired yet; use LLM_PROVIDER=fake"
+    name = settings.llm_provider.lower().strip()
+    if name == "fake":
+        return FakeLLMProvider()
+    if name == "anthropic":
+        return AnthropicLLMProvider(
+            settings.anthropic_api_key,
+            model=settings.anthropic_model,
         )
-    return FakeLLMProvider()
+    raise ValueError(f"LLM provider {settings.llm_provider!r} not supported; use fake or anthropic")
 
 
 def get_storage_provider(settings: Settings | None = None) -> LocalStorageProvider:

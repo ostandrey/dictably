@@ -5,7 +5,17 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -100,6 +110,7 @@ class Media(Base, TimestampMixin):
     jobs: Mapped[list[Job]] = relationship(back_populates="media")
     transcript: Mapped[Transcript | None] = relationship(back_populates="media")
     speakers: Mapped[list[Speaker]] = relationship(back_populates="media")
+    analyses: Mapped[list[Analysis]] = relationship(back_populates="media")
 
 
 class Transcript(Base, TimestampMixin):
@@ -136,6 +147,28 @@ class Speaker(Base, TimestampMixin):
     color_idx: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     media: Mapped[Media] = relationship(back_populates="speakers")
+
+
+class Analysis(Base, TimestampMixin):
+    """LLM minutes for a recording (ARCHITECTURE §6). Latest by created_at wins."""
+
+    __tablename__ = "analyses"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=new_uuid)
+    media_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("media.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    template: Mapped[str] = mapped_column(String(64), default="default", nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    model: Mapped[str | None] = mapped_column(String(128))
+    result: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, insert_default=dict, server_default="{}"
+    )
+    tokens_in: Mapped[int | None] = mapped_column(Integer)
+    tokens_out: Mapped[int | None] = mapped_column(Integer)
+    cost_usd: Mapped[float | None] = mapped_column(Float)
+
+    media: Mapped[Media] = relationship(back_populates="analyses")
 
 
 class Job(Base, TimestampMixin):

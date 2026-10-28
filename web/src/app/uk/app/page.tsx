@@ -20,8 +20,14 @@ export default async function UkAppSignInPage() {
       backHref={localePath("uk")}
       backLabel={t("app.back")}
       recordingsHref="/uk/app/"
+      settingsHref="/uk/app/settings/"
+      peopleHref="/uk/app/people/"
       logoutLabel={t("app.logout")}
       brandName={site.name}
+      nav="recordings"
+      navRecordings={t("app.navRecordings")}
+      navPeople={t("app.navPeople")}
+      navSettings={t("app.navSettings")}
     >
       <SignInPanel
         nextPath="/uk/app/"

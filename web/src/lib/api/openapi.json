@@ -579,6 +579,154 @@
         }
       }
     },
+    "/api/media/{media_id}/analysis": {
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Get Analysis",
+        "operationId": "get_analysis_api_media__media_id__analysis_get",
+        "parameters": [
+          {
+            "name": "media_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Media Id"
+            }
+          },
+          {
+            "name": "dictably_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Regenerate Analysis",
+        "operationId": "regenerate_analysis_api_media__media_id__analysis_post",
+        "parameters": [
+          {
+            "name": "media_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Media Id"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "dictably_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Session"
+            }
+          },
+          {
+            "name": "dictably_csrf",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/media/{media_id}/speakers": {
       "get": {
         "tags": [
@@ -876,6 +1024,57 @@
   },
   "components": {
     "schemas": {
+      "AnalysisOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "media_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Media Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "regenerations_left": {
+            "type": "integer",
+            "title": "Regenerations Left",
+            "default": 0
+          },
+          "result": {
+            "$ref": "#/components/schemas/MinutesResultOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "media_id",
+          "provider",
+          "created_at",
+          "result"
+        ],
+        "title": "AnalysisOut"
+      },
       "AuthConfigOut": {
         "properties": {
           "google": {
@@ -1051,6 +1250,214 @@
           "created_at"
         ],
         "title": "MediaOut"
+      },
+      "MinutesAgreementOut": {
+        "properties": {
+          "party_id": {
+            "type": "string",
+            "title": "Party Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "segment_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Segment Ids"
+          },
+          "start_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "party_id",
+          "text"
+        ],
+        "title": "MinutesAgreementOut"
+      },
+      "MinutesPartyOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "MinutesPartyOut"
+      },
+      "MinutesPointOut": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "segment_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Segment Ids"
+          },
+          "start_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "MinutesPointOut"
+      },
+      "MinutesResultOut": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "default": "en"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "default": "Minutes"
+          },
+          "parties": {
+            "items": {
+              "$ref": "#/components/schemas/MinutesPartyOut"
+            },
+            "type": "array",
+            "title": "Parties"
+          },
+          "summary": {
+            "items": {
+              "$ref": "#/components/schemas/MinutesPointOut"
+            },
+            "type": "array",
+            "title": "Summary"
+          },
+          "decisions": {
+            "items": {
+              "$ref": "#/components/schemas/MinutesPointOut"
+            },
+            "type": "array",
+            "title": "Decisions"
+          },
+          "agreements": {
+            "items": {
+              "$ref": "#/components/schemas/MinutesAgreementOut"
+            },
+            "type": "array",
+            "title": "Agreements"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/MinutesTaskOut"
+            },
+            "type": "array",
+            "title": "Tasks"
+          },
+          "deadlines_and_facts": {
+            "items": {
+              "$ref": "#/components/schemas/MinutesPointOut"
+            },
+            "type": "array",
+            "title": "Deadlines And Facts"
+          },
+          "open_questions": {
+            "items": {
+              "$ref": "#/components/schemas/MinutesPointOut"
+            },
+            "type": "array",
+            "title": "Open Questions"
+          }
+        },
+        "type": "object",
+        "title": "MinutesResultOut"
+      },
+      "MinutesTaskOut": {
+        "properties": {
+          "party_id": {
+            "type": "string",
+            "title": "Party Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "segment_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Segment Ids"
+          },
+          "owner_speaker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Speaker"
+          },
+          "due_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Text"
+          },
+          "start_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "party_id",
+          "text"
+        ],
+        "title": "MinutesTaskOut"
       },
       "SpeakerOut": {
         "properties": {

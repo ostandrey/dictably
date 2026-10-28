@@ -159,6 +159,23 @@
     "matchCount": "{current} of {total}",
     "transcriptTab": "Transcript",
     "minutesTab": "Minutes",
-    "minutesStub": "Minutes arrive in the next update."
+    "minutesEmpty": "No minutes yet.",
+    "minutesSummary": "Summary",
+    "minutesDecisions": "Decisions",
+    "minutesAgreements": "Agreements",
+    "minutesTasks": "Tasks",
+    "minutesAgreedTo": "{label} agreed to",
+    "minutesDeadlines": "Deadlines & facts",
+    "minutesOpenQuestions": "Open questions",
+    "minutesRegenerate": "Regenerate",
+    "minutesRegenerating": "Regenerating…",
+    "minutesRegenLimit": "Regeneration limit reached.",
+    "navRecordings": "Recordings",
+    "navPeople": "People",
+    "navSettings": "Settings",
+    "peopleSoon": "People arrives in a later update.",
+    "settingsTitle": "Settings",
+    "settingsQuota": "Minutes left",
+    "settingsAccount": "Account"
   }
 }

@@ -23,6 +23,7 @@ import {
   type Transcript,
 } from "@/lib/api";
 import { Alert, Button } from "@/components/ui";
+import { MinutesPanel } from "./MinutesPanel";
 
 type Word = {
   text: string;
@@ -47,7 +48,15 @@ type Props = {
   matchCountLabel: string;
   transcriptTab: string;
   minutesTab: string;
-  minutesStub: string;
+  minutesEmpty: string;
+  summaryLabel: string;
+  decisionsLabel: string;
+  deadlinesLabel: string;
+  openQuestionsLabel: string;
+  agreedToLabel: string;
+  regenerateLabel: string;
+  regeneratingLabel: string;
+  regenerateLimitLabel: string;
 };
 
 function formatClock(seconds: number): string {
@@ -158,7 +167,15 @@ export function RecordingView({
   matchCountLabel,
   transcriptTab,
   minutesTab,
-  minutesStub,
+  minutesEmpty,
+  summaryLabel,
+  decisionsLabel,
+  deadlinesLabel,
+  openQuestionsLabel,
+  agreedToLabel,
+  regenerateLabel,
+  regeneratingLabel,
+  regenerateLimitLabel,
 }: Props) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -182,6 +199,7 @@ export function RecordingView({
   const [draftNames, setDraftNames] = useState<Record<string, string>>({});
   const [draftParty, setDraftParty] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [evidenceSegIds, setEvidenceSegIds] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     setError(null);
@@ -713,11 +731,12 @@ export function RecordingView({
                   const isMatch = matchIds.includes(seg.id);
                   const isCurrentMatch =
                     matchIds[matchIdx] === seg.id && matchIds.length > 0;
+                  const isEvidence = evidenceSegIds.includes(seg.id);
                   return (
                     <button
                       key={seg.id}
                       type="button"
-                      className={`dy-turn${active ? " is-playing" : ""}${isMatch ? " is-match" : ""}${isCurrentMatch ? " is-match-current" : ""}`}
+                      className={`dy-turn${active ? " is-playing" : ""}${isMatch ? " is-match" : ""}${isCurrentMatch ? " is-match-current" : ""}${isEvidence ? " is-evidence" : ""}`}
                       data-recording="segment"
                       data-seg-id={seg.id}
                       data-start-ms={seg.start_ms}
@@ -732,6 +751,7 @@ export function RecordingView({
                       ref={virtualizer.measureElement}
                       onClick={() => {
                         pauseFollow();
+                        setEvidenceSegIds([]);
                         seekTo(seg.start_ms);
                       }}
                     >
@@ -769,13 +789,40 @@ export function RecordingView({
           </div>
         </div>
 
-        <aside
+        <MinutesPanel
           className={`rec-page__minutes${mobileTab === "minutes" ? " is-open" : ""}`}
-          data-recording="minutes-stub"
-        >
-          <h2>{minutesTab}</h2>
-          <p className="dy-muted">{minutesStub}</p>
-        </aside>
+          mediaId={mediaId}
+          title={minutesTab}
+          emptyLabel={minutesEmpty}
+          summaryLabel={summaryLabel}
+          decisionsLabel={decisionsLabel}
+          deadlinesLabel={deadlinesLabel}
+          openQuestionsLabel={openQuestionsLabel}
+          agreedToLabel={agreedToLabel}
+          regenerateLabel={regenerateLabel}
+          regeneratingLabel={regeneratingLabel}
+          limitLabel={regenerateLimitLabel}
+          errorLabel={errorLabel}
+          speakerMeta={Object.fromEntries(
+            speakers.map((sp) => [
+              sp.label,
+              {
+                name: sp.display_name?.trim() || sp.label,
+                colorIdx: sp.color_idx,
+                party: sp.party ?? null,
+              },
+            ]),
+          )}
+          onSeek={(startMs, segmentIds) => {
+            setMobileTab("transcript");
+            setEvidenceSegIds(segmentIds);
+            setFollowPlayback(false);
+            followRef.current = false;
+            seekTo(startMs);
+            const index = segments.findIndex((s) => s.id === segmentIds[0]);
+            if (index >= 0) scrollToSegIndex(index, "smooth");
+          }}
+        />
       </section>
 
       {renameOpen ? (

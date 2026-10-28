@@ -8,4 +8,3 @@ class MinutesProvider(Protocol):
 
     async def analyze(self, *, transcript: dict[str, Any]) -> dict[str, Any]:
         """Return minutes JSON with segment_ids evidence."""
-        ...

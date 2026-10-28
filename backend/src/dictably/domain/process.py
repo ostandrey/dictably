@@ -22,6 +22,7 @@ from dictably.db.models import (
     Transcript,
 )
 from dictably.db.session import get_session_factory
+from dictably.domain import analysis as analysis_domain
 from dictably.domain import ledger as ledger_domain
 from dictably.domain.ffmpeg_media import FfmpegError, normalize_to_playback
 from dictably.domain.media import MAX_DURATION_MS, probe_file
@@ -318,6 +319,17 @@ async def _pipeline(
     media.language = transcript.get("language") or media.language
     await _store_transcript(session, media=media, transcript=transcript)
     await session.flush()
+
+    media.status = MediaStatus.analyzing
+    await session.commit()
+    tr_row = await session.get(Transcript, media.id)
+    if tr_row is not None:
+        try:
+            await analysis_domain.run_and_store(session, media=media, transcript=tr_row)
+            await session.flush()
+        except Exception as exc:  # noqa: BLE001 — minutes failure must not lose transcript
+            logger.exception("analyze failed for %s: %s", media.id, exc)
+            # Keep going to ready; UI can regenerate.
 
 
 async def _probe_async(path: Path, *, soft_missing: bool):

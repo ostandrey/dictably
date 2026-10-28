@@ -12,8 +12,15 @@ type Props = {
   nav?: "recordings" | "people" | "settings";
   /** Locale-prefixed recordings home (e.g. /app/ or /uk/app/). */
   recordingsHref?: string;
+  settingsHref?: string;
+  peopleHref?: string;
   logoutLabel?: string;
   brandName?: string;
+  navRecordings?: string;
+  navPeople?: string;
+  navSettings?: string;
+  /** On settings page: show quota + account in main (mobile M1). */
+  showAccountInMain?: boolean;
   children: ReactNode;
 };
 
@@ -35,15 +42,21 @@ function initials(user: User): string {
   return base.slice(0, 2).toUpperCase();
 }
 
-/** App chrome with sidebar (Recordings.dc.html + A1–A5). */
+/** App chrome with sidebar (Recordings.dc.html + A1–A5 + M1 mobile nav). */
 export function AppShell({
   heading,
   backHref,
   backLabel,
   nav = "recordings",
   recordingsHref = "/app/",
+  settingsHref = "/app/settings/",
+  peopleHref = "/app/people/",
   logoutLabel = "Sign out",
   brandName = "Dictably",
+  navRecordings = "Recordings",
+  navPeople = "People",
+  navSettings = "Settings",
+  showAccountInMain = false,
   children,
 }: Props) {
   const [user, setUser] = useState<User | null>(null);
@@ -76,9 +89,52 @@ export function AppShell({
   const balance = user?.balance_seconds ?? 0;
   const showQuota = Boolean(user) && balance > 0;
 
+  const accountBlock = user ? (
+    <div className="app-sidebar__account" data-auth="account">
+      <span className="app-sidebar__avatar" aria-hidden>
+        {initials(user)}
+      </span>
+      <span className="app-sidebar__who">
+        <span className="app-sidebar__name">
+          {user.name?.trim() || user.email.split("@")[0]}
+        </span>
+        <span className="app-sidebar__email">{user.email}</span>
+      </span>
+      <button
+        type="button"
+        className="btn-text app-sidebar__logout"
+        data-auth="logout"
+        onClick={() => void onLogout()}
+      >
+        {logoutLabel}
+      </button>
+    </div>
+  ) : (
+    <a href={backHref} className="app-sidebar__back">
+      {backLabel}
+    </a>
+  );
+
+  const quotaBlock = showQuota ? (
+    <div className="app-sidebar__quota" data-minutes>
+      <div className="app-sidebar__quota-row">
+        <span>Minutes</span>
+        <span className="dy-time dy-muted">{formatBalance(balance)}</span>
+      </div>
+      <div className="dy-progress" aria-hidden>
+        <div
+          className="dy-progress__fill"
+          style={{
+            width: `${Math.min(100, Math.round((balance / (20 * 3600)) * 100))}%`,
+          }}
+        />
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="app-frame">
-      <aside className="app-sidebar" aria-label="App">
+      <aside className="app-sidebar" aria-label="App" data-shell="sidebar">
         <a href={recordingsHref} className="app-sidebar__brand">
           <span className="app-sidebar__mark" aria-hidden>
             <span className="sp-1" />
@@ -87,73 +143,72 @@ export function AppShell({
           </span>
           {brandName}
         </a>
-        <nav className="app-sidebar__nav">
+        <nav className="app-sidebar__nav" data-shell="sidebar-nav">
           <a
             href={recordingsHref}
             className={nav === "recordings" ? "is-active" : undefined}
             aria-current={nav === "recordings" ? "page" : undefined}
           >
-            Recordings
+            {navRecordings}
           </a>
-          <span className="app-sidebar__soon" aria-hidden="true">
-            People
-          </span>
-          <span className="app-sidebar__soon" aria-hidden="true">
-            Settings
-          </span>
+          <a
+            href={peopleHref}
+            className={nav === "people" ? "is-active" : undefined}
+            aria-current={nav === "people" ? "page" : undefined}
+          >
+            {navPeople}
+          </a>
+          <a
+            href={settingsHref}
+            className={nav === "settings" ? "is-active" : undefined}
+            aria-current={nav === "settings" ? "page" : undefined}
+          >
+            {navSettings}
+          </a>
         </nav>
 
-        <div className="app-sidebar__foot">
-          {showQuota ? (
-            <div className="app-sidebar__quota" data-minutes>
-              <div className="app-sidebar__quota-row">
-                <span>Minutes</span>
-                <span className="dy-time dy-muted">{formatBalance(balance)}</span>
-              </div>
-              <div className="dy-progress" aria-hidden>
-                <div
-                  className="dy-progress__fill"
-                  style={{
-                    width: `${Math.min(100, Math.round((balance / (20 * 3600)) * 100))}%`,
-                  }}
-                />
-              </div>
-            </div>
-          ) : null}
-
-          {user ? (
-            <div className="app-sidebar__account" data-auth="account">
-              <span className="app-sidebar__avatar" aria-hidden>
-                {initials(user)}
-              </span>
-              <span className="app-sidebar__who">
-                <span className="app-sidebar__name">
-                  {user.name?.trim() || user.email.split("@")[0]}
-                </span>
-                <span className="app-sidebar__email">{user.email}</span>
-              </span>
-              <button
-                type="button"
-                className="btn-text app-sidebar__logout"
-                data-auth="logout"
-                onClick={() => void onLogout()}
-              >
-                {logoutLabel}
-              </button>
-            </div>
-          ) : (
-            <a href={backHref} className="app-sidebar__back">
-              {backLabel}
-            </a>
-          )}
+        <div className="app-sidebar__foot" data-shell="sidebar-foot">
+          {quotaBlock}
+          {accountBlock}
         </div>
       </aside>
+
       <main className="app-main">
         {heading ? (
           <h1 className="dy-type-title app-main__title">{heading}</h1>
         ) : null}
+        {showAccountInMain ? (
+          <div className="app-settings-mobile" data-shell="settings-main">
+            {quotaBlock}
+            {accountBlock}
+          </div>
+        ) : null}
         {children}
       </main>
+
+      <nav className="app-bottom-nav" aria-label="Primary" data-shell="bottom-nav">
+        <a
+          href={recordingsHref}
+          className={nav === "recordings" ? "is-active" : undefined}
+          aria-current={nav === "recordings" ? "page" : undefined}
+        >
+          {navRecordings}
+        </a>
+        <a
+          href={peopleHref}
+          className={nav === "people" ? "is-active" : undefined}
+          aria-current={nav === "people" ? "page" : undefined}
+        >
+          {navPeople}
+        </a>
+        <a
+          href={settingsHref}
+          className={nav === "settings" ? "is-active" : undefined}
+          aria-current={nav === "settings" ? "page" : undefined}
+        >
+          {navSettings}
+        </a>
+      </nav>
     </div>
   );
 }

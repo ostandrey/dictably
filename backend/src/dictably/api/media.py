@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dictably.api.deps import require_user, require_user_csrf
 from dictably.api.schemas import (
+    AnalysisOut,
     MediaListOut,
     MediaOut,
     SpeakerOut,
@@ -23,6 +24,7 @@ from dictably.api.schemas import (
 from dictably.core.config import Settings, get_settings
 from dictably.db.models import Media, Speaker, Transcript, User
 from dictably.db.session import get_db
+from dictably.domain import analysis as analysis_domain
 from dictably.domain import media as media_domain
 from dictably.domain import process as process_domain
 from dictably.domain import speakers as speakers_domain
@@ -151,6 +153,34 @@ async def get_transcript(
         speakers=[_speaker_out(s) for s in speaker_rows],
         status=media.status,
     )
+
+
+@router.get("/media/{media_id}/analysis", response_model=AnalysisOut)
+async def get_analysis(
+    media_id: UUID,
+    user: Annotated[User, Depends(require_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> AnalysisOut:
+    media = await media_domain.get_for_user(session, user.id, media_id)
+    row = await analysis_domain.get_latest(session, media.id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    payload = await analysis_domain.to_out_payload(session, row)
+    return AnalysisOut.model_validate(payload)
+
+
+@router.post("/media/{media_id}/analysis", response_model=AnalysisOut)
+async def regenerate_analysis(
+    media_id: UUID,
+    user: Annotated[User, Depends(require_user_csrf)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> AnalysisOut:
+    try:
+        row = await analysis_domain.regenerate_for_user(session, user_id=user.id, media_id=media_id)
+    except analysis_domain.AnalysisError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    payload = await analysis_domain.to_out_payload(session, row)
+    return AnalysisOut.model_validate(payload)
 
 
 @router.get("/media/{media_id}/speakers", response_model=list[SpeakerOut])

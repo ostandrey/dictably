@@ -175,6 +175,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/media/{media_id}/analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Analysis */
+        get: operations["get_analysis_api_media__media_id__analysis_get"];
+        put?: never;
+        /** Regenerate Analysis */
+        post: operations["regenerate_analysis_api_media__media_id__analysis_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/media/{media_id}/speakers": {
         parameters: {
             query?: never;
@@ -247,6 +265,34 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AnalysisOut */
+        AnalysisOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Media Id
+             * Format: uuid
+             */
+            media_id: string;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Regenerations Left
+             * @default 0
+             */
+            regenerations_left: number;
+            result: components["schemas"]["MinutesResultOut"];
+        };
         /** AuthConfigOut */
         AuthConfigOut: {
             /** Google */
@@ -314,6 +360,75 @@ export interface components {
              * @default 0
              */
             speaker_count: number;
+        };
+        /** MinutesAgreementOut */
+        MinutesAgreementOut: {
+            /** Party Id */
+            party_id: string;
+            /** Text */
+            text: string;
+            /** Segment Ids */
+            segment_ids?: string[];
+            /** Start Ms */
+            start_ms?: number | null;
+        };
+        /** MinutesPartyOut */
+        MinutesPartyOut: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+        };
+        /** MinutesPointOut */
+        MinutesPointOut: {
+            /** Text */
+            text: string;
+            /** Segment Ids */
+            segment_ids?: string[];
+            /** Start Ms */
+            start_ms?: number | null;
+        };
+        /** MinutesResultOut */
+        MinutesResultOut: {
+            /**
+             * Language
+             * @default en
+             */
+            language: string;
+            /**
+             * Title
+             * @default Minutes
+             */
+            title: string;
+            /** Parties */
+            parties?: components["schemas"]["MinutesPartyOut"][];
+            /** Summary */
+            summary?: components["schemas"]["MinutesPointOut"][];
+            /** Decisions */
+            decisions?: components["schemas"]["MinutesPointOut"][];
+            /** Agreements */
+            agreements?: components["schemas"]["MinutesAgreementOut"][];
+            /** Tasks */
+            tasks?: components["schemas"]["MinutesTaskOut"][];
+            /** Deadlines And Facts */
+            deadlines_and_facts?: components["schemas"]["MinutesPointOut"][];
+            /** Open Questions */
+            open_questions?: components["schemas"]["MinutesPointOut"][];
+        };
+        /** MinutesTaskOut */
+        MinutesTaskOut: {
+            /** Party Id */
+            party_id: string;
+            /** Text */
+            text: string;
+            /** Segment Ids */
+            segment_ids?: string[];
+            /** Owner Speaker */
+            owner_speaker?: string | null;
+            /** Due Text */
+            due_text?: string | null;
+            /** Start Ms */
+            start_ms?: number | null;
         };
         /** SpeakerOut */
         SpeakerOut: {
@@ -753,6 +868,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TranscriptOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_analysis_api_media__media_id__analysis_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    regenerate_analysis_api_media__media_id__analysis_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisOut"];
                 };
             };
             /** @description Validation Error */
