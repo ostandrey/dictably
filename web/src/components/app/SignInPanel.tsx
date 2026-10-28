@@ -6,7 +6,6 @@ import {
   devLogin,
   getAuthConfig,
   getMe,
-  logout,
   type AuthConfig,
   type User,
 } from "@/lib/api";
@@ -27,14 +26,12 @@ type AuthErrorCode = (typeof AUTH_ERROR_CODES)[number];
 
 type Props = {
   nextPath: "/app/" | "/uk/app/";
+  recordingBaseHref: string;
   signInHeading: string;
-  recordingsHeading: string;
   signedOutBody: string;
   googleLabel: string;
   googleUnavailable: string;
   devLabel: string;
-  signedInAs: string;
-  logoutLabel: string;
   loadingLabel: string;
   errorLabel: string;
   authErrors: Record<AuthErrorCode, string>;
@@ -90,14 +87,12 @@ function getServerSearchSnapshot() {
 
 export function SignInPanel({
   nextPath,
+  recordingBaseHref,
   signInHeading,
-  recordingsHeading,
   signedOutBody,
   googleLabel,
   googleUnavailable,
   devLabel,
-  signedInAs,
-  logoutLabel,
   loadingLabel,
   errorLabel,
   authErrors,
@@ -127,7 +122,6 @@ export function SignInPanel({
 
   const error = actionError ?? oauthError;
 
-  // Capture auth_error into external store, then strip URL (no React setState).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("auth_error");
@@ -179,21 +173,6 @@ export function SignInPanel({
     }
   }
 
-  async function onLogout() {
-    setBusy(true);
-    setActionError(null);
-    try {
-      await logout();
-      setUser(null);
-    } catch {
-      setActionError(errorLabel);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const heading = user ? recordingsHeading : signInHeading;
-
   if (busy && !user && !config && !oauthError) {
     return (
       <>
@@ -206,27 +185,15 @@ export function SignInPanel({
   if (user) {
     return (
       <div className="sign-in sign-in--home">
-        <h1 className="app-shell__title">{heading}</h1>
-        <p className="app-shell__body">
-          {signedInAs.replace("{email}", user.email)}
-        </p>
         {error ? (
           <p className="sign-in__error" role="alert">
             {error}
           </p>
         ) : null}
-        <p className="sign-in__actions">
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => void onLogout()}
-            disabled={busy}
-            data-auth="logout"
-          >
-            {logoutLabel}
-          </button>
-        </p>
-        <RecordingsPanel copy={recordings} />
+        <RecordingsPanel
+          copy={recordings}
+          recordingBaseHref={recordingBaseHref}
+        />
       </div>
     );
   }
@@ -235,7 +202,7 @@ export function SignInPanel({
 
   return (
     <div className="sign-in">
-      <h1 className="app-shell__title">{heading}</h1>
+      <h1 className="app-shell__title">{signInHeading}</h1>
       <p className="app-shell__body">{signedOutBody}</p>
       {error ? (
         <p className="sign-in__error" role="alert" data-auth="error">

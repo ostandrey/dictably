@@ -76,6 +76,11 @@
 .dy-turn__text { grid-column: 1 / -1; font: 400 17px/28px var(--font-sans); color: var(--ink); margin: 0; }
 .dy-turn__text + .dy-turn__text { margin-top: var(--space-2); }
 .dy-turn.is-playing { background: var(--accent-soft); }
+.dy-turn.is-match { background: var(--accent-soft); }
+.dy-turn.is-match-current { outline: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+.rec-word.is-now { text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.rec-hit { background: var(--accent-soft); border-radius: 2px; }
+.rec-word.rec-hit { background: var(--accent-soft); }
 .dy-mark:hover { box-shadow: 0 0 0 2px var(--evidence), inset 0 -2px 0 color-mix(in srgb, var(--ink) 30%, transparent); }
 .dy-mark { cursor: pointer; transition: box-shadow var(--duration-fast); background: var(--evidence); color: var(--ink); border-radius: var(--radius-xs); padding: 1px 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 
@@ -102,11 +107,12 @@
 .dy-wave__played { position: absolute; inset: 0 auto 0 0; border-radius: var(--radius-full); background: var(--accent); pointer-events: none; }
 .dy-wave__head { position: absolute; top: -2px; left: 0; width: 10px; height: 10px; margin-left: -5px; border-radius: var(--radius-full); background: var(--ink); box-shadow: 0 0 0 2px var(--surface-raised); pointer-events: none; will-change: transform; }
 .dy-wave__hover { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--ink-muted); opacity: .5; pointer-events: none; }
-.dy-wave__bars { display: flex; align-items: center; gap: 2px; height: 32px; }
-.dy-wave__bar { flex: 1; min-width: 2px; border-radius: var(--radius-full); background: var(--line-strong); }
+.dy-wave__bars { position: relative; display: flex; align-items: center; gap: 2px; height: 32px; overflow: hidden; }
+.dy-wave__bar { flex: none; width: 3px; border-radius: 1px; background: var(--line-strong); }
 .dy-wave__bar.is-played { background: var(--accent); }
-.dy-wave__lanes { display: flex; height: 4px; gap: 2px; }
-.dy-wave__lane { border-radius: var(--radius-full); }
+.dy-wave__playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--ink); pointer-events: none; }
+.dy-wave__lanes { position: relative; height: 4px; border-radius: 1px; background: var(--line); overflow: hidden; }
+.dy-wave__lane { position: absolute; top: 0; bottom: 0; border-radius: 1px; }
 .dy-player__time { font: 500 13px/20px var(--font-sans); font-variant-numeric: tabular-nums; color: var(--ink-muted); white-space: nowrap; }
 .dy-player__time b { color: var(--ink); font-weight: 500; }
 

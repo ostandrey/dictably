@@ -175,6 +175,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/media/{media_id}/speakers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Speakers */
+        get: operations["list_speakers_api_media__media_id__speakers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/{media_id}/speakers/{speaker_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Speaker */
+        patch: operations["patch_speaker_api_media__media_id__speakers__speaker_id__patch"];
+        trace?: never;
+    };
+    "/api/media/{media_id}/audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Audio */
+        get: operations["get_audio_api_media__media_id__audio_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/{media_id}/peaks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Peaks */
+        get: operations["get_peaks_api_media__media_id__peaks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -239,6 +307,39 @@ export interface components {
             created_at: string;
             /** Error */
             error?: string | null;
+            /** Language */
+            language?: string | null;
+            /**
+             * Speaker Count
+             * @default 0
+             */
+            speaker_count: number;
+        };
+        /** SpeakerOut */
+        SpeakerOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Display Name */
+            display_name?: string | null;
+            /** Party */
+            party?: string | null;
+            /**
+             * Color Idx
+             * @default 0
+             */
+            color_idx: number;
+        };
+        /** SpeakerPatchIn */
+        SpeakerPatchIn: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Party */
+            party?: string | null;
         };
         /** TranscriptOut */
         TranscriptOut: {
@@ -255,6 +356,10 @@ export interface components {
             language?: string | null;
             /** Segments */
             segments?: components["schemas"]["TranscriptSegmentOut"][];
+            /** Words */
+            words?: components["schemas"]["TranscriptWordOut"][];
+            /** Speakers */
+            speakers?: components["schemas"]["SpeakerOut"][];
             /** Status */
             status: string;
         };
@@ -271,6 +376,17 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** TranscriptWordOut */
+        TranscriptWordOut: {
+            /** Text */
+            text: string;
+            /** Start Ms */
+            start_ms: number;
+            /** End Ms */
+            end_ms: number;
+            /** Speaker Id */
+            speaker_id?: string | null;
+        };
         /** UserOut */
         UserOut: {
             /**
@@ -286,6 +402,11 @@ export interface components {
             locale: string;
             /** Role */
             role: string;
+            /**
+             * Balance Seconds
+             * @default 0
+             */
+            balance_seconds: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -632,6 +753,146 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TranscriptOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_speakers_api_media__media_id__speakers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpeakerOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_speaker_api_media__media_id__speakers__speaker_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                media_id: string;
+                speaker_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpeakerPatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpeakerOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_audio_api_media__media_id__audio_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_peaks_api_media__media_id__peaks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": number[];
                 };
             };
             /** @description Validation Error */

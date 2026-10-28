@@ -141,9 +141,24 @@
     "recordingsH1": "Recordings",
     "recordingsTitle": "My recordings",
     "recordingsEmpty": "No recordings yet.",
+    "searchRecordings": "Search recordings",
+    "uploadCta": "Upload recording",
+    "recordingTitle": "Recording · Dictably",
+    "recordingMissing": "Recording not found.",
+    "renameSpeakers": "Rename speakers",
+    "findInTranscript": "Find in transcript",
+    "partyOur": "Our side",
+    "partyTheir": "Their side",
+    "save": "Save",
+    "cancel": "Cancel",
     "statusUploaded": "Uploaded",
     "statusProcessing": "Processing",
     "statusReady": "Ready",
-    "statusFailed": "Failed"
+    "statusFailed": "Failed",
+    "backToNow": "Back to now",
+    "matchCount": "{current} of {total}",
+    "transcriptTab": "Transcript",
+    "minutesTab": "Minutes",
+    "minutesStub": "Minutes arrive in the next update."
   }
 }

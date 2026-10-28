@@ -13,8 +13,10 @@ type User =
   paths["/api/me"]["get"]["responses"]["200"]["content"]["application/json"];
 type MediaItem = components["schemas"]["MediaOut"];
 type MediaList = { items: MediaItem[] };
+type Transcript = components["schemas"]["TranscriptOut"];
+type Speaker = components["schemas"]["SpeakerOut"];
 
-export type { AuthConfig, User, MediaItem, MediaList };
+export type { AuthConfig, User, MediaItem, MediaList, Transcript, Speaker };
 
 export class ApiError extends Error {
   constructor(
@@ -99,6 +101,34 @@ export async function listMedia(): Promise<MediaList> {
 
 export function getMedia(id: string): Promise<MediaItem> {
   return apiFetch<MediaItem>(`/api/media/${id}`);
+}
+
+export function getTranscript(id: string): Promise<Transcript> {
+  return apiFetch<Transcript>(`/api/media/${id}/transcript`);
+}
+
+export function listSpeakers(id: string): Promise<Speaker[]> {
+  return apiFetch<Speaker[]>(`/api/media/${id}/speakers`);
+}
+
+export function patchSpeaker(
+  mediaId: string,
+  speakerId: string,
+  body: { display_name?: string | null; party?: string | null },
+): Promise<Speaker> {
+  return apiFetch<Speaker>(`/api/media/${mediaId}/speakers/${speakerId}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export function getPeaks(id: string): Promise<number[]> {
+  return apiFetch<number[]>(`/api/media/${id}/peaks`);
+}
+
+/** Cookie-authenticated audio URL for &lt;audio src&gt;. */
+export function mediaAudioUrl(id: string): string {
+  return `/api/media/${id}/audio`;
 }
 
 type UploadOptions = {

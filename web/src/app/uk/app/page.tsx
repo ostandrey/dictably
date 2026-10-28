@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { AppShell } from "@/components/app/AppShell";
 import { SignInPanel } from "@/components/app/SignInPanel";
 import { localePath } from "@/i18n/locales";
+import { site } from "@/lib/site";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations({ locale: "uk" });
@@ -15,17 +16,21 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function UkAppSignInPage() {
   const t = await getTranslations({ locale: "uk" });
   return (
-    <AppShell backHref={localePath("uk")} backLabel={t("app.back")}>
+    <AppShell
+      backHref={localePath("uk")}
+      backLabel={t("app.back")}
+      recordingsHref="/uk/app/"
+      logoutLabel={t("app.logout")}
+      brandName={site.name}
+    >
       <SignInPanel
         nextPath="/uk/app/"
+        recordingBaseHref="/uk/app/r/"
         signInHeading={t("app.h1")}
-        recordingsHeading={t("app.recordingsH1")}
         signedOutBody={t("app.body")}
         googleLabel={t("app.google")}
         googleUnavailable={t("app.googleUnavailable")}
         devLabel={t("app.devLogin")}
-        signedInAs={t("app.signedInAs")}
-        logoutLabel={t("app.logout")}
         loadingLabel={t("app.loading")}
         errorLabel={t("app.error")}
         authErrors={{
@@ -43,7 +48,8 @@ export default async function UkAppSignInPage() {
           uploading: t("app.uploadProgress"),
           cancel: t("app.uploadCancel"),
           empty: t("app.recordingsEmpty"),
-          listTitle: t("app.recordingsTitle"),
+          searchPlaceholder: t("app.searchRecordings"),
+          uploadCta: t("app.uploadCta"),
           tooLarge: t("app.uploadTooLarge"),
           error: t("app.error"),
           statusUploaded: t("app.statusUploaded"),

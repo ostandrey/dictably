@@ -1,24 +1,31 @@
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dictably.api.deps import require_user, require_user_csrf
 from dictably.api.schemas import (
     MediaListOut,
     MediaOut,
+    SpeakerOut,
+    SpeakerPatchIn,
     TranscriptOut,
     TranscriptSegmentOut,
+    TranscriptWordOut,
 )
 from dictably.core.config import Settings, get_settings
-from dictably.db.models import Media, Transcript, User
+from dictably.db.models import Media, Speaker, Transcript, User
 from dictably.db.session import get_db
 from dictably.domain import media as media_domain
 from dictably.domain import process as process_domain
+from dictably.domain import speakers as speakers_domain
 from dictably.providers.factory import get_storage_provider
 from dictably.providers.storage.base import StorageProvider
 
@@ -39,7 +46,18 @@ def reject_huge_upload(request: Request) -> None:
         )
 
 
-def _media_out(row: Media) -> MediaOut:
+def _speaker_out(row: Speaker) -> SpeakerOut:
+    return SpeakerOut(
+        id=row.id,
+        label=row.label,
+        display_name=row.display_name,
+        party=row.party,
+        color_idx=row.color_idx,
+    )
+
+
+async def _media_out(session: AsyncSession, row: Media) -> MediaOut:
+    count = await speakers_domain.count_for_media(session, row.id)
     return MediaOut(
         id=row.id,
         filename=row.filename,
@@ -49,6 +67,8 @@ def _media_out(row: Media) -> MediaOut:
         status=row.status,
         created_at=row.created_at,
         error=row.error,
+        language=row.language,
+        speaker_count=count,
     )
 
 
@@ -60,13 +80,23 @@ async def _file_chunks(upload: UploadFile) -> AsyncIterator[bytes]:
         yield chunk
 
 
+def _audio_key(media: Media) -> str | None:
+    keys = dict(media.storage_keys or {})
+    return keys.get("playback") or keys.get("original")
+
+
+def _peaks_key(media: Media) -> str | None:
+    return (media.storage_keys or {}).get("peaks")
+
+
 @router.get("/media", response_model=MediaListOut)
 async def list_media(
     user: Annotated[User, Depends(require_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> MediaListOut:
     rows = await media_domain.list_for_user(session, user.id)
-    return MediaListOut(items=[_media_out(r) for r in rows])
+    items = [await _media_out(session, r) for r in rows]
+    return MediaListOut(items=items)
 
 
 @router.get("/media/{media_id}", response_model=MediaOut)
@@ -76,7 +106,7 @@ async def get_media(
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> MediaOut:
     row = await media_domain.get_for_user(session, user.id, media_id)
-    return _media_out(row)
+    return await _media_out(session, row)
 
 
 @router.get("/media/{media_id}/transcript", response_model=TranscriptOut)
@@ -100,14 +130,111 @@ async def get_transcript(
         for s in (row.segments or [])
         if isinstance(s, dict)
     ]
+    words = [
+        TranscriptWordOut(
+            text=str(w.get("text") or ""),
+            start_ms=int(w.get("start_ms") or w.get("start") or 0),
+            end_ms=int(w.get("end_ms") or w.get("end") or 0),
+            speaker_id=w.get("speaker_id") or w.get("speaker"),
+        )
+        for w in (row.words or [])
+        if isinstance(w, dict)
+    ]
+    speaker_rows = await speakers_domain.list_for_media(session, media.id)
     return TranscriptOut(
         media_id=media.id,
         provider=row.provider,
         model=row.model,
-        language=row.language,
+        language=row.language or media.language,
         segments=segments,
+        words=words,
+        speakers=[_speaker_out(s) for s in speaker_rows],
         status=media.status,
     )
+
+
+@router.get("/media/{media_id}/speakers", response_model=list[SpeakerOut])
+async def list_speakers(
+    media_id: UUID,
+    user: Annotated[User, Depends(require_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> list[SpeakerOut]:
+    await media_domain.get_for_user(session, user.id, media_id)
+    rows = await speakers_domain.list_for_media(session, media_id)
+    return [_speaker_out(s) for s in rows]
+
+
+@router.patch("/media/{media_id}/speakers/{speaker_id}", response_model=SpeakerOut)
+async def patch_speaker(
+    media_id: UUID,
+    speaker_id: UUID,
+    body: SpeakerPatchIn,
+    user: Annotated[User, Depends(require_user_csrf)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> SpeakerOut:
+    await media_domain.get_for_user(session, user.id, media_id)
+    fields = body.model_fields_set
+    row = await speakers_domain.patch_speaker(
+        session,
+        media_id=media_id,
+        speaker_id=speaker_id,
+        display_name=body.display_name,
+        party=body.party,
+        set_display_name="display_name" in fields,
+        set_party="party" in fields,
+    )
+    await session.commit()
+    return _speaker_out(row)
+
+
+@router.get("/media/{media_id}/audio")
+async def get_audio(
+    media_id: UUID,
+    user: Annotated[User, Depends(require_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    storage: Annotated[StorageProvider, Depends(get_storage)],
+) -> FileResponse:
+    media = await media_domain.get_for_user(session, user.id, media_id)
+    key = _audio_key(media)
+    if not key:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    try:
+        path = await storage.get_path(key)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found") from exc
+    media_type = (
+        "audio/mp4" if path.suffix.lower() in {".m4a", ".mp4"} else "application/octet-stream"
+    )
+    return FileResponse(
+        path,
+        media_type=media_type,
+        filename=path.name,
+        content_disposition_type="inline",
+    )
+
+
+@router.get("/media/{media_id}/peaks")
+async def get_peaks(
+    media_id: UUID,
+    user: Annotated[User, Depends(require_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    storage: Annotated[StorageProvider, Depends(get_storage)],
+) -> list[float]:
+    media = await media_domain.get_for_user(session, user.id, media_id)
+    key = _peaks_key(media)
+    if not key:
+        return []
+    try:
+        path: Path = await storage.get_path(key)
+    except FileNotFoundError:
+        return []
+    raw = path.read_text(encoding="utf-8")
+    data = json.loads(raw)
+    if isinstance(data, list):
+        return [float(x) for x in data]
+    if isinstance(data, dict) and isinstance(data.get("peaks"), list):
+        return [float(x) for x in data["peaks"]]
+    return []
 
 
 @router.post("/media", response_model=MediaOut, status_code=201)
@@ -133,4 +260,4 @@ async def upload_media(
     # Reload after inline processing (separate session in worker path).
     session.expire_all()
     refreshed = await session.get(Media, media_id)
-    return _media_out(refreshed or row)
+    return await _media_out(session, refreshed or row)

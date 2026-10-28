@@ -40,13 +40,14 @@ AUTH_ERROR_CODES = frozenset(
 )
 
 
-def _user_out(user: User) -> UserOut:
+def _user_out(user: User, *, balance_seconds: int = 0) -> UserOut:
     return UserOut(
         id=user.id,
         email=user.email,
         name=user.name,
         locale=user.locale,
         role=user.role,
+        balance_seconds=balance_seconds,
     )
 
 

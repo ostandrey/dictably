@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { Badge } from "./Badge";
 
 export type RecordingStatus = "ready" | "processing" | "failed" | "uploading";
@@ -18,6 +18,7 @@ export function RecordingRow({
   speakers = 0,
   action,
   href,
+  ...rest
 }: {
   title: string;
   meta: string;
@@ -26,7 +27,7 @@ export function RecordingRow({
   speakers?: number;
   action?: ReactNode;
   href?: string;
-}) {
+} & HTMLAttributes<HTMLElement>) {
   const dots = Array.from({ length: Math.min(6, Math.max(0, speakers)) }, (_, i) => (
     <span key={i} className={`sp-${(i % 6) + 1}`} />
   ));
@@ -49,10 +50,14 @@ export function RecordingRow({
 
   if (href) {
     return (
-      <a className="dy-rec" href={href}>
+      <a className="dy-rec" href={href} {...rest}>
         {body}
       </a>
     );
   }
-  return <div className="dy-rec">{body}</div>;
+  return (
+    <div className="dy-rec" {...rest}>
+      {body}
+    </div>
+  );
 }

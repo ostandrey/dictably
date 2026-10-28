@@ -11,13 +11,14 @@ async function ensureSignedIn(page: import("@playwright/test").Page) {
   await page.waitForSelector(
     "[data-auth='dev-login'], [data-recordings='panel']",
   );
+  const panel = page.locator("[data-recordings='panel']");
+  if (await panel.isVisible()) return;
   const login = page.locator("[data-auth='dev-login']");
-  if (await login.isVisible()) {
-    await login.click();
-  }
-  await expect(page.locator("[data-recordings='panel']")).toBeVisible();
+  await expect(login).toBeEnabled({ timeout: 15_000 });
+  await login.click();
+  await expect(panel).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    /Recordings|Мої записи/,
+    /Recordings|Записи/,
   );
 }
 
