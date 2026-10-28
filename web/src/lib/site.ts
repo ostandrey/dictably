@@ -47,18 +47,6 @@ export const site = {
   privacyUpdated: "2026-10-27",
   /** Hero signature autoplay (T-000a.2). Flip to false to disable without code edits. */
   heroAutoplay: true,
-  tally: {
-    en: envOrPlaceholder(
-      "NEXT_PUBLIC_TALLY_FORM_EN",
-      process.env.NEXT_PUBLIC_TALLY_FORM_EN,
-      "PLACEHOLDER_TALLY_EN",
-    ),
-    uk: envOrPlaceholder(
-      "NEXT_PUBLIC_TALLY_FORM_UK",
-      process.env.NEXT_PUBLIC_TALLY_FORM_UK,
-      "PLACEHOLDER_TALLY_UK",
-    ),
-  },
   cloudflareBeacon: process.env.NEXT_PUBLIC_CF_BEACON?.trim() ?? "",
 } as const;
 

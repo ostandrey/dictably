@@ -13,7 +13,8 @@
     "og": "node scripts/generate-og.mjs",
     "e2e": "pnpm build:local && playwright test",
     "e2e:shots": "pnpm build:local && playwright test e2e/landing.spec.ts -g screenshots",
-    "lh": "node scripts/lighthouse.mjs"
+    "lh": "node scripts/lighthouse.mjs",
+    "gen:api": "node scripts/gen-api.mjs"
   },
   "dependencies": {
     "next": "16.4.3",
@@ -29,6 +30,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "openapi-typescript": "^7.10.1",
     "typescript": "^5"
   },
   "packageManager": "pnpm@10.18.2"

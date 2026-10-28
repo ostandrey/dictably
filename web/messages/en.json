@@ -8,15 +8,15 @@
     "example": "Example",
     "pricing": "Pricing",
     "faq": "FAQ",
-    "cta": "Get free minutes",
-    "ctaShort": "Free minutes"
+    "cta": "Try it free",
+    "ctaShort": "Try it free"
   },
   "hero": {
     "h1": "Meeting minutes you can click to hear.",
     "sub": "Upload a call or meeting recording. Get the transcript and the minutes — what each side agreed to, linked to the exact second.",
-    "cta": "Get free minutes",
+    "cta": "Try it free",
     "secondary": "See an example ↓",
-    "under": "We'll process one of your real recordings for free. No bot in your call. Any language."
+    "under": "Sign in and upload one of your real recordings. No bot in your call. Any language."
   },
   "problem": {
     "line1": "After a 40-minute call, someone spends an hour writing the minutes.",
@@ -80,7 +80,7 @@
   },
   "final": {
     "h2": "Stop rewriting meetings. Start sending minutes.",
-    "cta": "Get free minutes",
+    "cta": "Try it free",
     "under": "Free minutes from one of your real recordings."
   },
   "footer": {
@@ -96,7 +96,7 @@
     "whoTitle": "Who we are",
     "whoBody": "{controller} (\"we\"). Contact: {email}.",
     "collectTitle": "What we collect",
-    "collectBody": "Early-access form: your email and the answers you choose to give. The form is hosted by Tally.\n\nSite analytics: Cloudflare Web Analytics — no cookies, no cross-site tracking, aggregated visits only.\n\nRecordings you send us for free minutes: the audio or video file, the transcript and the minutes we make from it.",
+    "collectBody": "Account: email and name when you sign in (Google).\n\nSite analytics: Cloudflare Web Analytics — no cookies, no cross-site tracking, aggregated visits only.\n\nRecordings you upload: the audio or video file, the transcript and the minutes we make from it.",
     "processTitle": "How recordings are processed",
     "processBody": "We transcribe them with AssemblyAI and generate the minutes with Anthropic's Claude. Both process the data on our behalf and do not use it to train their models. Files are stored privately and deleted within 30 days, or sooner if you ask. Please send only recordings whose participants know they are being recorded.",
     "dontTitle": "What we don't do",
@@ -106,5 +106,14 @@
     "changesTitle": "Changes",
     "changesBody": "When the product launches, this page will be replaced by a full privacy policy. Last updated: {date}.",
     "back": "← Back to Dictably"
+  },
+  "app": {
+    "title": "Sign in · Dictably",
+    "h1": "Sign in",
+    "body": "Sign-in opens very soon. We're finishing the first version.",
+    "back": "← Back to landing",
+    "adminTitle": "Admin · Dictably",
+    "adminH1": "Admin",
+    "adminBody": "Admin"
   }
 }

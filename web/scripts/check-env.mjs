@@ -1,5 +1,5 @@
 /**
- * Fail production builds without Tally + contact + controller.
+ * Fail production builds without contact + controller.
  * Local/e2e: DICTABLY_ALLOW_PLACEHOLDER_ENV=1
  */
 const allow = process.env.DICTABLY_ALLOW_PLACEHOLDER_ENV === "1";
@@ -12,8 +12,6 @@ const required = [
   "NEXT_PUBLIC_SITE_URL",
   "NEXT_PUBLIC_CONTACT_EMAIL",
   "NEXT_PUBLIC_CONTROLLER_NAME",
-  "NEXT_PUBLIC_TALLY_FORM_EN",
-  "NEXT_PUBLIC_TALLY_FORM_UK",
 ];
 
 const missing = required.filter((k) => !process.env[k]?.trim());

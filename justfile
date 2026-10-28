@@ -47,3 +47,7 @@ e2e:
 
 lh:
     cd web && pnpm build:local && pnpm lh
+
+# Regenerate web/src/lib/api from FastAPI OpenAPI
+gen-api:
+    cd web && pnpm gen:api

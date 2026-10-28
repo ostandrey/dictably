@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/site";
-import { site } from "@/lib/site";
+import { localePath } from "@/lib/site";
 
 type Props = {
   locale: Locale;
@@ -8,7 +8,8 @@ type Props = {
   variant?: "primary" | "secondary" | "text";
 };
 
-export function TallyButton({
+/** Landing CTA → app sign-in (`/app/` or `/uk/app/`). */
+export function AppCtaLink({
   locale,
   label,
   className = "",
@@ -22,15 +23,12 @@ export function TallyButton({
         : "btn-text";
 
   return (
-    <button
-      type="button"
+    <a
+      href={localePath(locale, "/app")}
       className={`${base} ${className}`.trim()}
-      data-cta="tally"
-      data-locale={locale}
-      data-form-id={site.tally[locale]}
-      data-contact={site.contactEmail}
+      data-cta="app"
     >
       {label}
-    </button>
+    </a>
   );
 }

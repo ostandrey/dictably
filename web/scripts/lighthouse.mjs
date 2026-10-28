@@ -89,7 +89,7 @@ function runLh(url) {
       "pnpm",
       [
         "dlx",
-        "lighthouse",
+        "lighthouse@12.6.1",
         url,
         "--quiet",
         "--chrome-flags=--headless --no-sandbox",

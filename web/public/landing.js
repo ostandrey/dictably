@@ -1,74 +1,13 @@
 (() => {
-  const TALLY_SRC = "https://tally.so/widgets/embed.js";
   const CYCLE_MS = 12000;
   const MAX_CYCLES = 2;
   const EASE = "cubic-bezier(.2,.8,.2,1)";
-  let tallyPromise = null;
 
   function prefersReducedMotion() {
     return (
       window.matchMedia &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches
     );
-  }
-
-  function loadTally() {
-    if (window.Tally) return Promise.resolve();
-    if (tallyPromise) return tallyPromise;
-    tallyPromise = new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = TALLY_SRC;
-      s.async = true;
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error("tally"));
-      document.body.appendChild(s);
-    });
-    return tallyPromise;
-  }
-
-  function utmFields() {
-    const params = new URLSearchParams(window.location.search);
-    const out = {};
-    for (const key of [
-      "utm_source",
-      "utm_medium",
-      "utm_campaign",
-      "utm_content",
-      "utm_term",
-    ]) {
-      const v = params.get(key);
-      if (v) out[key] = v;
-    }
-    return out;
-  }
-
-  function openTally(btn) {
-    const formId = btn.getAttribute("data-form-id") || "";
-    const locale = btn.getAttribute("data-locale") || "en";
-    const email = btn.getAttribute("data-contact") || "";
-    if (
-      !formId ||
-      formId.startsWith("REPLACE_") ||
-      formId.startsWith("PLACEHOLDER_")
-    ) {
-      window.location.href =
-        "mailto:" +
-        email +
-        "?subject=" +
-        encodeURIComponent("Dictably early access");
-      return;
-    }
-    loadTally()
-      .then(() => {
-        window.Tally.openPopup(formId, {
-          layout: "modal",
-          width: 480,
-          hiddenFields: { lang: locale, ...utmFields() },
-        });
-      })
-      .catch(() => {
-        window.open("https://tally.so/r/" + formId, "_blank", "noopener");
-      });
   }
 
   function formatTime(seconds) {
@@ -585,12 +524,6 @@
   }
 
   document.addEventListener("click", (e) => {
-    const tallyBtn = e.target.closest("[data-cta='tally']");
-    if (tallyBtn) {
-      e.preventDefault();
-      openTally(tallyBtn);
-      return;
-    }
     const seekBtn = e.target.closest("[data-seek]");
     if (seekBtn) {
       const demo = seekBtn.closest("[data-demo]");

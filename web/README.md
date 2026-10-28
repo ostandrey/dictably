@@ -1,25 +1,25 @@
-# Dictably — marketing site (T-000a)
+# Dictably — marketing site + app shell (T-000 / T-003)
 
-Static Next.js App Router export: EN `/`, UK `/uk/`, privacy pages, Tally waitlist, Cloudflare Web Analytics.
+Static Next.js App Router export: EN `/`, UK `/uk/`, privacy, `/app` + `/admin` shells, Cloudflare Web Analytics.
 
 ## Commands
 
 ```bash
 pnpm install
-pnpm dev              # local, placeholder env allowed
+pnpm gen:api          # OpenAPI → src/lib/api (needs backend/ uv)
+pnpm dev              # local; proxies /api → :8000
 pnpm build:local      # i18n key check + static `out/` with placeholders
 pnpm build            # production — requires env (see below)
-pnpm i18n:check       # messages/*.json keys must match en.json
-pnpm e2e              # build:local + Playwright (+ axe + screenshots)
-pnpm og               # regenerate public/og.png
-pnpm lh               # Lighthouse mobile median on out/ (after build:local)
+pnpm i18n:check
+pnpm e2e
+pnpm lh               # Lighthouse mobile median on out/
 ```
 
 ## i18n
 
-- Config: `src/i18n/locales.ts` (add a language = row + `messages/<code>.json`)
-- Copy: `messages/en.json`, `messages/uk.json` (next-intl)
-- EN lives at `/`; other locales at `/{code}/` (static export — no middleware)
+- Config: `src/i18n/locales.ts`
+- Copy: `messages/en.json`, `messages/uk.json`
+- EN at `/`; other locales at `/{code}/`
 
 ## Required env (production / Railway build args)
 
@@ -28,17 +28,20 @@ See `.env.example`. `scripts/check-env.mjs` fails the build unless these are set
 - `NEXT_PUBLIC_SITE_URL`
 - `NEXT_PUBLIC_CONTACT_EMAIL`
 - `NEXT_PUBLIC_CONTROLLER_NAME`
-- `NEXT_PUBLIC_TALLY_FORM_EN`
-- `NEXT_PUBLIC_TALLY_FORM_UK`
 
-Optional: `NEXT_PUBLIC_CF_BEACON`, `NEXT_PUBLIC_PRIVACY_UPDATED`.
+Optional: `NEXT_PUBLIC_CF_BEACON`.
 
 Local/e2e: `DICTABLY_ALLOW_PLACEHOLDER_ENV=1` (via `build:local` / `dev`).
 
 ## Deploy
 
-Railway: root directory `web`, Dockerfile builds `out/` and serves with nginx (`nginx.conf.template`, `$PORT`, gzip). Do not deploy without real Tally form IDs.
+Railway: root directory `web`, Dockerfile → `out/` + nginx.
 
-## Pricing
+- `API_UPSTREAM` — API `host:port` (default `api:8000`). Missing host → `/api/*` returns 502; the marketing site still starts (runtime DNS resolver).
+- `NGINX_RESOLVER` — default `127.0.0.11` (Docker). On Railway private network use `[fd12::10]`.
 
-Edit `src/lib/pricing.ts` only (Founding can be disabled there).
+Config check (no API required):
+
+```bash
+sh scripts/nginx-config-test.sh
+```

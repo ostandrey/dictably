@@ -45,14 +45,17 @@ test.describe("T-000a.2 hero motion + sticky", () => {
       );
       expect(lineFamily.toLowerCase()).toMatch(/onest|sans/);
 
-      const heroCta = page.locator(".hero__cta [data-cta='tally']");
+      const heroCta = page.locator(".hero__cta [data-cta='app']");
       await expect(heroCta).toBeVisible();
+      const appHref =
+        route.locale === "uk" ? "/uk/app/" : "/app/";
+      await expect(heroCta).toHaveAttribute("href", appHref);
       if (route.locale === "uk") {
-        await expect(heroCta).toContainText("безкоштовний протокол", {
+        await expect(heroCta).toContainText("Спробувати безкоштовно", {
           ignoreCase: true,
         });
       } else {
-        await expect(heroCta).toContainText("free minutes", {
+        await expect(heroCta).toContainText("Try it free", {
           ignoreCase: true,
         });
       }
@@ -86,7 +89,7 @@ test.describe("T-000a.2 hero motion + sticky", () => {
       await expect(sticky).not.toHaveClass(/is-visible/);
       await page.locator("#how").scrollIntoViewIfNeeded();
       await expect(sticky).toHaveClass(/is-visible/, { timeout: 3000 });
-      await expect(sticky.locator("[data-cta='tally']")).toBeVisible();
+      await expect(sticky.locator("[data-cta='app']")).toBeVisible();
       await page.locator("[data-final-cta]").scrollIntoViewIfNeeded();
       await expect(sticky).not.toHaveClass(/is-visible/, { timeout: 3000 });
     });

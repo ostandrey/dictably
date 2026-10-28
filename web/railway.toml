@@ -1,5 +1,8 @@
 # Railway service root = `web`
-# Set Docker build args: NEXT_PUBLIC_SITE_URL, CONTACT_EMAIL, CONTROLLER_NAME, TALLY_FORM_EN/UK
+# Docker build args: NEXT_PUBLIC_SITE_URL, CONTACT_EMAIL, CONTROLLER_NAME
+# Runtime:
+#   API_UPSTREAM — API host:port (e.g. api.railway.internal:8000). Without API, /api → 502; site still up.
+#   NGINX_RESOLVER — default 127.0.0.11 (Docker). Railway private DNS: [fd12::10]
 
 [build]
 builder = "DOCKERFILE"

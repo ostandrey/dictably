@@ -1067,3 +1067,31 @@ a {
   animation-duration: 150ms;
   animation-timing-function: var(--ease);
 }
+
+/* App / admin shell (T-003) */
+.app-shell {
+  min-height: 100dvh;
+  background: var(--paper);
+  color: var(--ink);
+}
+.app-shell__header {
+  display: flex;
+  align-items: center;
+  padding: calc(var(--space) * 4) calc(var(--space) * 6);
+  border-bottom: 1px solid var(--rule);
+}
+.app-shell__main {
+  padding-block: calc(var(--space) * 16);
+  max-width: 40rem;
+}
+.app-shell__title {
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  margin: 0 0 calc(var(--space) * 4);
+}
+.app-shell__body {
+  color: var(--muted);
+  margin: 0 0 calc(var(--space) * 8);
+  line-height: 1.5;
+}

@@ -2,7 +2,7 @@ import { pricing } from "@/lib/pricing";
 import type { LandingCopy } from "@/lib/copy/types";
 import { site } from "@/lib/site";
 import { InteractiveExample } from "./InteractiveExample";
-import { TallyButton } from "./TallyButton";
+import { AppCtaLink } from "./AppCtaLink";
 
 type Props = { copy: LandingCopy };
 
@@ -31,10 +31,10 @@ export function LandingPage({ copy }: Props) {
               {copy.nav.langSwitch}
             </a>
             <span className="cta-full">
-              <TallyButton locale={locale} label={copy.nav.cta} />
+              <AppCtaLink locale={locale} label={copy.nav.cta} />
             </span>
             <span className="cta-short">
-              <TallyButton locale={locale} label={copy.nav.ctaShort} />
+              <AppCtaLink locale={locale} label={copy.nav.ctaShort} />
             </span>
           </div>
         </div>
@@ -46,7 +46,7 @@ export function LandingPage({ copy }: Props) {
             <h1 className="hero__title">{copy.hero.h1}</h1>
             <p className="hero__sub">{copy.hero.sub}</p>
             <div className="hero__cta">
-              <TallyButton locale={locale} label={copy.hero.cta} />
+              <AppCtaLink locale={locale} label={copy.hero.cta} />
               <a href="#example" className="btn-secondary">
                 {copy.hero.secondary}
               </a>
@@ -123,7 +123,7 @@ export function LandingPage({ copy }: Props) {
               <li className="pricing__item pricing__item--founding">
                 <h3 className="pricing__title">{copy.pricing.foundingTitle}</h3>
                 <p className="pricing__body">{copy.pricing.foundingBody}</p>
-                <TallyButton
+                <AppCtaLink
                   locale={locale}
                   label={copy.pricing.foundingCta}
                   variant="secondary"
@@ -148,7 +148,7 @@ export function LandingPage({ copy }: Props) {
 
         <section className="final shell" data-final-cta>
           <h2 className="final__title">{copy.final.h2}</h2>
-          <TallyButton locale={locale} label={copy.final.cta} />
+          <AppCtaLink locale={locale} label={copy.final.cta} />
           <p className="final__under">{copy.final.under}</p>
         </section>
       </main>
@@ -163,7 +163,7 @@ export function LandingPage({ copy }: Props) {
 
       <div className="sticky-cta" data-sticky-cta aria-hidden="true">
         <div className="sticky-cta__inner">
-          <TallyButton locale={locale} label={copy.hero.cta} />
+          <AppCtaLink locale={locale} label={copy.hero.cta} />
         </div>
       </div>
     </>

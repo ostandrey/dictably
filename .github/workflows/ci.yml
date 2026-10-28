@@ -60,6 +60,9 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm i18n:check
       - run: pnpm build:local
+      - name: nginx -t without API host (B1)
+        working-directory: web
+        run: sh scripts/nginx-config-test.sh
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
       - name: Playwright e2e
@@ -75,6 +78,37 @@ jobs:
           name: playwright-report
           path: web/playwright-report
           if-no-files-found: ignore
+
+  # S3: OpenAPI client must match backend schema (runs when web or backend changes)
+  api-client:
+    needs: changes
+    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - name: Sync backend + web deps
+        run: |
+          cd backend && uv sync --locked --group dev
+          cd ../web && pnpm install --frozen-lockfile
+      - name: Regenerate API client and fail if dirty
+        working-directory: web
+        run: |
+          pnpm gen:api
+          git diff --exit-code src/lib/api
 
   backend:
     needs: changes
