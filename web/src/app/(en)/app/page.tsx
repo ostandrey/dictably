@@ -62,6 +62,14 @@ export default async function AppSignInPage() {
           statusProcessing: t("app.statusProcessing"),
           statusReady: t("app.statusReady"),
           statusFailed: t("app.statusFailed"),
+          menuLabel: t("app.recordingMenu"),
+          deleteLabel: t("app.deleteRecording"),
+          deleteConfirmTitle: t("app.deleteRecordingTitle"),
+          deleteConfirmBody: t("app.deleteRecordingBody"),
+          deleteConfirmAction: t("app.deleteRecordingConfirm"),
+          keepLabel: t("app.keepRecording"),
+          deleteBusyHint: t("app.deleteBusyHint"),
+          emptyBody: t("app.recordingsEmptyBody"),
         }}
       />
     </AppShell>

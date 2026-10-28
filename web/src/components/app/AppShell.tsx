@@ -74,7 +74,14 @@ export function AppShell({
     const t = window.setTimeout(() => {
       void refresh();
     }, 0);
-    return () => window.clearTimeout(t);
+    const onAuth = () => {
+      void refresh();
+    };
+    window.addEventListener("dictably:auth", onAuth);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("dictably:auth", onAuth);
+    };
   }, [refresh]);
 
   async function onLogout() {

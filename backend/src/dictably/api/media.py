@@ -111,6 +111,21 @@ async def get_media(
     return await _media_out(session, row)
 
 
+@router.delete("/media/{media_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_media(
+    media_id: UUID,
+    user: Annotated[User, Depends(require_user_csrf)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    storage: Annotated[StorageProvider, Depends(get_storage)],
+) -> None:
+    await media_domain.delete_for_user(
+        session,
+        storage,
+        user_id=user.id,
+        media_id=media_id,
+    )
+
+
 @router.get("/media/{media_id}/transcript", response_model=TranscriptOut)
 async def get_transcript(
     media_id: UUID,

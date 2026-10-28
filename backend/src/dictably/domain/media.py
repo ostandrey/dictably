@@ -13,7 +13,7 @@ from pathlib import Path, PurePosixPath
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dictably.db.models import Media, MediaStatus, User
@@ -199,6 +199,42 @@ async def get_for_user(session: AsyncSession, user_id: UUID, media_id: UUID) -> 
     if media is None or media.user_id != user_id or media.status == MediaStatus.deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     return media
+
+
+_BUSY_STATUSES = frozenset(
+    {
+        MediaStatus.processing,
+        MediaStatus.transcribing,
+        MediaStatus.analyzing,
+    }
+)
+
+DELETE_BUSY_DETAIL = "Wait until processing finishes"
+
+
+async def delete_for_user(
+    session: AsyncSession,
+    storage: StorageProvider,
+    *,
+    user_id: UUID,
+    media_id: UUID,
+) -> None:
+    """Hard-delete recording files + DB row (T-018-lite). DB ON DELETE CASCADE clears children."""
+    media = await get_for_user(session, user_id, media_id)
+    if media.status in _BUSY_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=DELETE_BUSY_DETAIL,
+        )
+    keys = [str(v) for v in (media.storage_keys or {}).values() if v]
+    for key in keys:
+        try:
+            await storage.delete(key)
+        except Exception:  # noqa: BLE001 — best-effort; DB row still removed
+            logger.exception("failed to delete storage key %s on media %s", key, media_id)
+    # Core DELETE — avoids ORM nulling transcript.media_id (PK) before cascade.
+    await session.execute(delete(Media).where(Media.id == media.id))
+    await session.commit()
 
 
 async def upload_recording(

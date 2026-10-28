@@ -339,13 +339,13 @@
 }
 
 .rec-page__body {
-  display: flex;
-  flex-wrap: wrap;
+  /* IA §3: transcript ~2/3, minutes ~1/3 (was flex 999/320 → text col ~130px). */
+  display: grid;
+  grid-template-columns: minmax(0, 1.75fr) minmax(360px, 1fr);
   min-height: 40vh;
 }
 
 .rec-page__transcript {
-  flex: 999 1 560px;
   min-width: 0;
   padding: var(--space-8) var(--space-8) var(--space-12);
   display: flex;
@@ -425,7 +425,6 @@
 }
 
 .rec-page__minutes {
-  flex: 1 1 320px;
   min-width: 0;
   padding: var(--space-8);
   background: var(--surface);
@@ -501,6 +500,7 @@
     display: flex;
   }
   .rec-page__body {
+    display: flex;
     flex-direction: column;
   }
   .rec-page__transcript,

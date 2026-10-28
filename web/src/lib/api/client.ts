@@ -104,6 +104,10 @@ export function getMedia(id: string): Promise<MediaItem> {
   return apiFetch<MediaItem>(`/api/media/${id}`);
 }
 
+export function deleteMedia(id: string): Promise<void> {
+  return apiFetch<void>(`/api/media/${id}`, { method: "DELETE" });
+}
+
 export function getTranscript(id: string): Promise<Transcript> {
   return apiFetch<Transcript>(`/api/media/${id}/transcript`);
 }

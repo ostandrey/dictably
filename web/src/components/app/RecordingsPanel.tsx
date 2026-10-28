@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ApiError,
+  deleteMedia,
   listMedia,
   uploadMedia,
   type MediaItem,
 } from "@/lib/api";
-import { Alert, EmptyState, RecordingRow } from "@/components/ui";
+import { Alert, Button, Dialog, EmptyState, RecordingRow } from "@/components/ui";
 import type { RecordingStatus } from "@/components/ui";
 
 const MAX_UPLOAD_BYTES = 500 * 1024 * 1024;
@@ -31,6 +32,14 @@ export type RecordingsCopy = {
   statusProcessing: string;
   statusReady: string;
   statusFailed: string;
+  menuLabel: string;
+  deleteLabel: string;
+  deleteConfirmTitle: string;
+  deleteConfirmBody: string;
+  deleteConfirmAction: string;
+  keepLabel: string;
+  deleteBusyHint: string;
+  emptyBody: string;
 };
 
 type Props = {
@@ -95,6 +104,10 @@ function toRowStatus(status: string): RecordingStatus {
   return "processing";
 }
 
+function isDeleteBusy(status: string): boolean {
+  return ["processing", "transcribing", "analyzing"].includes(status);
+}
+
 function rowMeta(item: MediaItem): string {
   const parts = [
     formatDate(item.created_at),
@@ -114,6 +127,9 @@ export function RecordingsPanel({ copy, recordingBaseHref }: Props) {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<MediaItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const refresh = useCallback(async () => {
     const list = await listMedia();
@@ -147,6 +163,17 @@ export function RecordingsPanel({ copy, recordingBaseHref }: Props) {
     }, 3000);
     return () => window.clearInterval(id);
   }, [items, refresh]);
+
+  useEffect(() => {
+    if (!menuId) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest(`[data-recordings-menu="${menuId}"]`)) return;
+      setMenuId(null);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [menuId]);
 
   async function startUpload(file: File) {
     setError(null);
@@ -185,6 +212,21 @@ export function RecordingsPanel({ copy, recordingBaseHref }: Props) {
     if (file) void startUpload(file);
   }
 
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteMedia(pendingDelete.id);
+      setItems((prev) => prev.filter((m) => m.id !== pendingDelete.id));
+      setPendingDelete(null);
+    } catch {
+      setError(copy.error);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const uploading = uploadName != null;
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -192,7 +234,8 @@ export function RecordingsPanel({ copy, recordingBaseHref }: Props) {
     return items.filter((item) => item.filename.toLowerCase().includes(q));
   }, [items, query]);
 
-  const showDropzone = items.length <= 3 || uploading;
+  // Empty list → EmptyState (S2); dropzone only when there are a few recordings.
+  const showDropzone = (items.length > 0 && items.length <= 3) || uploading;
 
   return (
     <section className="recordings" data-recordings="panel">
@@ -298,12 +341,26 @@ export function RecordingsPanel({ copy, recordingBaseHref }: Props) {
           <p className="dy-muted">{copy.empty}</p>
         ) : filtered.length === 0 ? (
           <div data-recordings="empty">
-            <EmptyState title={copy.empty} />
+            <EmptyState
+              title={copy.empty}
+              action={
+                <Button
+                  onClick={() => inputRef.current?.click()}
+                  disabled={uploading}
+                  data-recordings="empty-upload"
+                >
+                  {copy.uploadCta}
+                </Button>
+              }
+            >
+              {copy.emptyBody}
+            </EmptyState>
           </div>
         ) : (
           <div className="dy-list">
             {filtered.map((item) => {
               const st = toRowStatus(item.status);
+              const busy = isDeleteBusy(item.status);
               const href =
                 item.status === "ready"
                   ? `${recordingBaseHref}?id=${encodeURIComponent(item.id)}`
@@ -318,12 +375,90 @@ export function RecordingsPanel({ copy, recordingBaseHref }: Props) {
                   speakers={item.speaker_count ?? 0}
                   href={href}
                   {...{ "data-recordings": "row" }}
+                  action={
+                    <div
+                      className="dy-rec__menu"
+                      data-recordings-menu={item.id}
+                    >
+                      <button
+                        type="button"
+                        className="dy-rec__menu-btn"
+                        aria-label={copy.menuLabel}
+                        aria-expanded={menuId === item.id}
+                        data-recordings="menu"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setMenuId((cur) => (cur === item.id ? null : item.id));
+                        }}
+                      >
+                        ···
+                      </button>
+                      {menuId === item.id ? (
+                        <div className="dy-rec__menu-pop" role="menu">
+                          <button
+                            type="button"
+                            className="dy-rec__menu-item dy-rec__menu-item--danger"
+                            role="menuitem"
+                            data-recordings="delete"
+                            disabled={busy}
+                            title={busy ? copy.deleteBusyHint : undefined}
+                            aria-disabled={busy || undefined}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (busy) return;
+                              setMenuId(null);
+                              setPendingDelete(item);
+                            }}
+                          >
+                            {copy.deleteLabel}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  }
                 />
               );
             })}
           </div>
         )}
       </div>
+
+      <Dialog
+        open={pendingDelete != null}
+        title={copy.deleteConfirmTitle}
+        onClose={() => {
+          if (!deleting) setPendingDelete(null);
+        }}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              disabled={deleting}
+              onClick={() => setPendingDelete(null)}
+              data-recordings="delete-keep"
+            >
+              {copy.keepLabel}
+            </Button>
+            <Button
+              variant="danger"
+              loading={deleting}
+              onClick={() => void confirmDelete()}
+              data-recordings="delete-confirm"
+            >
+              {copy.deleteConfirmAction}
+            </Button>
+          </>
+        }
+      >
+        <p>
+          {copy.deleteConfirmBody.replace(
+            "{name}",
+            pendingDelete?.filename ?? "",
+          )}
+        </p>
+      </Dialog>
     </section>
   );
 }

@@ -169,12 +169,12 @@ export function MinutesPanel({
         }}
       >
         {withCheck ? <span className="dy-item__check" aria-hidden /> : null}
-        <span className="dy-item__body">
+        <div className="dy-item__body">
           <p className="dy-item__text">{item.text}</p>
           {metaBits.length ? (
             <span className="dy-item__meta">{metaBits.join(" · ")}</span>
           ) : null}
-        </span>
+        </div>
         <Timecode start={start} />
       </button>
     );

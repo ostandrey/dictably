@@ -166,6 +166,8 @@ export function SignInPanel({
     try {
       const me = await devLogin();
       setUser(me);
+      // Sync AppShell account/logout (sidebar) without a full reload.
+      window.dispatchEvent(new Event("dictably:auth"));
     } catch {
       setActionError(errorLabel);
     } finally {

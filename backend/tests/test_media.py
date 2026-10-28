@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from pathlib import Path
 from unittest.mock import MagicMock
+from uuid import UUID
 
 import pytest
 from fastapi import HTTPException
@@ -12,7 +13,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from dictably.api.media import reject_huge_upload
 from dictably.core.config import get_settings
-from dictably.db.models import User
+from dictably.db.models import Analysis, Job, Media, MediaStatus, Speaker, Transcript, User
 from dictably.db.session import reset_engine
 from dictably.domain import auth as auth_domain
 from dictably.domain import media as media_domain
@@ -275,3 +276,126 @@ async def test_upload_soft_accepts_missing_ffprobe_in_test(
         files={"file": ("clip.wav", b"audio", "audio/wav")},
     )
     assert res.status_code == 201, res.text
+
+
+@pytest.mark.asyncio
+async def test_delete_media_removes_files_and_rows(
+    client: AsyncClient,
+    storage: LocalStorageProvider,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T-018-lite AC: after delete, audio → 404 and related DB rows gone."""
+    monkeypatch.setattr(media_domain, "probe_file", _ok_probe)
+    csrf = await _login(client)
+    up = await client.post(
+        "/api/media",
+        headers={auth_domain.CSRF_HEADER: csrf},
+        files={"file": ("gone.wav", b"delete-me-bytes", "audio/wav")},
+    )
+    assert up.status_code == 201, up.text
+    media_id = up.json()["id"]
+    assert list(storage.root.rglob("*"))
+
+    audio_before = await client.get(f"/api/media/{media_id}/audio")
+    assert audio_before.status_code == 200
+
+    deleted = await client.delete(
+        f"/api/media/{media_id}",
+        headers={auth_domain.CSRF_HEADER: csrf},
+    )
+    assert deleted.status_code == 204, deleted.text
+
+    assert (await client.get(f"/api/media/{media_id}")).status_code == 404
+    assert (await client.get(f"/api/media/{media_id}/audio")).status_code == 404
+    listed = await client.get("/api/media")
+    assert listed.json()["items"] == []
+    assert not any(p.is_file() for p in storage.root.rglob("*"))
+
+    settings = get_settings()
+    engine = create_async_engine(settings.test_database_url, pool_pre_ping=True)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    mid = UUID(media_id)
+    async with factory() as session:
+        assert (await session.get(Media, mid)) is None
+        assert (
+            await session.execute(select(Transcript).where(Transcript.media_id == mid))
+        ).scalars().first() is None
+        assert (
+            await session.execute(select(Speaker).where(Speaker.media_id == mid))
+        ).scalars().first() is None
+        assert (
+            await session.execute(select(Analysis).where(Analysis.media_id == mid))
+        ).scalars().first() is None
+        assert (
+            await session.execute(select(Job).where(Job.media_id == mid))
+        ).scalars().first() is None
+    await engine.dispose()
+    await reset_engine()
+
+
+@pytest.mark.asyncio
+async def test_delete_foreign_media_is_404(
+    client: AsyncClient,
+    storage: LocalStorageProvider,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(media_domain, "probe_file", _ok_probe)
+    csrf_a = await _login(client, "owner-del@example.com")
+    up = await client.post(
+        "/api/media",
+        headers={auth_domain.CSRF_HEADER: csrf_a},
+        files={"file": ("keep.wav", b"keep", "audio/wav")},
+    )
+    assert up.status_code == 201, up.text
+    media_id = up.json()["id"]
+
+    await client.post(
+        "/api/auth/logout",
+        headers={auth_domain.CSRF_HEADER: csrf_a},
+    )
+    csrf_b = await _login(client, "intruder-del@example.com")
+    res = await client.delete(
+        f"/api/media/{media_id}",
+        headers={auth_domain.CSRF_HEADER: csrf_b},
+    )
+    assert res.status_code == 404
+    assert any(p.is_file() for p in storage.root.rglob("*"))
+    _ = storage
+
+
+@pytest.mark.asyncio
+async def test_delete_while_processing_is_409(
+    client: AsyncClient,
+    storage: LocalStorageProvider,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """S1: do not delete while worker may still write files."""
+    monkeypatch.setattr(media_domain, "probe_file", _ok_probe)
+    csrf = await _login(client, "busy-del@example.com")
+    up = await client.post(
+        "/api/media",
+        headers={auth_domain.CSRF_HEADER: csrf},
+        files={"file": ("busy.wav", b"busy-bytes", "audio/wav")},
+    )
+    assert up.status_code == 201, up.text
+    media_id = up.json()["id"]
+
+    settings = get_settings()
+    engine = create_async_engine(settings.test_database_url, pool_pre_ping=True)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as session:
+        row = await session.get(Media, UUID(media_id))
+        assert row is not None
+        row.status = MediaStatus.processing
+        await session.commit()
+    await engine.dispose()
+    await reset_engine()
+
+    res = await client.delete(
+        f"/api/media/{media_id}",
+        headers={auth_domain.CSRF_HEADER: csrf},
+    )
+    assert res.status_code == 409
+    assert "Wait until processing finishes" in res.json()["detail"]
+    assert (await client.get(f"/api/media/{media_id}")).status_code == 200
+    assert any(p.is_file() for p in storage.root.rglob("*"))

@@ -152,7 +152,8 @@ export interface paths {
         get: operations["get_media_api_media__media_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Media */
+        delete: operations["delete_media_api_media__media_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -836,6 +837,40 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MediaOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_media_api_media__media_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

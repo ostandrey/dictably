@@ -30,6 +30,8 @@ export default defineConfig({
         PUBLIC_APP_URL: baseURL,
         ASR_PROVIDER: "fake",
         LLM_PROVIDER: "fake",
+        // S3: full e2e suite logs in many times; default 30/min → flaky 429.
+        AUTH_RATE_LIMIT_PER_MINUTE: "1000",
       },
     },
     {

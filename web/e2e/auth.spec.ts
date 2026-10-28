@@ -30,14 +30,17 @@ test.describe("T-011 auth", () => {
       "Sign in",
     );
     await page.locator("[data-auth='dev-login']").click();
+    await expect(page.locator("[data-recordings='panel']")).toBeVisible();
     await expect(page.locator("[data-auth='logout']")).toBeVisible();
-    await expect(page.getByText(/Signed in as/i)).toBeVisible();
+    await expect(page.locator("[data-auth='account']")).toBeVisible();
 
     const media = await page.request.get("/api/media");
     expect(media.status()).toBe(200);
 
     await page.locator("[data-auth='logout']").click();
-    await expect(page.locator("[data-auth='dev-login']")).toBeVisible();
+    await expect(page.locator("[data-auth='dev-login']")).toBeVisible({
+      timeout: 15_000,
+    });
 
     const after = await page.request.get("/api/media");
     expect(after.status()).toBe(401);

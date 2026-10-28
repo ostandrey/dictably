@@ -32,10 +32,16 @@ export function RecordingRow({
     <span key={i} className={`sp-${(i % 6) + 1}`} />
   ));
 
-  const body = (
-    <>
+  return (
+    <div className="dy-rec" {...rest}>
       <div>
-        <p className="dy-rec__title">{title}</p>
+        {href ? (
+          <a className="dy-rec__title" href={href}>
+            {title}
+          </a>
+        ) : (
+          <p className="dy-rec__title">{title}</p>
+        )}
         <p className="dy-rec__meta">{meta}</p>
       </div>
       <div className="dy-rec__speakers" aria-hidden>
@@ -44,20 +50,7 @@ export function RecordingRow({
       <Badge tone={tone[status]} dot>
         {statusLabel}
       </Badge>
-      {action}
-    </>
-  );
-
-  if (href) {
-    return (
-      <a className="dy-rec" href={href} {...rest}>
-        {body}
-      </a>
-    );
-  }
-  return (
-    <div className="dy-rec" {...rest}>
-      {body}
+      {action ?? <span />}
     </div>
   );
 }
