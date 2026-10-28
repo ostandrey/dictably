@@ -1114,3 +1114,124 @@ a {
   margin: 0 0 calc(var(--space) * 8);
   line-height: 1.5;
 }
+
+/* T-012 recordings / upload */
+.sign-in--home .app-shell__body {
+  margin-bottom: calc(var(--space) * 3);
+}
+
+.recordings {
+  margin-top: calc(var(--space) * 8);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space) * 8);
+}
+
+.upload-zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--space) * 3);
+  padding: calc(var(--space) * 6);
+  border: 1px dashed var(--rule);
+  background: var(--paper);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.upload-zone.is-drag {
+  border-color: var(--ink);
+  background: color-mix(in srgb, var(--paper) 92%, var(--ink));
+}
+
+.upload-zone__title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.upload-zone__hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.upload-zone__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.upload-zone__row {
+  display: flex;
+  justify-content: space-between;
+  gap: calc(var(--space) * 3);
+  width: 100%;
+}
+
+.upload-zone__name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-zone__meta {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+}
+
+.upload-zone__progress {
+  width: 100%;
+  height: 4px;
+  background: var(--rule);
+  overflow: hidden;
+}
+
+.upload-zone__progress-fill {
+  height: 100%;
+  background: var(--ink);
+  transition: width 120ms ease;
+}
+
+.recordings__heading {
+  margin: 0 0 calc(var(--space) * 4);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.recordings__ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space) * 3);
+}
+
+.recordings__row {
+  padding: calc(var(--space) * 3) 0;
+  border-top: 1px solid var(--rule);
+}
+
+.recordings__row:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+
+.recordings__name {
+  margin: 0;
+  font-weight: 600;
+}
+
+.recordings__meta {
+  margin: calc(var(--space) * 1) 0 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}

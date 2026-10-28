@@ -30,6 +30,14 @@ async def require_user(
     return user
 
 
+async def require_user_csrf(
+    user: Annotated[User, Depends(require_user)],
+    _: Annotated[None, Depends(require_csrf)],
+) -> User:
+    """Auth first (401), then CSRF (403) — for cookie-authenticated mutations."""
+    return user
+
+
 async def require_csrf(
     request: Request,
     settings: Annotated[Settings, Depends(get_settings)],

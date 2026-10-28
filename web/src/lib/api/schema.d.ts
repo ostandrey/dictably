@@ -130,11 +130,26 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * List Media
-         * @description Stub list — full upload/list arrives in T-012. Auth required (401 without session).
-         */
+        /** List Media */
         get: operations["list_media_api_media_get"];
+        put?: never;
+        /** Upload Media */
+        post: operations["upload_media_api_media_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/{media_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Media */
+        get: operations["get_media_api_media__media_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -153,6 +168,11 @@ export interface components {
             google: boolean;
             /** Dev Login */
             dev_login: boolean;
+        };
+        /** Body_upload_media_api_media_post */
+        Body_upload_media_api_media_post: {
+            /** File */
+            file: string;
         };
         /** DevLoginIn */
         DevLoginIn: {
@@ -176,9 +196,32 @@ export interface components {
         /** MediaListOut */
         MediaListOut: {
             /** Items */
-            items?: {
-                [key: string]: unknown;
-            }[];
+            items?: components["schemas"]["MediaOut"][];
+        };
+        /** MediaOut */
+        MediaOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Filename */
+            filename: string;
+            /** Mime */
+            mime: string | null;
+            /** Size Bytes */
+            size_bytes: number | null;
+            /** Duration Ms */
+            duration_ms: number | null;
+            /** Status */
+            status: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error */
+            error?: string | null;
         };
         /** UserOut */
         UserOut: {
@@ -437,6 +480,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MediaListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_media_api_media_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_media_api_media_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_media_api_media__media_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaOut"];
                 };
             };
             /** @description Validation Error */

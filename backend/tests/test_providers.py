@@ -29,6 +29,19 @@ async def test_local_storage_roundtrip(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_local_storage_put_stream(tmp_path) -> None:
+    store = LocalStorageProvider(tmp_path)
+
+    async def chunks():
+        yield b"hel"
+        yield b"lo"
+
+    size = await store.put_stream("a/stream.txt", chunks())
+    assert size == 5
+    assert (await store.get_path("a/stream.txt")).read_bytes() == b"hello"
+
+
+@pytest.mark.asyncio
 async def test_local_storage_rejects_traversal(tmp_path) -> None:
     store = LocalStorageProvider(tmp_path)
     with pytest.raises(ValueError):

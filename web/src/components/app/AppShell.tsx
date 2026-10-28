@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import { site } from "@/lib/site";
 
 type Props = {
-  heading: string;
+  /** When omitted, the child supplies the page title (e.g. SignInPanel). */
+  heading?: string;
   backHref: string;
   backLabel: string;
   children: ReactNode;
@@ -18,7 +19,7 @@ export function AppShell({ heading, backHref, backLabel, children }: Props) {
         </a>
       </header>
       <main className="app-shell__main shell">
-        <h1 className="app-shell__title">{heading}</h1>
+        {heading ? <h1 className="app-shell__title">{heading}</h1> : null}
         {children}
         <p>
           <a href={backHref} className="btn-secondary">

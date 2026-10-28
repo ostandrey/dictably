@@ -30,12 +30,17 @@ server {
   add_header Strict-Transport-Security "max-age=31536000" always;
 
   # Same-origin API proxy. Missing upstream → 502; site still serves.
+  # T-012: file cap 500 MB in API; nginx 510m leaves room for multipart overhead (S1).
+  client_max_body_size 510m;
   location /api/ {
     set $api_upstream http://${API_UPSTREAM};
     proxy_pass $api_upstream;
     proxy_http_version 1.1;
     proxy_connect_timeout 5s;
-    proxy_read_timeout 60s;
+    proxy_read_timeout 600s;
+    proxy_send_timeout 600s;
+    proxy_request_buffering off;
+    client_max_body_size 510m;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

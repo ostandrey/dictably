@@ -3,7 +3,7 @@
  * Types come from schema.d.ts (generated — do not edit by hand).
  */
 
-import type { paths } from "./schema";
+import type { components, paths } from "./schema";
 
 type HealthResponse =
   paths["/api/health"]["get"]["responses"]["200"]["content"]["application/json"];
@@ -11,8 +11,10 @@ type AuthConfig =
   paths["/api/auth/config"]["get"]["responses"]["200"]["content"]["application/json"];
 type User =
   paths["/api/me"]["get"]["responses"]["200"]["content"]["application/json"];
+type MediaItem = components["schemas"]["MediaOut"];
+type MediaList = { items: MediaItem[] };
 
-export type { AuthConfig, User };
+export type { AuthConfig, User, MediaItem, MediaList };
 
 export class ApiError extends Error {
   constructor(
@@ -88,4 +90,63 @@ export function devLogin(
 
 export function logout(): Promise<void> {
   return apiFetch<void>("/api/auth/logout", { method: "POST" });
+}
+
+export async function listMedia(): Promise<MediaList> {
+  const data = await apiFetch<{ items?: MediaItem[] }>("/api/media");
+  return { items: data.items ?? [] };
+}
+
+export function getMedia(id: string): Promise<MediaItem> {
+  return apiFetch<MediaItem>(`/api/media/${id}`);
+}
+
+type UploadOptions = {
+  onProgress?: (pct: number) => void;
+  signal?: AbortSignal;
+};
+
+/** POST /api/media — multipart stream with upload progress (XHR). */
+export function uploadMedia(
+  file: File,
+  options: UploadOptions = {},
+): Promise<MediaItem> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/media");
+    xhr.withCredentials = true;
+    xhr.responseType = "json";
+
+    const csrf = readCookie("dictably_csrf");
+    if (csrf) xhr.setRequestHeader("X-CSRF-Token", csrf);
+
+    xhr.upload.onprogress = (ev) => {
+      if (!ev.lengthComputable || !options.onProgress) return;
+      options.onProgress(Math.min(100, Math.round((ev.loaded / ev.total) * 100)));
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(xhr.response as MediaItem);
+        return;
+      }
+      reject(new ApiError(`${xhr.status} ${xhr.statusText}`, xhr.status));
+    };
+    xhr.onerror = () => reject(new ApiError("Network error", 0));
+    xhr.onabort = () => reject(new DOMException("Aborted", "AbortError"));
+
+    if (options.signal) {
+      if (options.signal.aborted) {
+        xhr.abort();
+        return;
+      }
+      options.signal.addEventListener("abort", () => xhr.abort(), {
+        once: true,
+      });
+    }
+
+    const body = new FormData();
+    body.append("file", file);
+    xhr.send(body);
+  });
 }

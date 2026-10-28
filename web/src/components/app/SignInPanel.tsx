@@ -10,6 +10,10 @@ import {
   type AuthConfig,
   type User,
 } from "@/lib/api";
+import {
+  RecordingsPanel,
+  type RecordingsCopy,
+} from "@/components/app/RecordingsPanel";
 
 const AUTH_ERROR_CODES = [
   "access_denied",
@@ -23,6 +27,8 @@ type AuthErrorCode = (typeof AUTH_ERROR_CODES)[number];
 
 type Props = {
   nextPath: "/app/" | "/uk/app/";
+  signInHeading: string;
+  recordingsHeading: string;
   signedOutBody: string;
   googleLabel: string;
   googleUnavailable: string;
@@ -32,10 +38,41 @@ type Props = {
   loadingLabel: string;
   errorLabel: string;
   authErrors: Record<AuthErrorCode, string>;
+  recordings: RecordingsCopy;
 };
 
 function isAuthErrorCode(value: string): value is AuthErrorCode {
   return (AUTH_ERROR_CODES as readonly string[]).includes(value);
+}
+
+/** External sticky store — survives URL strip without React setState-in-effect (B1). */
+const authErrorStore: {
+  code: AuthErrorCode | null;
+  listeners: Set<() => void>;
+} = {
+  code: null,
+  listeners: new Set(),
+};
+
+function subscribeAuthError(onStoreChange: () => void) {
+  authErrorStore.listeners.add(onStoreChange);
+  return () => {
+    authErrorStore.listeners.delete(onStoreChange);
+  };
+}
+
+function getAuthErrorSnapshot() {
+  return authErrorStore.code;
+}
+
+function getServerAuthErrorSnapshot(): AuthErrorCode | null {
+  return null;
+}
+
+function noteAuthErrorCode(code: AuthErrorCode) {
+  if (authErrorStore.code === code) return;
+  authErrorStore.code = code;
+  for (const listener of authErrorStore.listeners) listener();
 }
 
 function subscribeSearch(onChange: () => void) {
@@ -53,6 +90,8 @@ function getServerSearchSnapshot() {
 
 export function SignInPanel({
   nextPath,
+  signInHeading,
+  recordingsHeading,
   signedOutBody,
   googleLabel,
   googleUnavailable,
@@ -62,6 +101,7 @@ export function SignInPanel({
   loadingLabel,
   errorLabel,
   authErrors,
+  recordings,
 }: Props) {
   const search = useSyncExternalStore(
     subscribeSearch,
@@ -69,11 +109,16 @@ export function SignInPanel({
     getServerSearchSnapshot,
   );
 
+  const oauthCode = useSyncExternalStore(
+    subscribeAuthError,
+    getAuthErrorSnapshot,
+    getServerAuthErrorSnapshot,
+  );
+
   const oauthError = useMemo(() => {
-    const code = new URLSearchParams(search).get("auth_error");
-    if (!code || !isAuthErrorCode(code)) return null;
-    return authErrors[code];
-  }, [authErrors, search]);
+    if (!oauthCode) return null;
+    return authErrors[oauthCode];
+  }, [authErrors, oauthCode]);
 
   const [config, setConfig] = useState<AuthConfig | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -82,9 +127,13 @@ export function SignInPanel({
 
   const error = actionError ?? oauthError;
 
-  // Strip auth_error from the URL without setState (B3).
+  // Capture auth_error into external store, then strip URL (no React setState).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const code = params.get("auth_error");
+    if (code && isAuthErrorCode(code)) {
+      noteAuthErrorCode(code);
+    }
     if (!params.has("auth_error")) return;
     params.delete("auth_error");
     const qs = params.toString();
@@ -143,13 +192,21 @@ export function SignInPanel({
     }
   }
 
-  if (busy && !user && !config) {
-    return <p className="app-shell__body">{loadingLabel}</p>;
+  const heading = user ? recordingsHeading : signInHeading;
+
+  if (busy && !user && !config && !oauthError) {
+    return (
+      <>
+        <h1 className="app-shell__title">{signInHeading}</h1>
+        <p className="app-shell__body">{loadingLabel}</p>
+      </>
+    );
   }
 
   if (user) {
     return (
-      <div className="sign-in">
+      <div className="sign-in sign-in--home">
+        <h1 className="app-shell__title">{heading}</h1>
         <p className="app-shell__body">
           {signedInAs.replace("{email}", user.email)}
         </p>
@@ -169,6 +226,7 @@ export function SignInPanel({
             {logoutLabel}
           </button>
         </p>
+        <RecordingsPanel copy={recordings} />
       </div>
     );
   }
@@ -177,6 +235,7 @@ export function SignInPanel({
 
   return (
     <div className="sign-in">
+      <h1 className="app-shell__title">{heading}</h1>
       <p className="app-shell__body">{signedOutBody}</p>
       {error ? (
         <p className="sign-in__error" role="alert" data-auth="error">

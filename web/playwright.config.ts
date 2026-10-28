@@ -23,7 +23,8 @@ export default defineConfig({
       timeout: 120_000,
       env: {
         ...process.env,
-        ENV: "dev",
+        // ENV=test → soft ffprobe-missing (B3); Dev login still enabled.
+        ENV: "test",
         DEV_LOGIN: "1",
         COOKIE_SECURE: "0",
         PUBLIC_APP_URL: baseURL,

@@ -126,6 +126,20 @@
     "back": "← Back to landing",
     "adminTitle": "Admin · Dictably",
     "adminH1": "Admin",
-    "adminBody": "Admin"
+    "adminBody": "Admin",
+    "uploadTitle": "Drop a recording here",
+    "uploadHint": "Audio or video up to 500 MB / 3 hours · MP3, M4A, WAV, MP4, MOV",
+    "uploadChoose": "Choose file",
+    "uploadDrop": "Release to upload",
+    "uploadProgress": "{pct}%",
+    "uploadCancel": "Cancel",
+    "uploadTooLarge": "File is larger than 500 MB.",
+    "recordingsH1": "Recordings",
+    "recordingsTitle": "My recordings",
+    "recordingsEmpty": "No recordings yet.",
+    "statusUploaded": "Uploaded",
+    "statusProcessing": "Processing",
+    "statusReady": "Ready",
+    "statusFailed": "Failed"
   }
 }

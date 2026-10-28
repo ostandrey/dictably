@@ -5,7 +5,10 @@ export {
   getAuthConfig,
   getHealth,
   getMe,
+  getMedia,
+  listMedia,
   logout,
+  uploadMedia,
 } from "./client";
-export type { AuthConfig, User } from "./client";
+export type { AuthConfig, MediaItem, MediaList, User } from "./client";
 export type { paths } from "./schema";

@@ -15,13 +15,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function UkAppSignInPage() {
   const t = await getTranslations({ locale: "uk" });
   return (
-    <AppShell
-      heading={t("app.h1")}
-      backHref={localePath("uk")}
-      backLabel={t("app.back")}
-    >
+    <AppShell backHref={localePath("uk")} backLabel={t("app.back")}>
       <SignInPanel
         nextPath="/uk/app/"
+        signInHeading={t("app.h1")}
+        recordingsHeading={t("app.recordingsH1")}
         signedOutBody={t("app.body")}
         googleLabel={t("app.google")}
         googleUnavailable={t("app.googleUnavailable")}
@@ -36,6 +34,22 @@ export default async function UkAppSignInPage() {
           email_unverified: t("app.authErrorEmailUnverified"),
           oauth_failed: t("app.authErrorOauthFailed"),
           incomplete_profile: t("app.authErrorIncompleteProfile"),
+        }}
+        recordings={{
+          title: t("app.uploadTitle"),
+          hint: t("app.uploadHint"),
+          choose: t("app.uploadChoose"),
+          drop: t("app.uploadDrop"),
+          uploading: t("app.uploadProgress"),
+          cancel: t("app.uploadCancel"),
+          empty: t("app.recordingsEmpty"),
+          listTitle: t("app.recordingsTitle"),
+          tooLarge: t("app.uploadTooLarge"),
+          error: t("app.error"),
+          statusUploaded: t("app.statusUploaded"),
+          statusProcessing: t("app.statusProcessing"),
+          statusReady: t("app.statusReady"),
+          statusFailed: t("app.statusFailed"),
         }}
       />
     </AppShell>

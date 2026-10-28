@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 
@@ -27,6 +28,29 @@ class LocalStorageProvider:
 
         await asyncio.to_thread(_write)
         return key
+
+    async def put_stream(
+        self,
+        key: str,
+        chunks: AsyncIterator[bytes],
+        *,
+        max_bytes: int | None = None,
+    ) -> int:
+        path = self._path(key)
+        await asyncio.to_thread(lambda: path.parent.mkdir(parents=True, exist_ok=True))
+        size = 0
+        try:
+            with path.open("wb") as out:
+                async for chunk in chunks:
+                    size += len(chunk)
+                    if max_bytes is not None and size > max_bytes:
+                        raise ValueError("too_large")
+                    await asyncio.to_thread(out.write, chunk)
+        except Exception:
+            if path.is_file():
+                await asyncio.to_thread(path.unlink)
+            raise
+        return size
 
     async def get_path(self, key: str) -> Path:
         path = self._path(key)

@@ -126,6 +126,20 @@
     "back": "← На лендінг",
     "adminTitle": "Адмінка · Dictably",
     "adminH1": "Адмінка",
-    "adminBody": "Адмінка"
+    "adminBody": "Адмінка",
+    "uploadTitle": "Перетягніть запис сюди",
+    "uploadHint": "Аудіо або відео до 500 MB / 3 год · MP3, M4A, WAV, MP4, MOV",
+    "uploadChoose": "Обрати файл",
+    "uploadDrop": "Відпустіть, щоб завантажити",
+    "uploadProgress": "{pct}%",
+    "uploadCancel": "Скасувати",
+    "uploadTooLarge": "Файл більший за 500 MB.",
+    "recordingsH1": "Мої записи",
+    "recordingsTitle": "Мої записи",
+    "recordingsEmpty": "Записів ще немає.",
+    "statusUploaded": "Завантажено",
+    "statusProcessing": "Обробка",
+    "statusReady": "Готово",
+    "statusFailed": "Помилка"
   }
 }
