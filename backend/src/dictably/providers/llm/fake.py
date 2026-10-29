@@ -21,8 +21,15 @@ class FakeLLMProvider:
         transcript: dict[str, Any],
         user_message: str,
         language: str,
+        template: str = "default",
     ) -> dict[str, Any]:
         del user_message
+        from dictably.domain.minutes_templates import (
+            TEMPLATE_OFFICIAL,
+            normalize_template,
+        )
+
+        tid = normalize_template(template or transcript.get("template"))
         segments = list(transcript.get("segments") or [])
         seg_ids = [str(s.get("id")) for s in segments[:2] if isinstance(s, dict) and s.get("id")]
         if not seg_ids:
@@ -72,13 +79,16 @@ class FakeLLMProvider:
                     "party_id": parties[min(1, len(parties) - 1)]["id"],
                 },
             ]
-        return {
+        base = {
             "provider": self.name,
             "model": "fake-v2",
-            "prompt_version": "v2-two-pass-2026-10-29",
+            "prompt_version": "v4-protocol-2026-10-30",
             "cost_usd": 0.0,
             "language": lang,
-            "title": "Fake meeting minutes",
+            "template": tid,
+            "title": (
+                "Fake official protocol" if tid == TEMPLATE_OFFICIAL else "Fake meeting minutes"
+            ),
             "parties": parties,
             "participants": participants,
             "summary": [
@@ -89,6 +99,8 @@ class FakeLLMProvider:
                     "status": "agreed",
                 }
             ],
+            "agenda": [],
+            "heard": [],
             "decisions": [],
             "agreements": [
                 {
@@ -113,6 +125,49 @@ class FakeLLMProvider:
             "deadlines_and_facts": [],
             "open_questions": [],
         }
+        if tid == TEMPLATE_OFFICIAL:
+            base["summary"] = []
+            base["agreements"] = []
+            base["agenda"] = [
+                {
+                    "item_id": "A1",
+                    "text": "Fake agenda item one.",
+                    "segment_ids": [first],
+                    "quote": quote_first,
+                    "status": "agreed",
+                }
+            ]
+            base["heard"] = [
+                {
+                    "text": "Fake heard presentation.",
+                    "segment_ids": [first],
+                    "quote": quote_first,
+                    "status": "agreed",
+                    "agenda_ref": "A1",
+                }
+            ]
+            base["decisions"] = [
+                {
+                    "text": "Fake decision adopted.",
+                    "segment_ids": [last],
+                    "quote": quote_last,
+                    "status": "agreed",
+                    "agenda_ref": "A1",
+                }
+            ]
+            base["tasks"] = [
+                {
+                    "party_id": parties[min(1, len(parties) - 1)]["id"],
+                    "text": "Fake follow-up task.",
+                    "segment_ids": [first],
+                    "quote": quote_first,
+                    "owner_speaker": participants[-1]["speaker"],
+                    "due_text": None,
+                    "status": "agreed",
+                    "agenda_ref": "A1",
+                }
+            ]
+        return base
 
     async def verify(
         self,

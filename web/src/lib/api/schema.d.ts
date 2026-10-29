@@ -886,6 +886,11 @@ export interface components {
             onboarding_completed_at?: string | null;
             /** Onboarding Skipped At */
             onboarding_skipped_at?: string | null;
+            /**
+             * Preferred Minutes Template
+             * @default default
+             */
+            preferred_minutes_template?: string;
         };
         /** ValidationError */
         ValidationError: {

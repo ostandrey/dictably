@@ -12,6 +12,7 @@ import {
   type MediaItem,
   type MediaProbe,
 } from "@/lib/api";
+import { useAuth } from "@/components/app/AuthProvider";
 import { takeStashedFiles } from "@/lib/fileQueue";
 import { ACCEPT, isAcceptedUpload, MAX_UPLOAD_BYTES } from "@/lib/uploadAccept";
 import { Alert, Button, Dialog, EmptyState, RecordingRow } from "@/components/ui";
@@ -54,6 +55,9 @@ export type RecordingsCopy = {
   uploadMeetingBundle?: string;
   uploadMeetingBundleHint?: string;
   uploadBundleTooLarge?: string;
+  uploadTemplateLabel?: string;
+  minutesTemplateDefault?: string;
+  minutesTemplateOfficial?: string;
 };
 
 type Props = {
@@ -146,8 +150,14 @@ export function RecordingsPanel({
     vocabulary?: string;
     audioStreamIndex?: number;
     meetingBundle?: boolean;
+    minutesTemplate?: string;
   }>({});
   const { push: pushToast } = useToast();
+  const { user } = useAuth();
+  const preferredTemplate =
+    user?.preferred_minutes_template === "official_protocol"
+      ? "official_protocol"
+      : "default";
 
   const [items, setItems] = useState<MediaItem[]>([]);
   const [busy, setBusy] = useState(true);
@@ -169,6 +179,7 @@ export function RecordingsPanel({
     tracks: MediaProbe["audio_tracks"];
     probing: boolean;
     meetingBundle: boolean;
+    minutesTemplate: string;
   } | null>(null);
 
   const refresh = useCallback(async () => {
@@ -250,6 +261,7 @@ export function RecordingsPanel({
           speakersExpected: opts.speakersExpected,
           vocabulary: opts.vocabulary,
           audioStreamIndex: opts.audioStreamIndex,
+          minutesTemplate: opts.minutesTemplate,
         });
         setItems((prev) => [created, ...prev.filter((m) => m.id !== created.id)]);
         markEnter(created.id);
@@ -288,6 +300,7 @@ export function RecordingsPanel({
           signal: ac.signal,
           language: opts.language,
           vocabulary: opts.vocabulary,
+          minutesTemplate: opts.minutesTemplate,
         });
         setItems((prev) => [created, ...prev.filter((m) => m.id !== created.id)]);
         markEnter(created.id);
@@ -343,6 +356,7 @@ export function RecordingsPanel({
         tracks: [],
         probing: !asBundle,
         meetingBundle: asBundle,
+        minutesTemplate: preferredTemplate,
       });
       if (asBundle) return;
       const first = accepted[0]!;
@@ -363,7 +377,7 @@ export function RecordingsPanel({
           setDetails((cur) => (cur ? { ...cur, probing: false, tracks: [] } : cur));
         });
     },
-    [copy.badType, copy.tooLarge, copy.uploadBundleTooLarge],
+    [copy.badType, copy.tooLarge, copy.uploadBundleTooLarge, preferredTemplate],
   );
 
   const confirmDetails = useCallback(() => {
@@ -381,6 +395,7 @@ export function RecordingsPanel({
           ? Number(details.audioStreamIndex || 0)
           : undefined,
       meetingBundle: asBundle,
+      minutesTemplate: details.minutesTemplate || preferredTemplate,
     };
     const files = details.files;
     setDetails(null);
@@ -390,7 +405,7 @@ export function RecordingsPanel({
     }
     for (const file of files) queueRef.current.push(file);
     void pump();
-  }, [details, pump, uploadBundle]);
+  }, [details, pump, preferredTemplate, uploadBundle]);
 
   const enqueue = openDetails;
 
@@ -763,6 +778,23 @@ export function RecordingsPanel({
                 <option value="ru">Russian</option>
                 <option value="pl">Polish</option>
                 <option value="de">German</option>
+              </select>
+            </label>
+            <label>
+              <span>{copy.uploadTemplateLabel ?? "Minutes template"}</span>
+              <select
+                value={details.minutesTemplate}
+                data-recordings="upload-template"
+                onChange={(e) =>
+                  setDetails({ ...details, minutesTemplate: e.target.value })
+                }
+              >
+                <option value="default">
+                  {copy.minutesTemplateDefault ?? "Minutes"}
+                </option>
+                <option value="official_protocol">
+                  {copy.minutesTemplateOfficial ?? "Official protocol"}
+                </option>
               </select>
             </label>
             {!details.meetingBundle ? (

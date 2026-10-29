@@ -53,6 +53,9 @@ export default async function AppHomePage() {
         uploadMeetingBundle: t("app.uploadMeetingBundle"),
         uploadMeetingBundleHint: t("app.uploadMeetingBundleHint"),
         uploadBundleTooLarge: t("app.uploadBundleTooLarge"),
+        uploadTemplateLabel: t("app.uploadTemplateLabel"),
+        minutesTemplateDefault: t("app.minutesTemplateDefault"),
+        minutesTemplateOfficial: t("app.minutesTemplateOfficial"),
       }}
     />
   );

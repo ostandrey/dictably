@@ -12,6 +12,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dictably.db.models import Analysis, AuditLog, Media, Speaker, Transcript, User
+from dictably.domain.minutes_templates import normalize_template, template_from_use_cases
 from dictably.providers.storage.base import StorageProvider
 
 logger = logging.getLogger(__name__)
@@ -150,8 +151,17 @@ async def complete_onboarding(
             user.onboarding_meeting_locale = meeting_locale
         user.onboarding_completed_at = now
         user.onboarding_skipped_at = None
+        # S2: internal → official protocol; else minutes (user can change later).
+        user.preferred_minutes_template = template_from_use_cases(ordered)
     await session.flush()
     return user
+
+
+def remember_minutes_template(user: User, template: str | None) -> str:
+    """Persist last chosen template as the user's default (T-027 B2)."""
+    tid = normalize_template(template)
+    user.preferred_minutes_template = tid
+    return tid
 
 
 async def build_export(session: AsyncSession, user: User) -> dict[str, Any]:

@@ -86,6 +86,9 @@ class User(Base, TimestampMixin):
     onboarding_meeting_locale: Mapped[str | None] = mapped_column(String(16))
     onboarding_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     onboarding_skipped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    preferred_minutes_template: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="default", server_default="default"
+    )
 
     sessions: Mapped[list[Session]] = relationship(back_populates="user")
     media: Mapped[list[Media]] = relationship(back_populates="user")
@@ -137,6 +140,9 @@ class Media(Base, TimestampMixin):
     )
     transcript_mode: Mapped[str] = mapped_column(
         String(16), nullable=False, default="clean", server_default="clean"
+    )
+    minutes_template: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="default", server_default="default"
     )
     asr_meta: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, insert_default=dict, server_default="{}"

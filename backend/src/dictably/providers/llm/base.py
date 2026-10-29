@@ -15,8 +15,9 @@ class MinutesProvider(Protocol):
         transcript: dict[str, Any],
         user_message: str,
         language: str,
+        template: str = "default",
     ) -> dict[str, Any]:
-        """Pass 1 — extract minutes with quotes."""
+        """Pass 1 — extract minutes with quotes (template: default | official_protocol)."""
 
     async def verify(
         self,

@@ -5,13 +5,17 @@ import logging
 from typing import Any
 
 from dictably.domain.minutes_schema import (
-    EXTRACT_SYSTEM,
     PROMPT_VERSION,
     VERIFY_SYSTEM,
     Minutes,
     VerifyBatch,
     build_user_message,
     format_transcript_lines,
+)
+from dictably.domain.minutes_templates import (
+    TEMPLATE_DEFAULT,
+    extract_system_for,
+    normalize_template,
 )
 from dictably.providers.llm.pricing import estimate_from_usage
 
@@ -50,15 +54,16 @@ class AnthropicLLMProvider:
         transcript: dict[str, Any],
         user_message: str,
         language: str,
+        template: str = TEMPLATE_DEFAULT,
     ) -> dict[str, Any]:
-        del transcript
+        tid = normalize_template(template or (transcript or {}).get("template"))
         import anthropic
 
         client = anthropic.AsyncAnthropic(api_key=self._api_key)
         system = [
             {
                 "type": "text",
-                "text": EXTRACT_SYSTEM.format(language=language),
+                "text": extract_system_for(tid).format(language=language),
                 "cache_control": {"type": "ephemeral"},
             }
         ]

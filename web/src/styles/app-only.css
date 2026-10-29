@@ -347,10 +347,17 @@
   }
   .auth-screen__mobile-ill svg { width: 120px; height: auto; }
   .auth-screen__main {
-    /* B1 mobile: 16–24px side padding */
-    padding: var(--space-6) var(--space-5) var(--space-10);
+    /* T-027 N1: ≥16px sides + safe-area (split props so one bad env() cannot drop padding) */
+    padding-block: var(--space-6) var(--space-10);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    place-items: start stretch;
     align-content: start;
-    justify-items: stretch;
+  }
+  .auth-screen__card {
+    box-shadow: none;
+    width: 100%;
+    max-width: 100%;
   }
 }
 

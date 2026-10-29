@@ -108,6 +108,9 @@
 .dy-minutes__heading { display: flex; align-items: center; gap: var(--space-2); font: 600 16px/24px var(--font-sans); margin: 0 0 var(--space-1); }
 .dy-minutes__label { font: 600 13px/20px var(--font-sans); color: var(--ink-muted); }
 .dy-minutes__summary { font: 400 17px/28px var(--font-sans); margin: 0; }
+.dy-minutes__attendees { font: 400 14px/22px var(--font-sans); color: var(--ink); margin: 0 0 var(--space-3); }
+.dy-minutes__agenda { margin: 0; padding-inline-start: 1.25rem; font: 400 15px/24px var(--font-sans); }
+.dy-minutes__agenda li { margin: 0 0 var(--space-1); }
 .dy-item { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: start; column-gap: var(--space-3); row-gap: var(--space-1); padding: var(--space-2) var(--space-3); margin: 0 calc(var(--space-3) * -1); border: 0; border-radius: var(--radius-sm); background: transparent; width: 100%; max-width: 100%; box-sizing: border-box; font: inherit; color: inherit; cursor: pointer; transition: background var(--duration-fast); text-align: start; }
 .dy-item--plain { grid-template-columns: minmax(0, 1fr) auto; }
 .dy-item:hover, .dy-item.is-hover { background: var(--surface); }

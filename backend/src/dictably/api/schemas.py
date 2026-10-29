@@ -21,6 +21,7 @@ class UserOut(BaseModel):
     consent_terms_at: datetime | None = None
     onboarding_completed_at: datetime | None = None
     onboarding_skipped_at: datetime | None = None
+    preferred_minutes_template: str = "default"
 
 
 class ConsentIn(BaseModel):
@@ -70,6 +71,7 @@ class MediaPatchIn(BaseModel):
     transcript_mode: str | None = Field(default=None, max_length=16)
     language: str | None = Field(default=None, max_length=16)
     speakers_expected: int | None = Field(default=None, ge=1, le=20)
+    minutes_template: str | None = Field(default=None, max_length=64)
 
 
 class AudioTrackOut(BaseModel):
@@ -110,10 +112,15 @@ class MediaOut(BaseModel):
     quality_warning: str | None = None
     vocabulary: list[str] = Field(default_factory=list)
     transcript_mode: str = "clean"
+    minutes_template: str = "default"
 
 
 class MediaListOut(BaseModel):
     items: list[MediaOut] = Field(default_factory=list)
+
+
+class AnalysisRegenerateIn(BaseModel):
+    template: str | None = Field(default=None, max_length=64)
 
 
 class TranscriptSegmentOut(BaseModel):
@@ -151,6 +158,14 @@ class MinutesPointOut(BaseModel):
     text: str
     segment_ids: list[str] = Field(default_factory=list)
     start_ms: int | None = None
+    item_id: str | None = None
+    agenda_ref: str | None = None
+    quote: str | None = None
+    status: str | None = None
+    condition: str | None = None
+    importance: str | None = None
+    verify: str | None = None
+    verify_reason: str | None = None
 
 
 class MinutesAgreementOut(BaseModel):
@@ -158,6 +173,13 @@ class MinutesAgreementOut(BaseModel):
     text: str
     segment_ids: list[str] = Field(default_factory=list)
     start_ms: int | None = None
+    item_id: str | None = None
+    agenda_ref: str | None = None
+    quote: str | None = None
+    status: str | None = None
+    condition: str | None = None
+    verify: str | None = None
+    verify_reason: str | None = None
 
 
 class MinutesTaskOut(BaseModel):
@@ -166,14 +188,34 @@ class MinutesTaskOut(BaseModel):
     segment_ids: list[str] = Field(default_factory=list)
     owner_speaker: str | None = None
     due_text: str | None = None
+    due_date: str | None = None
     start_ms: int | None = None
+    item_id: str | None = None
+    agenda_ref: str | None = None
+    quote: str | None = None
+    status: str | None = None
+    condition: str | None = None
+    verify: str | None = None
+    verify_reason: str | None = None
+    external: bool = False
+
+
+class MinutesParticipantOut(BaseModel):
+    speaker: str
+    suggested_name: str | None = None
+    suggested_role: str | None = None
+    party_id: str | None = None
 
 
 class MinutesResultOut(BaseModel):
     language: str = "en"
     title: str = "Minutes"
+    template: str = "default"
     parties: list[MinutesPartyOut] = Field(default_factory=list)
+    participants: list[MinutesParticipantOut] = Field(default_factory=list)
     summary: list[MinutesPointOut] = Field(default_factory=list)
+    agenda: list[MinutesPointOut] = Field(default_factory=list)
+    heard: list[MinutesPointOut] = Field(default_factory=list)
     decisions: list[MinutesPointOut] = Field(default_factory=list)
     agreements: list[MinutesAgreementOut] = Field(default_factory=list)
     tasks: list[MinutesTaskOut] = Field(default_factory=list)
@@ -184,6 +226,7 @@ class MinutesResultOut(BaseModel):
 class AnalysisOut(BaseModel):
     id: UUID
     media_id: UUID
+    template: str = "default"
     provider: str
     model: str | None = None
     created_at: datetime

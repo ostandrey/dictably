@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dictably.api.deps import require_user, require_user_csrf, require_user_csrf_consent
 from dictably.api.schemas import (
     AnalysisOut,
+    AnalysisRegenerateIn,
     AudioTrackOut,
     MediaListOut,
     MediaOut,
@@ -42,6 +43,7 @@ from dictably.api.schemas import (
 from dictably.core.config import Settings, get_settings
 from dictably.db.models import Media, Speaker, Transcript, User
 from dictably.db.session import get_db
+from dictably.domain import account as account_domain
 from dictably.domain import analysis as analysis_domain
 from dictably.domain import export as export_domain
 from dictably.domain import media as media_domain
@@ -51,6 +53,7 @@ from dictably.domain import speakers as speakers_domain
 from dictably.domain import transcript_edit as transcript_edit_domain
 from dictably.domain.asr_postprocess import apply_transcript_mode
 from dictably.domain.ffmpeg_media import FfmpegError, list_audio_tracks
+from dictably.domain.minutes_templates import normalize_template
 from dictably.providers.factory import get_storage_provider
 from dictably.providers.storage.base import StorageProvider
 
@@ -100,6 +103,7 @@ async def _media_out(session: AsyncSession, row: Media) -> MediaOut:
         quality_warning=row.quality_warning,
         vocabulary=vocab,
         transcript_mode=row.transcript_mode or "clean",
+        minutes_template=getattr(row, "minutes_template", None) or "default",
     )
 
 
@@ -206,6 +210,9 @@ async def patch_media(
         row.language = body.language.strip() or None
     if "speakers_expected" in fields:
         row.speakers_expected = body.speakers_expected
+    if "minutes_template" in fields and body.minutes_template is not None:
+        tid = account_domain.remember_minutes_template(user, body.minutes_template)
+        row.minutes_template = tid
     await session.commit()
     await session.refresh(row)
     return await _media_out(session, row)
@@ -290,9 +297,16 @@ async def regenerate_analysis(
     media_id: UUID,
     user: Annotated[User, Depends(require_user_csrf_consent)],
     session: Annotated[AsyncSession, Depends(get_db)],
+    body: AnalysisRegenerateIn | None = None,
 ) -> AnalysisOut:
+    template = normalize_template(body.template) if body and body.template else None
     try:
-        row = await analysis_domain.regenerate_for_user(session, user_id=user.id, media_id=media_id)
+        row = await analysis_domain.regenerate_for_user(
+            session,
+            user_id=user.id,
+            media_id=media_id,
+            template=template,
+        )
     except analysis_domain.AnalysisError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     payload = await analysis_domain.to_out_payload(session, row)
@@ -499,6 +513,7 @@ async def upload_media(
     vocabulary: Annotated[str | None, Form()] = None,
     audio_stream_index: Annotated[int | None, Form()] = None,
     meeting_bundle: Annotated[str | None, Form()] = None,
+    minutes_template: Annotated[str | None, Form()] = None,
 ) -> MediaOut:
     """Upload one recording, or several as one Zoom-style meeting (T-035b).
 
@@ -586,7 +601,14 @@ async def upload_media(
             meta = dict(row.asr_meta or {})
             meta["audio_stream_index"] = int(audio_stream_index)
             row.asr_meta = meta
-        await session.commit()
+
+    # B2: template from upload form, else user's preferred default.
+    preferred = getattr(user, "preferred_minutes_template", None) or "default"
+    tid = account_domain.remember_minutes_template(
+        user, minutes_template if minutes_template else preferred
+    )
+    row.minutes_template = tid
+    await session.commit()
 
     media_id = row.id
     await process_domain.enqueue_or_run_process(session, media_id=media_id, settings=settings)

@@ -18,6 +18,7 @@ from dictably.domain.minutes_schema import (
     iter_evidence_items,
     validate_minutes,
 )
+from dictably.domain.minutes_templates import TEMPLATE_DEFAULT, normalize_template
 from dictably.providers.llm.base import MinutesProvider
 
 log = logging.getLogger(__name__)
@@ -64,13 +65,16 @@ async def run_minutes_pipeline(
     *,
     transcript: dict[str, Any],
     require_quote: bool = True,
+    template: str = TEMPLATE_DEFAULT,
 ) -> dict[str, Any]:
     """Pass 1 extract → code validate → pass 2 verify → apply."""
+    tid = normalize_template(template)
     language = str(transcript.get("language") or "en")
     segments = [s for s in (transcript.get("segments") or []) if isinstance(s, dict)]
     speakers = [s for s in (transcript.get("speakers") or []) if isinstance(s, dict)]
     parties = [p for p in (transcript.get("parties") or []) if isinstance(p, dict)]
     duration_ms = _duration_ms(segments)
+    transcript = {**transcript, "template": tid}
 
     lines = format_transcript_lines(segments, speakers=speakers, merge=True)
     user = build_user_message(
@@ -79,15 +83,22 @@ async def run_minutes_pipeline(
         parties=parties,
         speakers=speakers,
         duration_ms=duration_ms,
+        template=tid,
     )
 
     extract_fn = getattr(llm, "extract", None)
     if extract_fn is not None:
-        raw = await extract_fn(transcript=transcript, user_message=user, language=language)
+        raw = await extract_fn(
+            transcript=transcript,
+            user_message=user,
+            language=language,
+            template=tid,
+        )
     else:
         raw = await llm.analyze(transcript=transcript)
 
     cleaned, dropped = validate_minutes(segments, raw, require_quote=require_quote)
+    cleaned.template = tid
     if dropped:
         log.info("minutes.validate dropped=%s sample=%s", len(dropped), dropped[:5])
 

@@ -19,6 +19,8 @@ type Point = {
   verify?: "supported" | "weak" | "not_supported" | null;
   verify_reason?: string | null;
   condition?: string | null;
+  item_id?: string | null;
+  agenda_ref?: string | null;
 };
 
 type Props = {
@@ -113,12 +115,15 @@ export function MinutesPanel({
     return () => window.clearTimeout(t);
   }, [load]);
 
+  const [pickedTemplate, setPickedTemplate] = useState<string | null>(null);
+
   async function onRegenerate() {
     setBusy(true);
     setError(null);
     try {
-      const a = await regenerateAnalysis(mediaId);
+      const a = await regenerateAnalysis(mediaId, { template });
       setAnalysis(a);
+      setPickedTemplate(null);
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
         setError(limitLabel);
@@ -131,6 +136,22 @@ export function MinutesPanel({
   }
 
   const result = analysis?.result;
+  const serverTemplate =
+    (analysis as { template?: string } | null)?.template ||
+    (result as { template?: string } | undefined)?.template ||
+    "default";
+  const template = pickedTemplate ?? serverTemplate;
+  // Body layout follows last generated analysis, not the pending select value.
+  const isOfficial = serverTemplate === "official_protocol";
+  const agendaLabel = t("minutesAgenda");
+  const heardLabel = t("minutesHeardOfficial");
+  const adoptedLabel = t("minutesAdopted");
+  const tasksOfficialLabel = t("minutesTasksOfficial");
+  const otherLabel = t("minutesOther");
+  const attendeesLabel = t("minutesAttendees");
+  const templateLabel = t("minutesTemplate");
+  const templateMinutes = t("minutesTemplateDefault");
+  const templateOfficial = t("minutesTemplateOfficial");
 
   const partyColor = useMemo(() => {
     const map = new Map<string, number>();
@@ -211,7 +232,8 @@ export function MinutesPanel({
   }
 
   const partyGroups = useMemo(() => {
-    if (!result) return [] as { id: string; label: string; items: Point[]; tone: number }[];
+    if (!result || isOfficial)
+      return [] as { id: string; label: string; items: Point[]; tone: number }[];
     const parties = result.parties ?? [];
     const byParty = new Map<string, Point[]>();
     for (const a of (result.agreements ?? []) as Point[]) {
@@ -220,10 +242,10 @@ export function MinutesPanel({
       list.push(a);
       byParty.set(id, list);
     }
-    for (const t of (result.tasks ?? []) as Point[]) {
-      const id = t.party_id || "_";
+    for (const task of (result.tasks ?? []) as Point[]) {
+      const id = task.party_id || "_";
       const list = byParty.get(id) ?? [];
-      list.push(t);
+      list.push(task);
       byParty.set(id, list);
     }
     const orderedIds = [
@@ -242,12 +264,90 @@ export function MinutesPanel({
           tone: partyColor.get(id) ?? 1,
         };
       });
-  }, [partyColor, result]);
+  }, [isOfficial, partyColor, result]);
+
+  const agendaBuckets = useMemo(() => {
+    if (!result || !isOfficial) {
+      return [] as {
+        key: string;
+        heading: string;
+        heard: Point[];
+        decisions: Point[];
+        tasks: Point[];
+      }[];
+    }
+    const agenda = ((result as { agenda?: Point[] }).agenda ?? []) as Point[];
+    const index = new Map<string, number>();
+    agenda.forEach((a, i) => {
+      if (a.item_id) index.set(String(a.item_id), i);
+      index.set(String(i + 1), i);
+      index.set(`A${i + 1}`, i);
+    });
+    type Bucket = {
+      key: string;
+      heading: string;
+      heard: Point[];
+      decisions: Point[];
+      tasks: Point[];
+    };
+    const buckets: Bucket[] = agenda.map((a, i) => ({
+      key: a.item_id || `A${i + 1}`,
+      heading: `${i + 1}. ${a.text}`,
+      heard: [],
+      decisions: [],
+      tasks: [],
+    }));
+    const other: Bucket = {
+      key: "other",
+      heading: otherLabel,
+      heard: [],
+      decisions: [],
+      tasks: [],
+    };
+    function place(ref: string | null | undefined, kind: "heard" | "decisions" | "tasks", item: Point) {
+      const idx = ref ? index.get(String(ref)) : undefined;
+      const target =
+        idx != null && idx >= 0 && idx < buckets.length ? buckets[idx]! : other;
+      target[kind].push(item);
+    }
+    for (const h of ((result as { heard?: Point[] }).heard ?? []) as Point[]) {
+      place(h.agenda_ref, "heard", h);
+    }
+    for (const d of (result.decisions ?? []) as Point[]) {
+      place(d.agenda_ref, "decisions", d);
+    }
+    for (const task of (result.tasks ?? []) as Point[]) {
+      place(task.agenda_ref, "tasks", task);
+    }
+    const out = buckets.filter(
+      (b) => b.heard.length || b.decisions.length || b.tasks.length,
+    );
+    if (other.heard.length || other.decisions.length || other.tasks.length) {
+      out.push(other);
+    }
+    return out;
+  }, [isOfficial, otherLabel, result]);
+
+  const attendeeNames = useMemo(() => {
+    if (!isOfficial || !result) return [] as string[];
+    const fromSpeakers = Object.values(speakerMeta)
+      .map((s) => s.name)
+      .filter(Boolean);
+    if (fromSpeakers.length) return fromSpeakers;
+    return (
+      ((result as { participants?: { suggested_name?: string; speaker?: string }[] })
+        .participants ?? [])
+        .map((p) => p.suggested_name || p.speaker || "")
+        .filter(Boolean) as string[]
+    );
+  }, [isOfficial, result, speakerMeta]);
 
   const empty =
     !result ||
     !(
       result.summary?.length ||
+      (result as { agenda?: unknown[] }).agenda?.length ||
+      (result as { heard?: unknown[] }).heard?.length ||
       result.decisions?.length ||
       result.agreements?.length ||
       result.tasks?.length ||
@@ -259,6 +359,18 @@ export function MinutesPanel({
     <aside className={className} data-recording="minutes">
       <div className="rec-page__minutes-head">
         <h2>{title}</h2>
+        <label className="rec-page__minutes-template">
+          <span className="visually-hidden">{templateLabel}</span>
+          <select
+            value={template}
+            data-minutes="template"
+            disabled={busy}
+            onChange={(e) => setPickedTemplate(e.target.value)}
+          >
+            <option value="default">{templateMinutes}</option>
+            <option value="official_protocol">{templateOfficial}</option>
+          </select>
+        </label>
         {(analysis?.regenerations_left ?? 0) > 0 ? (
           <button
             type="button"
@@ -287,41 +399,100 @@ export function MinutesPanel({
           {emptyLabel}
         </p>
       ) : (
-        <div className="dy-minutes" data-minutes="body">
-          {result?.summary?.length ? (
-            <div className="dy-minutes__group" data-minutes="summary">
-              <span className="dy-minutes__label">{summaryLabel}</span>
-              {(result.summary as Point[]).map((p, i) => (
-                <p key={`sum-${i}`} className="dy-minutes__summary">
-                  {p.text}
+        <div className="dy-minutes" data-minutes="body" data-template={template}>
+          {isOfficial ? (
+            <>
+              {attendeeNames.length ? (
+                <p className="dy-minutes__attendees" data-minutes="attendees">
+                  <strong>{attendeesLabel}:</strong> {attendeeNames.join(", ")}
                 </p>
+              ) : null}
+              {((result as { agenda?: Point[] } | undefined)?.agenda ?? []).length ? (
+                <div className="dy-minutes__group" data-minutes="agenda">
+                  <h3 className="dy-minutes__heading">{agendaLabel}</h3>
+                  <ol className="dy-minutes__agenda">
+                    {((result as { agenda?: Point[] }).agenda ?? []).map((a, i) => (
+                      <li key={a.item_id || `ag-${i}`}>{a.text}</li>
+                    ))}
+                  </ol>
+                </div>
+              ) : null}
+              {agendaBuckets.map((b) => (
+                <div
+                  key={b.key}
+                  className="dy-minutes__group"
+                  data-minutes="agenda-topic"
+                >
+                  <h3 className="dy-minutes__heading">{b.heading}</h3>
+                  {b.heard.length ? (
+                    <>
+                      <span className="dy-minutes__label">{heardLabel}</span>
+                      {b.heard.map((item, i) =>
+                        renderCheckItem(item, `${b.key}-h-${i}`, false),
+                      )}
+                    </>
+                  ) : null}
+                  {b.decisions.length ? (
+                    <>
+                      <span className="dy-minutes__label">{adoptedLabel}</span>
+                      {b.decisions.map((item, i) =>
+                        renderCheckItem(item, `${b.key}-d-${i}`, false),
+                      )}
+                    </>
+                  ) : null}
+                  {b.tasks.length ? (
+                    <>
+                      <span className="dy-minutes__label">{tasksOfficialLabel}</span>
+                      {b.tasks.map((item, i) =>
+                        renderCheckItem(item, `${b.key}-t-${i}`, true),
+                      )}
+                    </>
+                  ) : null}
+                </div>
               ))}
-            </div>
-          ) : null}
-
-          {partyGroups.map((g) => (
-            <div key={g.id} className="dy-minutes__group" data-minutes="party">
-              <h3 className="dy-minutes__heading">
-                <span className={`dy-speaker__dot sp-${g.tone}`} aria-hidden />
-                {agreedToLabel.replace("{label}", g.label)}
-              </h3>
-              {g.items.map((item, i) =>
-                renderCheckItem(item, `${g.id}-${i}`, true),
+              {renderPlainGroup(
+                openQuestionsLabel,
+                result?.open_questions as Point[] | undefined,
               )}
-            </div>
-          ))}
+            </>
+          ) : (
+            <>
+              {result?.summary?.length ? (
+                <div className="dy-minutes__group" data-minutes="summary">
+                  <span className="dy-minutes__label">{summaryLabel}</span>
+                  {(result.summary as Point[]).map((p, i) => (
+                    <p key={`sum-${i}`} className="dy-minutes__summary">
+                      {p.text}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
 
-          {renderPlainGroup(
-            decisionsLabel,
-            result?.decisions as Point[] | undefined,
-          )}
-          {renderPlainGroup(
-            deadlinesLabel,
-            result?.deadlines_and_facts as Point[] | undefined,
-          )}
-          {renderPlainGroup(
-            openQuestionsLabel,
-            result?.open_questions as Point[] | undefined,
+              {partyGroups.map((g) => (
+                <div key={g.id} className="dy-minutes__group" data-minutes="party">
+                  <h3 className="dy-minutes__heading">
+                    <span className={`dy-speaker__dot sp-${g.tone}`} aria-hidden />
+                    {agreedToLabel.replace("{label}", g.label)}
+                  </h3>
+                  {g.items.map((item, i) =>
+                    renderCheckItem(item, `${g.id}-${i}`, true),
+                  )}
+                </div>
+              ))}
+
+              {renderPlainGroup(
+                decisionsLabel,
+                result?.decisions as Point[] | undefined,
+              )}
+              {renderPlainGroup(
+                deadlinesLabel,
+                result?.deadlines_and_facts as Point[] | undefined,
+              )}
+              {renderPlainGroup(
+                openQuestionsLabel,
+                result?.open_questions as Point[] | undefined,
+              )}
+            </>
           )}
         </div>
       )}

@@ -9,10 +9,11 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dictably.db.models import Analysis, Media, MediaStatus, Transcript
+from dictably.db.models import Analysis, Media, MediaStatus, Transcript, User
 from dictably.domain import speakers as speakers_domain
 from dictably.domain.minutes_pipeline import parse_minutes_result, run_minutes_pipeline
 from dictably.domain.minutes_schema import Minutes
+from dictably.domain.minutes_templates import TEMPLATE_DEFAULT, normalize_template
 from dictably.providers.factory import get_llm_provider
 from dictably.providers.llm.base import MinutesProvider
 
@@ -51,9 +52,15 @@ async def run_and_store(
     media: Media,
     transcript: Transcript,
     llm: MinutesProvider | None = None,
+    template: str | None = None,
 ) -> Analysis:
-    """Two-pass LLM + code validation; persist Analysis row (T-016a)."""
+    """Two-pass LLM + code validation; persist Analysis row (T-016a / T-027)."""
     llm = llm or get_llm_provider()
+    tid = normalize_template(
+        template
+        if template is not None
+        else getattr(media, "minutes_template", None) or TEMPLATE_DEFAULT
+    )
     speaker_rows = await speakers_domain.list_for_media(session, media.id)
     speakers_payload = [
         {
@@ -82,7 +89,7 @@ async def run_and_store(
         "speakers": speakers_payload,
         "parties": parties_payload,
     }
-    raw = await run_minutes_pipeline(llm, transcript=payload, require_quote=True)
+    raw = await run_minutes_pipeline(llm, transcript=payload, require_quote=True, template=tid)
     dropped = list(raw.pop("_validation_dropped", []) or [])
     if dropped:
         log.info(
@@ -93,10 +100,11 @@ async def run_and_store(
         )
     cleaned = parse_minutes_result(raw)
     data = cleaned.model_dump()
+    data["template"] = tid
     data["provider"] = data.get("provider") or getattr(llm, "name", "unknown")
     row = Analysis(
         media_id=media.id,
-        template="default",
+        template=tid,
         provider=str(data["provider"]),
         model=data.get("model"),
         result=data,
@@ -112,6 +120,7 @@ async def regenerate_for_user(
     *,
     user_id: UUID,
     media_id: UUID,
+    template: str | None = None,
 ) -> Analysis:
     from dictably.domain import media as media_domain
 
@@ -127,10 +136,21 @@ async def regenerate_for_user(
             f"Regeneration limit reached ({MAX_ANALYSES_PER_MEDIA}).",
             status_code=429,
         )
+    tid = normalize_template(
+        template
+        if template is not None
+        else getattr(media, "minutes_template", None) or TEMPLATE_DEFAULT
+    )
+    media.minutes_template = tid
+    user = await session.get(User, user_id)
+    if user is not None:
+        from dictably.domain import account as account_domain
+
+        account_domain.remember_minutes_template(user, tid)
     media.status = MediaStatus.analyzing
     await session.flush()
     try:
-        row = await run_and_store(session, media=media, transcript=transcript)
+        row = await run_and_store(session, media=media, transcript=transcript, template=tid)
         media.status = MediaStatus.ready
         media.error = None
         await session.commit()
@@ -153,6 +173,8 @@ def enrich_start_ms(
     out = dict(result)
     for key in (
         "summary",
+        "agenda",
+        "heard",
         "decisions",
         "agreements",
         "tasks",
@@ -188,9 +210,11 @@ async def to_out_payload(
     result = enrich_start_ms(dict(row.result or {}), segs)
     result.setdefault("provider", row.provider)
     result.setdefault("model", row.model)
+    result.setdefault("template", row.template)
     return {
         "id": row.id,
         "media_id": row.media_id,
+        "template": row.template,
         "provider": row.provider,
         "model": row.model,
         "created_at": row.created_at,

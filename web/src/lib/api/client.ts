@@ -277,8 +277,17 @@ export function getAnalysis(id: string): Promise<Analysis> {
   return apiFetch<Analysis>(`/api/media/${id}/analysis`);
 }
 
-export function regenerateAnalysis(id: string): Promise<Analysis> {
-  return apiFetch<Analysis>(`/api/media/${id}/analysis`, { method: "POST" });
+export function regenerateAnalysis(
+  id: string,
+  options: { template?: string } = {},
+): Promise<Analysis> {
+  return apiFetch<Analysis>(`/api/media/${id}/analysis`, {
+    method: "POST",
+    body:
+      options.template != null
+        ? JSON.stringify({ template: options.template })
+        : undefined,
+  });
 }
 
 /** Cookie-authenticated audio URL for &lt;audio src&gt;. */
@@ -394,6 +403,7 @@ type UploadOptions = {
   speakersExpected?: number;
   vocabulary?: string;
   audioStreamIndex?: number;
+  minutesTemplate?: string;
 };
 
 export type UploadMediaOptions = UploadOptions & {
@@ -457,6 +467,9 @@ export function uploadMedia(
     if (options.vocabulary) body.append("vocabulary", options.vocabulary);
     if (!bundle && options.audioStreamIndex != null) {
       body.append("audio_stream_index", String(options.audioStreamIndex));
+    }
+    if (options.minutesTemplate) {
+      body.append("minutes_template", options.minutesTemplate);
     }
     xhr.send(body);
   });

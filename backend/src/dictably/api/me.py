@@ -34,6 +34,7 @@ def user_out(user: User, *, balance_seconds: int = 0) -> UserOut:
         consent_terms_at=user.consent_terms_at,
         onboarding_completed_at=user.onboarding_completed_at,
         onboarding_skipped_at=user.onboarding_skipped_at,
+        preferred_minutes_template=getattr(user, "preferred_minutes_template", None) or "default",
     )
 
 

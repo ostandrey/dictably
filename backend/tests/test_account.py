@@ -119,6 +119,9 @@ async def test_onboarding_complete_stores_chips(client: AsyncClient) -> None:
         assert user.onboarding_use_cases == ["client_meetings", "internal"]
         assert user.onboarding_meeting_locale == "en"
         assert user.onboarding_skipped_at is None
+        # S2: internal → official protocol
+        assert user.preferred_minutes_template == "official_protocol"
+    assert res.json()["preferred_minutes_template"] == "official_protocol"
 
 
 @pytest.mark.asyncio
