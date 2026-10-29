@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import re
 import secrets
 from dataclasses import dataclass
 from typing import Any
@@ -19,8 +20,11 @@ GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs"
 
-ALLOWED_NEXT_PATHS = frozenset({"/app/", "/uk/app/"})
 DEFAULT_NEXT_PATH = "/app/"
+
+# Internal app/admin paths only (T-037 return-after-login). No open redirects.
+_SAFE_NEXT = re.compile(r"^/(?:uk/)?(?:app(?:/[\w./-]*)?|admin/?)$")
+_SAFE_QUERY = re.compile(r"^[\w%=&.,+-]+$")
 
 
 @dataclass(frozen=True)
@@ -31,9 +35,16 @@ class OAuthPending:
 
 
 def sanitize_next_path(raw: str | None) -> str:
-    if raw and raw in ALLOWED_NEXT_PATHS:
-        return raw
-    return DEFAULT_NEXT_PATH
+    if not raw or not raw.startswith("/") or raw.startswith("//"):
+        return DEFAULT_NEXT_PATH
+    if "://" in raw or ".." in raw or "\\" in raw or "\n" in raw or "\r" in raw:
+        return DEFAULT_NEXT_PATH
+    path, _, query = raw.partition("?")
+    if not _SAFE_NEXT.fullmatch(path):
+        return DEFAULT_NEXT_PATH
+    if query and not _SAFE_QUERY.fullmatch(query):
+        return DEFAULT_NEXT_PATH
+    return f"{path}?{query}" if query else path
 
 
 def new_oauth_state() -> str:

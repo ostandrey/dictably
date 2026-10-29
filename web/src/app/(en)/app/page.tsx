@@ -10,27 +10,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function AppSignInPage() {
+export default async function AppHomePage() {
   const t = await getTranslations({ locale: "en" });
   return (
     <SignInPanel
-      nextPath="/app/"
       recordingBaseHref="/app/r/"
-      signInHeading={t("app.h1")}
-      signedOutBody={t("app.body")}
-      googleLabel={t("app.google")}
-      googleUnavailable={t("app.googleUnavailable")}
-      devLabel={t("app.devLogin")}
-      loadingLabel={t("app.loading")}
-      errorLabel={t("app.error")}
       deletedToast={t("app.deletedToast")}
-      authErrors={{
-        access_denied: t("app.authErrorAccessDenied"),
-        invalid_state: t("app.authErrorInvalidState"),
-        email_unverified: t("app.authErrorEmailUnverified"),
-        oauth_failed: t("app.authErrorOauthFailed"),
-        incomplete_profile: t("app.authErrorIncompleteProfile"),
-      }}
       recordings={{
         title: t("app.uploadTitle"),
         hint: t("app.uploadHint"),

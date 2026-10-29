@@ -35,12 +35,7 @@ export default async function UkAdminPage() {
       <AdminPageClient
         locale="uk"
         appHref="/uk/app/"
-        signInBody={t("app.adminSignIn")}
-        googleLabel={t("app.google")}
-        googleUnavailable={t("app.googleUnavailable")}
-        devLabel={t("app.devLogin")}
         loadingLabel={t("app.loading")}
-        errorLabel={t("app.error")}
         notFoundTitle={t("app.adminNotFoundTitle")}
         notFoundBody={t("app.adminNotFoundBody")}
         openApp={t("app.adminOpenApp")}

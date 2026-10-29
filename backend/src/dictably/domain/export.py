@@ -226,18 +226,18 @@ def _item_meta(speakers: list[Speaker], item: Any) -> str:
     return " · ".join(bits)
 
 
-def _party_groups(minutes: Minutes) -> list[tuple[str, str, list[Any]]]:
-    """Mirror MinutesPanel: agreements + tasks grouped by party, parties order first."""
-    by_party: dict[str, list[Any]] = {}
+def _party_groups(minutes: Minutes) -> list[tuple[str, str, list[tuple[str, Any]]]]:
+    """Mirror MinutesPanel: agreements + tasks grouped by party (kind, item)."""
+    by_party: dict[str, list[tuple[str, Any]]] = {}
     for a in minutes.agreements:
-        by_party.setdefault(a.party_id or "_", []).append(a)
+        by_party.setdefault(a.party_id or "_", []).append(("agreement", a))
     for t in minutes.tasks:
-        by_party.setdefault(t.party_id or "_", []).append(t)
+        by_party.setdefault(t.party_id or "_", []).append(("task", t))
     ordered = [p.id for p in minutes.parties]
     for pid in list(by_party):
         if pid not in ordered:
             ordered.append(pid)
-    out: list[tuple[str, str, list[Any]]] = []
+    out: list[tuple[str, str, list[tuple[str, Any]]]] = []
     party_label = {p.id: p.label for p in minutes.parties}
     for pid in ordered:
         items = by_party.get(pid) or []
@@ -282,20 +282,24 @@ def minutes_markdown(ctx: ExportCtx) -> str:
         heading = L["agreed_to"].replace("{label}", label)
         lines.append(f"## {heading}")
         lines.append("")
-        for item in items:
+        for kind, item in items:
             text = getattr(item, "text", "") or ""
             start_ms = getattr(item, "start_ms", None)
             tc = _fmt_clock(start_ms)
             url = _tc_url(ctx, start_ms)
+            mark = "☐ " if kind == "task" else ""
             if tc and url:
-                prefix = f"[`{tc}`]({url}) "
+                prefix = f"{mark}[`{tc}`]({url}) "
             elif tc:
-                prefix = f"`{tc}` "
+                prefix = f"{mark}`{tc}` "
             else:
-                prefix = ""
+                prefix = mark
             meta = _item_meta(ctx.speakers, item)
-            suffix = f" — {meta}" if meta else ""
-            lines.append(f"- {prefix}{text}{suffix}")
+            if meta:
+                lines.append(f"- {prefix}{text}")
+                lines.append(f"  - {meta}")
+            else:
+                lines.append(f"- {prefix}{text}")
         lines.append("")
 
     def plain_section(heading: str, items: list[Any]) -> None:
@@ -377,7 +381,7 @@ def minutes_html(ctx: ExportCtx) -> str:
         for p in ctx.minutes.summary:
             parts.append(f"<p class='summary'>{html.escape(p.text)}</p>")
 
-    def item_li(item: Any, *, with_check: bool) -> str:
+    def item_li(item: Any, *, kind: str) -> str:
         text = html.escape(getattr(item, "text", "") or "")
         start_ms = getattr(item, "start_ms", None)
         tc = _fmt_clock(start_ms)
@@ -390,21 +394,25 @@ def minutes_html(ctx: ExportCtx) -> str:
             tc_html = "<span class='tc'></span>"
         meta = _item_meta(ctx.speakers, item)
         meta_html = f"<span class='extra'>{html.escape(meta)}</span>" if meta else ""
-        check = "<span class='check'>✓</span>" if with_check else ""
+        # N2: ☐ for open tasks; no mark for agreements/plain points — same grid always.
+        if kind == "task":
+            mark = "<span class='mark'>☐</span>"
+        else:
+            mark = "<span class='mark'></span>"
         return (
-            f"<li class='{'check-item' if with_check else 'plain'}'>"
-            f"{check}{tc_html}<span class='t'>{text}</span>{meta_html}</li>"
+            f"<li>{mark}{tc_html}"
+            f"<div class='body'><span class='t'>{text}</span>{meta_html}</div></li>"
         )
 
     for _pid, label, items in _party_groups(ctx.minutes):
         heading = L["agreed_to"].replace("{label}", label)
-        rows = "".join(item_li(it, with_check=True) for it in items)
+        rows = "".join(item_li(it, kind=kind) for kind, it in items)
         parts.append(f"<h2>{html.escape(heading)}</h2><ul>{rows}</ul>")
 
     def plain_group(heading: str, items: list[Any]) -> None:
         if not items:
             return
-        rows = "".join(item_li(it, with_check=False) for it in items)
+        rows = "".join(item_li(it, kind="plain") for it in items)
         parts.append(f"<h2>{html.escape(heading)}</h2><ul>{rows}</ul>")
 
     plain_group(L["decisions"], list(ctx.minutes.decisions))
@@ -451,19 +459,16 @@ p.summary {{ margin: 0 0 8pt; }}
 ul {{ margin: 0; padding: 0; list-style: none; }}
 li {{
   display: grid;
-  grid-template-columns: 1.1em 3.2em 1fr;
+  grid-template-columns: 1.2em 3.2em 1fr;
   gap: 4pt 8pt;
   padding: 5pt 0;
   border-bottom: 1px solid #e4ebe8;
   align-items: start;
 }}
-li.plain {{ grid-template-columns: 3.2em 1fr; }}
-li.plain .tc {{ grid-column: 1; }}
-li.plain .t {{ grid-column: 2; }}
-li.plain .extra {{ grid-column: 2; }}
-li .check {{ color: #0f766e; font-size: 10pt; }}
+li .mark {{ color: #6b7c76; font-size: 10pt; line-height: 1.4; }}
 li .tc {{ color: #6b7c76; font-variant-numeric: tabular-nums; font-size: 9.5pt; text-decoration: none; }}
 a.tc:hover {{ color: #0f766e; }}
+li .body {{ display: flex; flex-direction: column; gap: 2pt; min-width: 0; }}
 li .t {{ }}
 li .extra {{ color: #6b7c76; font-size: 9.5pt; }}
 .brand {{ color: #6b7c76; font-size: 9pt; margin-bottom: 8pt; }}
@@ -577,22 +582,21 @@ def minutes_docx(ctx: ExportCtx) -> bytes:
             for run in para.runs:
                 _set_run_font(run)
 
-    def add_items(heading: str, items: list[Any], *, checked: bool) -> None:
-        if not items:
+    def add_items(heading: str, entries: list[tuple[str, Any]]) -> None:
+        if not entries:
             return
         sh = doc.add_heading(heading, level=2)
         for run in sh.runs:
             _set_run_font(run, bold=True)
-        for item in items:
+        for kind, item in entries:
             text = getattr(item, "text", "") or ""
             start_ms = getattr(item, "start_ms", None)
             tc = _fmt_clock(start_ms)
             url = _tc_url(ctx, start_ms)
             meta_bits = _item_meta(ctx.speakers, item)
-            prefix = "✓ " if checked else ""
             para = doc.add_paragraph()
-            if prefix:
-                pr = para.add_run(prefix)
+            if kind == "task":
+                pr = para.add_run("☐ ")
                 _set_run_font(pr)
             if tc and url:
                 _add_hyperlink(para, url, f"[{tc}]")
@@ -604,17 +608,23 @@ def minutes_docx(ctx: ExportCtx) -> bytes:
                 tr.font.color.rgb = RGBColor(0x6B, 0x7C, 0x76)
             body = para.add_run(text)
             _set_run_font(body)
+            # N1: meta on its own line under the point text (same column).
             if meta_bits:
-                mrun = para.add_run(f" — {meta_bits}")
+                meta_para = doc.add_paragraph()
+                mrun = meta_para.add_run(meta_bits)
                 _set_run_font(mrun)
                 mrun.font.color.rgb = RGBColor(0x6B, 0x7C, 0x76)
-            para.paragraph_format.space_after = Pt(4)
+                mrun.font.size = Pt(9)
+                meta_para.paragraph_format.space_after = Pt(4)
+                meta_para.paragraph_format.left_indent = Pt(18)
+            else:
+                para.paragraph_format.space_after = Pt(4)
 
     for _pid, label, items in _party_groups(ctx.minutes):
-        add_items(L["agreed_to"].replace("{label}", label), items, checked=True)
-    add_items(L["decisions"], list(ctx.minutes.decisions), checked=False)
-    add_items(L["deadlines"], list(ctx.minutes.deadlines_and_facts), checked=False)
-    add_items(L["open_questions"], list(ctx.minutes.open_questions), checked=False)
+        add_items(L["agreed_to"].replace("{label}", label), items)
+    add_items(L["decisions"], [("plain", x) for x in ctx.minutes.decisions])
+    add_items(L["deadlines"], [("plain", x) for x in ctx.minutes.deadlines_and_facts])
+    add_items(L["open_questions"], [("plain", x) for x in ctx.minutes.open_questions])
 
     foot = doc.add_paragraph()
     fr = foot.add_run(L["footer"])

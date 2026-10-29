@@ -8,10 +8,11 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const backend = path.resolve(__dirname, "..", "..", "backend");
+const port = process.env.E2E_API_PORT || "8000";
 
 const child = spawn(
   "uv",
-  ["run", "uvicorn", "dictably.main:app", "--host", "127.0.0.1", "--port", "8000"],
+  ["run", "uvicorn", "dictably.main:app", "--host", "127.0.0.1", "--port", port],
   {
     cwd: backend,
     stdio: "inherit",

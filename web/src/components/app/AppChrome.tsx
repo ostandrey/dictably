@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { type ReactNode } from "react";
 import { AppDropOverlay } from "@/components/app/AppDropOverlay";
 import { AppShell } from "@/components/app/AppShell";
+import { RequireAuth } from "@/components/app/RequireAuth";
 import { localePath } from "@/i18n/locales";
 
 type Locale = "en" | "uk";
@@ -38,28 +39,30 @@ export function AppChrome({
 
   return (
     <div data-app-inert-root>
-      <AppShell
-        backHref={localePath(locale)}
-        backLabel={t("back")}
-        recordingsHref={recordingsHref}
-        settingsHref={settingsHref}
-        peopleHref={peopleHref}
-        adminHref={adminHref}
-        logoutLabel={t("logout")}
-        brandName={brandName}
-        nav={nav}
-        navRecordings={t("navRecordings")}
-        navPeople={t("navPeople")}
-        navSettings={t("navSettings")}
-        navAdmin={t("navAdmin")}
-        showAccountInMain={nav === "settings"}
-      >
-        {children}
-      </AppShell>
-      <AppDropOverlay
-        dropLabel={t("uploadDrop")}
-        recordingsHref={recordingsHref}
-      />
+      <RequireAuth locale={locale}>
+        <AppShell
+          backHref={localePath(locale)}
+          backLabel={t("back")}
+          recordingsHref={recordingsHref}
+          settingsHref={settingsHref}
+          peopleHref={peopleHref}
+          adminHref={adminHref}
+          logoutLabel={t("logout")}
+          brandName={brandName}
+          nav={nav}
+          navRecordings={t("navRecordings")}
+          navPeople={t("navPeople")}
+          navSettings={t("navSettings")}
+          navAdmin={t("navAdmin")}
+          showAccountInMain={nav === "settings"}
+        >
+          {children}
+        </AppShell>
+        <AppDropOverlay
+          dropLabel={t("uploadDrop")}
+          recordingsHref={recordingsHref}
+        />
+      </RequireAuth>
     </div>
   );
 }

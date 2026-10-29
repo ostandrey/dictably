@@ -33,8 +33,17 @@ async def _user_count(session: AsyncSession) -> int:
 @pytest.mark.asyncio
 async def test_sanitize_next_rejects_open_redirect() -> None:
     assert sanitize_next_path("/uk/app/") == "/uk/app/"
+    assert sanitize_next_path("/app/settings/") == "/app/settings/"
+    assert sanitize_next_path("/uk/app/settings/") == "/uk/app/settings/"
+    assert sanitize_next_path("/admin/") == "/admin/"
+    assert sanitize_next_path("/uk/admin/") == "/uk/admin/"
+    assert sanitize_next_path("/app/r/?id=11111111-1111-1111-1111-111111111111") == (
+        "/app/r/?id=11111111-1111-1111-1111-111111111111"
+    )
     assert sanitize_next_path("https://evil.example/") == "/app/"
-    assert sanitize_next_path("/admin/") == "/app/"
+    assert sanitize_next_path("//evil.example/") == "/app/"
+    assert sanitize_next_path("/app/../etc/passwd") == "/app/"
+    assert sanitize_next_path("/not-app/") == "/app/"
 
 
 @pytest.mark.asyncio

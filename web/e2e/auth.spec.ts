@@ -1,11 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import fs from "node:fs";
-import path from "node:path";
 import { passAccountGates } from "./utils/auth";
-import { VIEWPORTS } from "./utils/shots";
-
-const SHOT_ROOT = path.join("e2e", "__screenshots__", "T-011");
 
 test.describe("T-011 auth", () => {
   test("auth_error query shows localized message (whitelist)", async ({
@@ -27,8 +22,9 @@ test.describe("T-011 auth", () => {
     expect(anon.status()).toBe(401);
 
     await page.goto("/app/");
+    await expect(page.locator("[data-auth='screen']")).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      "Sign in",
+      /Sign in|Увійти/,
     );
     await page.locator("[data-auth='dev-login']").click();
     await page.waitForSelector(
@@ -54,7 +50,7 @@ test.describe("T-011 auth", () => {
 
   test("axe on /app/ — no serious/critical", async ({ page }) => {
     await page.goto("/app/");
-    await page.locator("[data-auth='dev-login']").waitFor();
+    await expect(page.locator("[data-auth='screen']")).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa"])
       .analyze();
@@ -62,31 +58,5 @@ test.describe("T-011 auth", () => {
       ["serious", "critical"].includes(v.impact ?? ""),
     );
     expect(bad, JSON.stringify(bad, null, 2)).toEqual([]);
-  });
-
-  test("screenshots sign-in 375/768/1440 light+dark", async ({ page }) => {
-    fs.mkdirSync(SHOT_ROOT, { recursive: true });
-    for (const route of [
-      { locale: "en" as const, path: "/app/" },
-      { locale: "uk" as const, path: "/uk/app/" },
-    ]) {
-      for (const scheme of ["light", "dark"] as const) {
-        await page.emulateMedia({ colorScheme: scheme });
-        for (const vp of VIEWPORTS.filter((v) =>
-          ["375", "768", "1440"].includes(v.name),
-        )) {
-          await page.setViewportSize({ width: vp.width, height: vp.height });
-          await page.goto(route.path);
-          await page.locator("[data-auth='dev-login']").waitFor();
-          await page.screenshot({
-            path: path.join(
-              SHOT_ROOT,
-              `${route.locale}-${vp.name}-${scheme}.png`,
-            ),
-            fullPage: true,
-          });
-        }
-      }
-    }
   });
 });

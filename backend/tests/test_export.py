@@ -156,11 +156,17 @@ def test_minutes_structure_by_party_uk_labels() -> None:
     assert "## Відкриті питання" in md
     assert "Згенеровано Dictably з аудіозапису" in md
     assert f"/uk/app/r/?id={ctx.media.id}&t=1" in md
+    assert "☐" in md  # open tasks
+    assert "✓" not in md
 
     html_doc = minutes_html(ctx)
     assert "Наші погодились" in html_doc
     assert "font-family: 'Onest'" in html_doc
     assert "counter(page)" in html_doc
+    assert "class='mark'>☐" in html_doc
+    assert "✓" not in html_doc
+    assert "class='extra'>" in html_doc
+    assert "grid-template-columns: 1.2em 3.2em 1fr" in html_doc
 
     docx = minutes_docx(ctx)
     assert docx[:2] == b"PK"

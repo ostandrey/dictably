@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dictably.db.models import Session, User
@@ -71,11 +72,20 @@ async def upsert_dev_user(
 ) -> User:
     email_norm = email.lower().strip()
     user = await get_user_by_email(session, email_norm)
-    if user is None:
-        user = User(email=email_norm, name=name, locale="en")
-        session.add(user)
-        await session.flush()
-    return user
+    if user is not None:
+        return user
+    try:
+        async with session.begin_nested():
+            user = User(email=email_norm, name=name, locale="en")
+            session.add(user)
+            await session.flush()
+        return user
+    except IntegrityError:
+        # Parallel e2e / concurrent Dev login — email unique race.
+        existing = await get_user_by_email(session, email_norm)
+        if existing is None:
+            raise
+        return existing
 
 
 async def create_session(
