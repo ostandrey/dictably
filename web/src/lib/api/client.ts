@@ -202,6 +202,62 @@ export function mediaAudioUrl(id: string): string {
   return `/api/media/${id}/audio`;
 }
 
+export type ExportKind = "minutes" | "transcript";
+export type ExportFormat = "docx" | "pdf" | "md" | "txt" | "srt" | "vtt";
+
+/** Same-origin download URL for T-017 exports (cookies apply on navigation/fetch). */
+export function mediaExportUrl(
+  id: string,
+  kind: ExportKind,
+  format: ExportFormat,
+): string {
+  const q = new URLSearchParams({ kind, format });
+  return `/api/media/${id}/export?${q.toString()}`;
+}
+
+/** Fetch export as blob (credentials) and trigger a download. */
+export async function downloadMediaExport(
+  id: string,
+  kind: ExportKind,
+  format: ExportFormat,
+): Promise<void> {
+  const res = await fetch(mediaExportUrl(id, kind, format), {
+    credentials: "include",
+    headers: { Accept: "*/*" },
+  });
+  if (!res.ok) {
+    throw new ApiError(`${res.status} ${res.statusText}`, res.status);
+  }
+  const blob = await res.blob();
+  const cd = res.headers.get("content-disposition") || "";
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+  const plain = /filename="([^"]+)"/i.exec(cd);
+  const name = star
+    ? decodeURIComponent(star[1])
+    : plain?.[1] || `export.${format}`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** Fetch minutes markdown for clipboard (Copy as text). */
+export async function fetchMinutesMarkdown(id: string): Promise<string> {
+  const res = await fetch(mediaExportUrl(id, "minutes", "md"), {
+    credentials: "include",
+    headers: { Accept: "text/markdown, text/plain" },
+  });
+  if (!res.ok) {
+    throw new ApiError(`${res.status} ${res.statusText}`, res.status);
+  }
+  return res.text();
+}
+
 export async function adminListUsers(): Promise<{ items: AdminUser[] }> {
   const data = await apiFetch<{ items?: AdminUser[] }>("/api/admin/users");
   return { items: data.items ?? [] };

@@ -38,6 +38,17 @@ export default async function UkRecordingPage() {
       regenerateLabel={t("app.minutesRegenerate")}
       regeneratingLabel={t("app.minutesRegenerating")}
       regenerateLimitLabel={t("app.minutesRegenLimit")}
+      exportLabel={t("app.export")}
+      exportMenuLabel={t("app.exportMenu")}
+      exportMinutesDocx={t("app.exportMinutesDocx")}
+      exportMinutesPdf={t("app.exportMinutesPdf")}
+      exportMinutesCopy={t("app.exportMinutesCopy")}
+      exportMinutesCopied={t("app.exportMinutesCopied")}
+      exportTranscriptTxt={t("app.exportTranscriptTxt")}
+      exportTranscriptDocx={t("app.exportTranscriptDocx")}
+      exportTranscriptSrt={t("app.exportTranscriptSrt")}
+      exportTranscriptVtt={t("app.exportTranscriptVtt")}
+      exportFailed={t("app.exportFailed")}
     />
   );
 }

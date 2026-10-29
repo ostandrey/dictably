@@ -4,10 +4,11 @@ import json
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dictably.api.deps import require_user, require_user_csrf, require_user_csrf_consent
@@ -25,6 +26,7 @@ from dictably.core.config import Settings, get_settings
 from dictably.db.models import Media, Speaker, Transcript, User
 from dictably.db.session import get_db
 from dictably.domain import analysis as analysis_domain
+from dictably.domain import export as export_domain
 from dictably.domain import media as media_domain
 from dictably.domain import process as process_domain
 from dictably.domain import speakers as speakers_domain
@@ -256,6 +258,35 @@ async def get_audio(
         filename=path.name,
         content_disposition_type="inline",
     )
+
+
+@router.get("/media/{media_id}/export")
+async def export_media(
+    media_id: UUID,
+    user: Annotated[User, Depends(require_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    kind: Annotated[str, Query(description="minutes | transcript")],
+    format: Annotated[str, Query(alias="format", description="docx|pdf|md|txt|srt|vtt")],
+) -> Response:
+    """Download minutes or transcript export (T-017). Foreign media → 404."""
+    file = await export_domain.build_export(
+        session,
+        user,
+        media_id,
+        kind=kind,
+        fmt=format,
+        public_app_url=settings.public_app_url,
+    )
+    # RFC 5987 filename* for non-ASCII stems; ASCII fallback for old agents.
+    ascii_name = file.filename.encode("ascii", "ignore").decode("ascii") or "export"
+    headers = {
+        "Content-Disposition": (
+            f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(file.filename)}"
+        ),
+        "Cache-Control": "no-store",
+    }
+    return Response(content=file.body, media_type=file.media_type, headers=headers)
 
 
 @router.get("/media/{media_id}/peaks")

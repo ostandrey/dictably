@@ -28,6 +28,17 @@ type Props = {
   regenerateLabel: string;
   regeneratingLabel: string;
   regenerateLimitLabel: string;
+  exportLabel: string;
+  exportMenuLabel: string;
+  exportMinutesDocx: string;
+  exportMinutesPdf: string;
+  exportMinutesCopy: string;
+  exportMinutesCopied: string;
+  exportTranscriptTxt: string;
+  exportTranscriptDocx: string;
+  exportTranscriptSrt: string;
+  exportTranscriptVtt: string;
+  exportFailed: string;
 };
 
 function subscribe() {
@@ -82,6 +93,17 @@ export function RecordingPageClient(props: Props) {
       regenerateLabel={props.regenerateLabel}
       regeneratingLabel={props.regeneratingLabel}
       regenerateLimitLabel={props.regenerateLimitLabel}
+      exportLabel={props.exportLabel}
+      exportMenuLabel={props.exportMenuLabel}
+      exportMinutesDocx={props.exportMinutesDocx}
+      exportMinutesPdf={props.exportMinutesPdf}
+      exportMinutesCopy={props.exportMinutesCopy}
+      exportMinutesCopied={props.exportMinutesCopied}
+      exportTranscriptTxt={props.exportTranscriptTxt}
+      exportTranscriptDocx={props.exportTranscriptDocx}
+      exportTranscriptSrt={props.exportTranscriptSrt}
+      exportTranscriptVtt={props.exportTranscriptVtt}
+      exportFailed={props.exportFailed}
     />
   );
 }

@@ -13,11 +13,15 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ApiError,
+  downloadMediaExport,
+  fetchMinutesMarkdown,
   getMedia,
   getPeaks,
   getTranscript,
   mediaAudioUrl,
   patchSpeaker,
+  type ExportFormat,
+  type ExportKind,
   type MediaItem,
   type Speaker,
   type Transcript,
@@ -57,6 +61,17 @@ type Props = {
   regenerateLabel: string;
   regeneratingLabel: string;
   regenerateLimitLabel: string;
+  exportLabel: string;
+  exportMenuLabel: string;
+  exportMinutesDocx: string;
+  exportMinutesPdf: string;
+  exportMinutesCopy: string;
+  exportMinutesCopied: string;
+  exportTranscriptTxt: string;
+  exportTranscriptDocx: string;
+  exportTranscriptSrt: string;
+  exportTranscriptVtt: string;
+  exportFailed: string;
 };
 
 function formatClock(seconds: number): string {
@@ -176,10 +191,22 @@ export function RecordingView({
   regenerateLabel,
   regeneratingLabel,
   regenerateLimitLabel,
+  exportLabel,
+  exportMenuLabel,
+  exportMinutesDocx,
+  exportMinutesPdf,
+  exportMinutesCopy,
+  exportMinutesCopied,
+  exportTranscriptTxt,
+  exportTranscriptDocx,
+  exportTranscriptSrt,
+  exportTranscriptVtt,
+  exportFailed,
 }: Props) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const waveRef = useRef<HTMLDivElement | null>(null);
+  const exportMenuRef = useRef<HTMLDivElement | null>(null);
   const followRef = useRef(true);
   const ignoreScrollRef = useRef(false);
 
@@ -200,6 +227,9 @@ export function RecordingView({
   const [draftParty, setDraftParty] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [evidenceSegIds, setEvidenceSegIds] = useState<string[]>([]);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [copiedFlash, setCopiedFlash] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -499,6 +529,54 @@ export function RecordingView({
     });
   }
 
+  useEffect(() => {
+    if (!exportOpen) return;
+    function onDoc(e: Event) {
+      const t = e.target as Node | null;
+      if (exportMenuRef.current && t && !exportMenuRef.current.contains(t)) {
+        setExportOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setExportOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [exportOpen]);
+
+  async function runExport(kind: ExportKind, format: ExportFormat) {
+    setExportBusy(true);
+    setError(null);
+    try {
+      await downloadMediaExport(mediaId, kind, format);
+      setExportOpen(false);
+    } catch {
+      setError(exportFailed);
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
+  async function copyMinutes() {
+    setExportBusy(true);
+    setError(null);
+    try {
+      const md = await fetchMinutesMarkdown(mediaId);
+      await navigator.clipboard.writeText(md);
+      setCopiedFlash(true);
+      window.setTimeout(() => setCopiedFlash(false), 1600);
+      setExportOpen(false);
+    } catch {
+      setError(exportFailed);
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
   if (error && !media) {
     return (
       <Alert tone="danger" data-recording="error">
@@ -526,9 +604,100 @@ export function RecordingView({
   return (
     <div className="rec-page" data-recording="page">
       <header className="rec-page__crumb">
-        <a href={recordingsHref}>{recordingsLabel}</a>
-        <span aria-hidden>/</span>
-        <span>{media.filename}</span>
+        <div className="rec-page__crumb-path">
+          <a href={recordingsHref}>{recordingsLabel}</a>
+          <span aria-hidden>/</span>
+          <span>{media.filename}</span>
+        </div>
+        <div className="rec-page__export" ref={exportMenuRef}>
+          <button
+            type="button"
+            className="btn-text"
+            data-recording="export"
+            aria-expanded={exportOpen}
+            aria-haspopup="menu"
+            aria-label={exportMenuLabel}
+            disabled={exportBusy}
+            onClick={() => setExportOpen((v) => !v)}
+          >
+            {exportLabel}
+          </button>
+          {exportOpen ? (
+            <div className="rec-page__export-pop" role="menu" data-recording="export-menu">
+              <button
+                type="button"
+                role="menuitem"
+                className="rec-page__export-item"
+                data-export="minutes-docx"
+                disabled={exportBusy}
+                onClick={() => void runExport("minutes", "docx")}
+              >
+                {exportMinutesDocx}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="rec-page__export-item"
+                data-export="minutes-pdf"
+                disabled={exportBusy}
+                onClick={() => void runExport("minutes", "pdf")}
+              >
+                {exportMinutesPdf}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="rec-page__export-item"
+                data-export="minutes-copy"
+                disabled={exportBusy}
+                onClick={() => void copyMinutes()}
+              >
+                {copiedFlash ? exportMinutesCopied : exportMinutesCopy}
+              </button>
+              <div className="rec-page__export-sep" role="separator" />
+              <button
+                type="button"
+                role="menuitem"
+                className="rec-page__export-item"
+                data-export="transcript-txt"
+                disabled={exportBusy}
+                onClick={() => void runExport("transcript", "txt")}
+              >
+                {exportTranscriptTxt}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="rec-page__export-item"
+                data-export="transcript-docx"
+                disabled={exportBusy}
+                onClick={() => void runExport("transcript", "docx")}
+              >
+                {exportTranscriptDocx}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="rec-page__export-item"
+                data-export="transcript-srt"
+                disabled={exportBusy}
+                onClick={() => void runExport("transcript", "srt")}
+              >
+                {exportTranscriptSrt}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="rec-page__export-item"
+                data-export="transcript-vtt"
+                disabled={exportBusy}
+                onClick={() => void runExport("transcript", "vtt")}
+              >
+                {exportTranscriptVtt}
+              </button>
+            </div>
+          ) : null}
+        </div>
       </header>
 
       <section className="rec-page__hero" data-recording="player-band">
