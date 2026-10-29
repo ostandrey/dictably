@@ -1,12 +1,14 @@
 import type { MetadataRoute } from "next";
 import { enabledLocales, localePath } from "@/i18n/locales";
-import { site } from "@/lib/site";
+import { isPreview, site } from "@/lib/site";
 
 export const dynamic = "force-static";
 
 const pages = ["", "privacy"];
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  if (isPreview) return [];
+
   const now = new Date();
   const entries: MetadataRoute.Sitemap = [];
 

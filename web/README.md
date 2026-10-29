@@ -23,17 +23,28 @@ pnpm lh               # Lighthouse mobile median on out/
 
 ## Required env (production / Railway build args)
 
-See `.env.example`. `scripts/check-env.mjs` fails the build unless these are set:
+See `.env.example`. `scripts/check-env.mjs`:
 
-- `NEXT_PUBLIC_SITE_URL`
-- `NEXT_PUBLIC_CONTACT_EMAIL`
-- `NEXT_PUBLIC_CONTROLLER_NAME`
+- Always: `NEXT_PUBLIC_SITE_URL`
+- **Production** (`NEXT_PUBLIC_SITE_MODE=production` or unset): also `NEXT_PUBLIC_CONTACT_EMAIL`, `NEXT_PUBLIC_CONTROLLER_NAME`
+- **Preview** (`NEXT_PUBLIC_SITE_MODE=preview`): contact/controller optional; site shows a “Test version” strip, `noindex`, empty sitemap, `robots.txt` Disallow `/`
 
 Optional: `NEXT_PUBLIC_CF_BEACON`.
 
 Design (T-004): `NEXT_PUBLIC_ACCENT=teal|tomato` (default `teal`), `NEXT_PUBLIC_THEME=light|dark|system` (default `light`). Tokens: `pnpm tokens` → `src/styles/tokens.css` from `docs/design/system/tokens.json`.
 
 Local/e2e: `DICTABLY_ALLOW_PLACEHOLDER_ENV=1` (via `build:local` / `dev`).
+
+### Free port 8000 after e2e
+
+Playwright starts API via `scripts/e2e-api.mjs` and does **not** reuse an existing `:8000` server. If a stray process remains:
+
+```bash
+# from repo root
+just free-api-port
+# or PowerShell:
+Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+```
 
 ## Deploy
 

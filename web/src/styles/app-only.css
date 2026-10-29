@@ -1,0 +1,96 @@
+/* App chrome extras — imported only under /app + /admin (T-036 B3). */
+
+.app-skel {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--surface-sunken) 0%,
+    var(--surface) 50%,
+    var(--surface-sunken) 100%
+  );
+  background-size: 200% 100%;
+  animation: app-skel-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes app-skel-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-skel { animation: none; background: var(--surface-sunken); }
+}
+.app-skel--brand { height: 28px; width: 140px; margin: 4px 8px; }
+.app-skel--nav { height: 36px; width: 100%; margin-block: 2px; }
+.app-skel--account { height: 56px; width: 100%; }
+.app-skel--title { height: 28px; width: min(240px, 60%); margin-bottom: var(--space-6); }
+.app-skel--block { height: 72px; width: 100%; margin-bottom: var(--space-3); }
+.app-skel--short { width: 70%; }
+.app-skel--row { height: 56px; width: 100%; margin-bottom: var(--space-2); border-radius: var(--radius-md); }
+.app-skel-list { display: flex; flex-direction: column; gap: var(--space-2); padding-block: var(--space-2); }
+
+.app-drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--canvas) 72%, transparent);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+.app-drop-overlay__card {
+  pointer-events: none;
+  min-width: min(420px, calc(100% - 2 * var(--space-6)));
+  padding: var(--space-8) var(--space-6);
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent-soft) 88%, var(--canvas));
+  text-align: center;
+  box-shadow: var(--shadow-md);
+}
+.app-drop-overlay__title {
+  margin: 0;
+  font: 600 18px/28px var(--font-sans);
+  color: var(--ink);
+}
+
+.sign-in__ill {
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--space-4);
+}
+.dy-upload__ill {
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.dy-list__enter { animation: dy-row-in var(--duration-base) var(--ease); }
+@keyframes dy-row-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.dy-toasts { position: fixed; z-index: 80; inset-inline: 0; bottom: var(--space-6); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); pointer-events: none; padding-inline: var(--space-4); }
+.dy-toast { pointer-events: auto; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--ink); color: var(--canvas); font: 500 14px/20px var(--font-sans); box-shadow: var(--shadow-md); animation: dy-toast-in var(--duration-base) var(--ease); }
+@keyframes dy-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.ill-wave__bar { transform-origin: center bottom; animation: ill-wave 1.1s var(--ease) infinite alternate; }
+.ill-wave__bar:nth-child(2) { animation-delay: 80ms; }
+.ill-wave__bar:nth-child(3) { animation-delay: 160ms; }
+.ill-wave__bar:nth-child(4) { animation-delay: 40ms; }
+.ill-wave__bar:nth-child(5) { animation-delay: 120ms; }
+.ill-wave__bar:nth-child(6) { animation-delay: 200ms; }
+.ill-wave__bar:nth-child(7) { animation-delay: 60ms; }
+.ill-wave__bar:nth-child(8) { animation-delay: 140ms; }
+@keyframes ill-wave {
+  from { transform: scaleY(0.55); }
+  to { transform: scaleY(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ill-wave__bar { animation: none; }
+  .dy-list__enter,
+  .dy-toast { animation: none; }
+}

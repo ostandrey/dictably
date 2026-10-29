@@ -641,3 +641,17 @@
 .admin-costs__total dd {
   color: var(--accent);
 }
+
+.not-found {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-8) var(--space-4);
+  background: var(--canvas);
+}
+.not-found__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+}

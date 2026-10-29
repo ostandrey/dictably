@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { AppShell } from "@/components/app/AppShell";
-import { localePath } from "@/i18n/locales";
-import { site } from "@/lib/site";
+import { PlaceholderPanel } from "@/components/app/PlaceholderPanel";
+import { IllSettings } from "@/components/illustrations";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations({ locale: "uk" });
@@ -15,26 +14,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function UkSettingsPage() {
   const t = await getTranslations({ locale: "uk" });
   return (
-    <AppShell
-      heading={t("app.settingsTitle")}
-      backHref={localePath("uk")}
-      backLabel={t("app.back")}
-      recordingsHref="/uk/app/"
-      settingsHref="/uk/app/settings/"
-      peopleHref="/uk/app/people/"
-      logoutLabel={t("app.logout")}
-      brandName={site.name}
-      nav="settings"
-      adminHref="/uk/admin/"
-      navRecordings={t("app.navRecordings")}
-      navPeople={t("app.navPeople")}
-      navSettings={t("app.navSettings")}
-      navAdmin={t("app.navAdmin")}
-      showAccountInMain
-    >
-      <p className="dy-muted" data-settings="body">
-        {t("app.settingsAccount")}
-      </p>
-    </AppShell>
+    <PlaceholderPanel
+      illustration={<IllSettings />}
+      title={t("app.settingsSectionsTitle")}
+      body={t("app.settingsSectionsBody")}
+      data-testid="settings"
+    />
   );
 }

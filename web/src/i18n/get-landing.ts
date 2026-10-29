@@ -109,26 +109,33 @@ export async function getLandingCopy(locale: string): Promise<LandingCopy> {
 
 export async function getPrivacyCopy(locale: string) {
   const t = await getTranslations({ locale, namespace: "privacy" });
-  const { site } = await import("@/lib/site");
+  const { site, isPreview } = await import("@/lib/site");
+  const whoBody = isPreview || !site.contactEmail
+    ? t("whoBodyPreview", { controller: site.controller })
+    : t("whoBody", {
+        controller: site.controller,
+        email: site.contactEmail,
+      });
+  const rightsBody = isPreview || !site.contactEmail
+    ? t("rightsBodyPreview")
+    : t("rightsBody", { email: site.contactEmail });
   return {
     title: t("title"),
     metaDescription: t("metaDescription"),
     h1: t("h1"),
     intro: t("intro"),
+    contactEmail: site.contactEmail,
     sections: [
       {
         h: t("whoTitle"),
-        body: t("whoBody", {
-          controller: site.controller,
-          email: site.contactEmail,
-        }),
+        body: whoBody,
       },
       { h: t("collectTitle"), body: t("collectBody") },
       { h: t("processTitle"), body: t("processBody") },
       { h: t("dontTitle"), body: t("dontBody") },
       {
         h: t("rightsTitle"),
-        body: t("rightsBody", { email: site.contactEmail }),
+        body: rightsBody,
       },
       {
         h: t("changesTitle"),

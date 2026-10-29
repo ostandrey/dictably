@@ -20,6 +20,15 @@
   background: var(--canvas);
 }
 
+/* Sticky header clearance for in-page anchors */
+#how,
+#pricing,
+#features,
+#faq,
+#privacy {
+  scroll-margin-top: 72px;
+}
+
 .lp-header__inner {
   display: flex;
   align-items: center;

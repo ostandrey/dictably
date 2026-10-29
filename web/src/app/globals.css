@@ -3,6 +3,19 @@
 @import "../styles/app-shell.css";
 @import "../styles/landing.css";
 
+/* T-023a preview strip — tiny, always available */
+.preview-banner {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 6px var(--space-4);
+  text-align: center;
+  font: 500 13px/18px var(--font-sans);
+  color: var(--ink);
+  background: var(--warning-soft);
+  border-bottom: 1px solid color-mix(in srgb, var(--warning) 28%, transparent);
+}
+
 *,
 *::before,
 *::after {
@@ -1096,8 +1109,14 @@ a {
 
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 150ms;
+  animation-duration: 180ms;
   animation-timing-function: var(--ease);
+}
+
+::view-transition-old(app-sidebar),
+::view-transition-new(app-sidebar) {
+  animation: none;
+  mix-blend-mode: normal;
 }
 
 /* App / admin shell (T-003) */

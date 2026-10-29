@@ -5,6 +5,7 @@ export type PrivacyCopy = {
   metaDescription: string;
   h1: string;
   intro: string;
+  contactEmail?: string;
   sections: { h: string; body: string }[];
   back: string;
 };
@@ -41,7 +42,9 @@ export function PrivacyPage({ copy, homeHref }: Props) {
       </main>
       <footer className="site-footer shell">
         <span>© {site.name}</span>
-        <a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a>
+        {copy.contactEmail ? (
+          <a href={`mailto:${copy.contactEmail}`}>{copy.contactEmail}</a>
+        ) : null}
       </footer>
     </>
   );

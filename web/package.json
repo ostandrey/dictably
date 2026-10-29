@@ -7,6 +7,7 @@
     "build": "node scripts/check-env.mjs && node scripts/check-i18n-keys.mjs && next build",
     "build:local": "node scripts/check-i18n-keys.mjs && node scripts/run-with-placeholders.mjs next build",
     "i18n:check": "node scripts/check-i18n-keys.mjs",
+    "site-mode:check": "node scripts/check-site-mode.mjs",
     "tokens": "node scripts/generate-tokens.mjs",
     "start": "pnpm dlx serve out -l 4173",
     "lint": "eslint .",

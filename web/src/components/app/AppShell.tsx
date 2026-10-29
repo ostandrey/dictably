@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { getMe, logout, type User } from "@/lib/api";
+import { type ReactNode } from "react";
+import { AppLink } from "@/components/app/AppLink";
+import { clearAuthSession, useAuth } from "@/components/app/AuthProvider";
+import { logout, type User } from "@/lib/api";
 
 type Props = {
   /** When omitted, the child supplies the page title (e.g. SignInPanel). */
@@ -44,6 +46,29 @@ function initials(user: User): string {
   return base.slice(0, 2).toUpperCase();
 }
 
+function SkeletonChrome() {
+  return (
+    <div className="app-frame" data-shell="skeleton" aria-busy="true">
+      <aside className="app-sidebar" aria-hidden>
+        <div className="app-skel app-skel--brand" />
+        <div className="app-sidebar__nav">
+          <div className="app-skel app-skel--nav" />
+          <div className="app-skel app-skel--nav" />
+          <div className="app-skel app-skel--nav" />
+        </div>
+        <div className="app-sidebar__foot">
+          <div className="app-skel app-skel--account" />
+        </div>
+      </aside>
+      <main className="app-main">
+        <div className="app-skel app-skel--title" />
+        <div className="app-skel app-skel--block" />
+        <div className="app-skel app-skel--block app-skel--short" />
+      </main>
+    </div>
+  );
+}
+
 /** App chrome with sidebar (Recordings.dc.html + A1–A5 + M1 mobile nav). */
 export function AppShell({
   heading,
@@ -63,37 +88,26 @@ export function AppShell({
   showAccountInMain = false,
   children,
 }: Props) {
-  const [user, setUser] = useState<User | null>(null);
+  const { status, user, setUser } = useAuth();
 
-  const refresh = useCallback(async () => {
-    try {
-      const me = await getMe();
-      setUser(me);
-    } catch {
-      setUser(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    const t = window.setTimeout(() => {
-      void refresh();
-    }, 0);
-    const onAuth = () => {
-      void refresh();
-    };
-    window.addEventListener("dictably:auth", onAuth);
-    return () => {
-      window.clearTimeout(t);
-      window.removeEventListener("dictably:auth", onAuth);
-    };
-  }, [refresh]);
+  if (status === "loading") {
+    return <SkeletonChrome />;
+  }
 
   async function onLogout() {
     try {
       await logout();
-    } finally {
-      setUser(null);
-      window.location.href = recordingsHref;
+    } catch {
+      /* still clear client session */
+    }
+    clearAuthSession();
+    setUser(null);
+    const path = window.location.pathname;
+    if (
+      path !== recordingsHref &&
+      path !== recordingsHref.replace(/\/+$/, "")
+    ) {
+      window.location.assign(recordingsHref);
     }
   }
 
@@ -121,9 +135,9 @@ export function AppShell({
       </button>
     </div>
   ) : (
-    <a href={backHref} className="app-sidebar__back">
+    <AppLink href={backHref} className="app-sidebar__back">
       {backLabel}
-    </a>
+    </AppLink>
   );
 
   const quotaBlock = showQuota ? (
@@ -145,46 +159,51 @@ export function AppShell({
 
   return (
     <div className="app-frame">
-      <aside className="app-sidebar" aria-label="App" data-shell="sidebar">
-        <a href={recordingsHref} className="app-sidebar__brand">
+      <aside
+        className="app-sidebar"
+        aria-label="App"
+        data-shell="sidebar"
+        style={{ viewTransitionName: "app-sidebar" }}
+      >
+        <AppLink href={recordingsHref} className="app-sidebar__brand">
           <span className="app-sidebar__mark" aria-hidden>
             <span className="sp-1" />
             <span className="sp-2" />
             <span className="sp-3" />
           </span>
           {brandName}
-        </a>
+        </AppLink>
         <nav className="app-sidebar__nav" data-shell="sidebar-nav">
-          <a
+          <AppLink
             href={recordingsHref}
             className={nav === "recordings" ? "is-active" : undefined}
             aria-current={nav === "recordings" ? "page" : undefined}
           >
             {navRecordings}
-          </a>
-          <a
+          </AppLink>
+          <AppLink
             href={peopleHref}
             className={nav === "people" ? "is-active" : undefined}
             aria-current={nav === "people" ? "page" : undefined}
           >
             {navPeople}
-          </a>
-          <a
+          </AppLink>
+          <AppLink
             href={settingsHref}
             className={nav === "settings" ? "is-active" : undefined}
             aria-current={nav === "settings" ? "page" : undefined}
           >
             {navSettings}
-          </a>
+          </AppLink>
           {user?.role === "admin" ? (
-            <a
+            <AppLink
               href={adminHref}
               className={nav === "admin" ? "is-active" : undefined}
               aria-current={nav === "admin" ? "page" : undefined}
               data-nav="admin"
             >
               {navAdmin}
-            </a>
+            </AppLink>
           ) : null}
         </nav>
 
@@ -194,7 +213,10 @@ export function AppShell({
         </div>
       </aside>
 
-      <main className="app-main">
+      <main
+        className="app-main"
+        style={{ viewTransitionName: "app-main" }}
+      >
         {heading ? (
           <h1 className="dy-type-title app-main__title">{heading}</h1>
         ) : null}
@@ -208,36 +230,36 @@ export function AppShell({
       </main>
 
       <nav className="app-bottom-nav" aria-label="Primary" data-shell="bottom-nav">
-        <a
+        <AppLink
           href={recordingsHref}
           className={nav === "recordings" ? "is-active" : undefined}
           aria-current={nav === "recordings" ? "page" : undefined}
         >
           {navRecordings}
-        </a>
-        <a
+        </AppLink>
+        <AppLink
           href={peopleHref}
           className={nav === "people" ? "is-active" : undefined}
           aria-current={nav === "people" ? "page" : undefined}
         >
           {navPeople}
-        </a>
-        <a
+        </AppLink>
+        <AppLink
           href={settingsHref}
           className={nav === "settings" ? "is-active" : undefined}
           aria-current={nav === "settings" ? "page" : undefined}
         >
           {navSettings}
-        </a>
+        </AppLink>
         {user?.role === "admin" ? (
-          <a
+          <AppLink
             href={adminHref}
             className={nav === "admin" ? "is-active" : undefined}
             aria-current={nav === "admin" ? "page" : undefined}
             data-nav="admin"
           >
             {navAdmin}
-          </a>
+          </AppLink>
         ) : null}
       </nav>
     </div>

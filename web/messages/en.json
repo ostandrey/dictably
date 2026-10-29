@@ -1,4 +1,7 @@
 {
+  "site": {
+    "previewBanner": "Test version — not for production use"
+  },
   "meta": {
     "title": "Dictably — Meeting minutes you can click to hear",
     "description": "Upload any call or meeting recording. Get a speaker-separated transcript and minutes with agreements and tasks linked to the exact second."
@@ -99,6 +102,8 @@
     "intro": "Dictably is in early access. This page explains what we collect right now.",
     "whoTitle": "Who we are",
     "whoBody": "{controller} (\"we\"). Contact: {email}.",
+    "whoBodyPreview": "Test version — contact details will be published before launch. Controller label: {controller}.",
+    "rightsBodyPreview": "Ask us to see, correct or delete your data after launch contact details are published. We reply within 30 days.",
     "collectTitle": "What we collect",
     "collectBody": "Account: email and name when you sign in (Google).\n\nSession cookie: a strictly necessary httpOnly cookie keeps you signed in. We do not use it for advertising and do not ask for consent for it.\n\nSite analytics: Cloudflare Web Analytics — no cookies, no cross-site tracking, aggregated visits only.\n\nRecordings you upload: the audio or video file, the transcript and the minutes we make from it.",
     "processTitle": "How recordings are processed",
@@ -169,6 +174,8 @@
     "uploadProgress": "{pct}%",
     "uploadCancel": "Cancel",
     "uploadTooLarge": "File is larger than 500 MB.",
+    "uploadBadType": "That file type is not supported. Use audio or video (MP3, M4A, WAV, MP4, MOV…).",
+    "deletedToast": "Recording deleted",
     "recordingsH1": "Recordings",
     "recordingsTitle": "My recordings",
     "recordingsEmpty": "No recordings yet",
@@ -213,8 +220,16 @@
     "navPeople": "People",
     "navSettings": "Settings",
     "peopleSoon": "People arrives in a later update.",
+    "peopleTitle": "People from your meetings",
+    "peopleBody": "Soon: everyone who shows up across your recordings, with their promises and follow-ups in one place.",
     "settingsTitle": "Settings",
     "settingsQuota": "Minutes left",
-    "settingsAccount": "Account"
+    "settingsAccount": "Account",
+    "settingsSectionsTitle": "Workspace settings",
+    "settingsSectionsBody": "Language, export defaults, and notification preferences will live here. Your account and remaining minutes are in the sidebar.",
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "That link does not match any page in Dictably.",
+    "notFoundHome": "Home",
+    "notFoundRecordings": "My recordings"
   }
 }

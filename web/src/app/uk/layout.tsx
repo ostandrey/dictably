@@ -1,33 +1,12 @@
 import type { Metadata } from "next";
-import { Onest } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages, setRequestLocale } from "next-intl/server";
+import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { DocumentBody } from "@/components/layout/DocumentBody";
-import { site } from "@/lib/site";
-
-const onest = Onest({
-  subsets: ["latin", "cyrillic"],
-  weight: ["400", "500", "600"],
-  variable: "--font-onest",
-  display: "swap",
-});
+import { isPreview, site } from "@/lib/site";
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
-  title: {
-    default: "Dictably",
-    template: "%s",
-  },
-  applicationName: site.name,
-  openGraph: {
-    type: "website",
-    siteName: site.name,
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Dictably" }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    images: ["/og.png"],
-  },
+  ...(isPreview ? { robots: { index: false, follow: false } } : {}),
 };
 
 export default async function UkRootLayout({
@@ -35,8 +14,9 @@ export default async function UkRootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   setRequestLocale("uk");
   const messages = await getMessages();
+  const t = await getTranslations({ locale: "uk", namespace: "site" });
   return (
-    <DocumentBody lang="uk" className={onest.variable}>
+    <DocumentBody lang="uk" previewLabel={t("previewBanner")}>
       <NextIntlClientProvider messages={messages}>
         {children}
       </NextIntlClientProvider>

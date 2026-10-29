@@ -1,37 +1,30 @@
-import Script from "next/script";
-import { CloudflareBeacon } from "@/components/analytics/CloudflareBeacon";
-import { htmlThemeAttrs, siteThemeMode } from "@/lib/theme";
-import "@/app/globals.css";
+import { PreviewBanner } from "@/components/layout/PreviewBanner";
 
-const systemThemeBoot = `(function(){try{var m=document.documentElement.getAttribute("data-theme-mode");if(m!=="system")return;var dark=window.matchMedia("(prefers-color-scheme: dark)").matches;if(dark)document.documentElement.setAttribute("data-theme","dark");else document.documentElement.removeAttribute("data-theme");}catch(e){}})();`;
-
+/**
+ * Locale shell inside root `app/layout.tsx` (html/body live there for 404).
+ * Sets `lang` on the document via a tiny boot script when not English.
+ */
 export function DocumentBody({
   lang,
-  className,
+  previewLabel,
   children,
 }: {
   lang: "en" | "uk";
-  className: string;
+  previewLabel: string;
   children: React.ReactNode;
 }) {
-  const themeAttrs = htmlThemeAttrs();
+  const langBoot =
+    lang === "en"
+      ? null
+      : `(function(){try{document.documentElement.lang=${JSON.stringify(lang)};}catch(e){}})();`;
+
   return (
-    <html
-      lang={lang}
-      className={className}
-      data-theme-mode={siteThemeMode}
-      {...themeAttrs}
-    >
-      <body className="page-body">
-        {siteThemeMode === "system" ? (
-          <script
-            dangerouslySetInnerHTML={{ __html: systemThemeBoot }}
-          />
-        ) : null}
-        {children}
-        <Script src="/landing.js" strategy="lazyOnload" />
-        <CloudflareBeacon />
-      </body>
-    </html>
+    <>
+      {langBoot ? (
+        <script dangerouslySetInnerHTML={{ __html: langBoot }} />
+      ) : null}
+      <PreviewBanner label={previewLabel} />
+      {children}
+    </>
   );
 }

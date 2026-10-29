@@ -1,18 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import {
-  ApiError,
-  devLogin,
-  getAuthConfig,
-  getMe,
-  type AuthConfig,
-  type User,
-} from "@/lib/api";
+import { useAuth } from "@/components/app/AuthProvider";
 import {
   RecordingsPanel,
   type RecordingsCopy,
 } from "@/components/app/RecordingsPanel";
+import { IllEmptyRecordings } from "@/components/illustrations";
+import { devLogin } from "@/lib/api";
 
 const AUTH_ERROR_CODES = [
   "access_denied",
@@ -36,6 +31,7 @@ type Props = {
   errorLabel: string;
   authErrors: Record<AuthErrorCode, string>;
   recordings: RecordingsCopy;
+  deletedToast: string;
 };
 
 function isAuthErrorCode(value: string): value is AuthErrorCode {
@@ -93,11 +89,13 @@ export function SignInPanel({
   googleLabel,
   googleUnavailable,
   devLabel,
-  loadingLabel,
   errorLabel,
   authErrors,
   recordings,
+  deletedToast,
 }: Props) {
+  const { status, user, config, setUser } = useAuth();
+
   const search = useSyncExternalStore(
     subscribeSearch,
     getSearchSnapshot,
@@ -115,10 +113,8 @@ export function SignInPanel({
     return authErrors[oauthCode];
   }, [authErrors, oauthCode]);
 
-  const [config, setConfig] = useState<AuthConfig | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [busy, setBusy] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const error = actionError ?? oauthError;
 
@@ -135,38 +131,12 @@ export function SignInPanel({
     window.history.replaceState({}, "", clean);
   }, [search]);
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const [cfg, me] = await Promise.all([
-          getAuthConfig(),
-          getMe().catch((err: unknown) => {
-            if (err instanceof ApiError && err.status === 401) return null;
-            throw err;
-          }),
-        ]);
-        if (cancelled) return;
-        setConfig(cfg);
-        setUser(me);
-      } catch {
-        if (!cancelled) setActionError(errorLabel);
-      } finally {
-        if (!cancelled) setBusy(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [errorLabel]);
-
   async function onDevLogin() {
     setBusy(true);
     setActionError(null);
     try {
       const me = await devLogin();
       setUser(me);
-      // Sync AppShell account/logout (sidebar) without a full reload.
       window.dispatchEvent(new Event("dictably:auth"));
     } catch {
       setActionError(errorLabel);
@@ -175,13 +145,9 @@ export function SignInPanel({
     }
   }
 
-  if (busy && !user && !config && !oauthError) {
-    return (
-      <>
-        <h1 className="app-shell__title">{signInHeading}</h1>
-        <p className="app-shell__body">{loadingLabel}</p>
-      </>
-    );
+  // AuthProvider owns the shell skeleton — never flash Sign in while loading.
+  if (status === "loading") {
+    return null;
   }
 
   if (user) {
@@ -195,6 +161,7 @@ export function SignInPanel({
         <RecordingsPanel
           copy={recordings}
           recordingBaseHref={recordingBaseHref}
+          deletedToast={deletedToast}
         />
       </div>
     );
@@ -204,6 +171,9 @@ export function SignInPanel({
 
   return (
     <div className="sign-in">
+      <div className="sign-in__ill" aria-hidden>
+        <IllEmptyRecordings />
+      </div>
       <h1 className="app-shell__title">{signInHeading}</h1>
       <p className="app-shell__body">{signedOutBody}</p>
       {error ? (

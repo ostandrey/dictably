@@ -11,6 +11,7 @@ check-web:
     cd web; pnpm lint
     cd web; pnpm typecheck
     cd web; pnpm i18n:check
+    cd web; node scripts/check-site-mode.mjs
 
 check-demo-kit:
     cd tools/demo-kit; uv run ruff check .
@@ -57,6 +58,11 @@ worker:
 
 e2e:
     cd web && pnpm e2e
+    just free-api-port
+
+# Kill whatever is listening on API port (T-036 S2 / Owner Docker).
+free-api-port:
+    powershell -NoLogo -Command "$p = netstat -ano | Select-String 'LISTENING' | Select-String ':8000\\s'; foreach ($line in $p) { $pid = ($line -split '\\s+')[-1]; if ($pid -match '^\\d+$' -and [int]$pid -gt 0) { Stop-Process -Id ([int]$pid) -Force -ErrorAction SilentlyContinue; Write-Host \"killed $pid\" } }; Write-Host 'port 8000 cleared'"
 
 lh:
     cd web && pnpm build:local && pnpm lh

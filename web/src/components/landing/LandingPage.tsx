@@ -1,3 +1,4 @@
+import Script from "next/script";
 import { pricing } from "@/lib/pricing";
 import type { LandingCopy } from "@/lib/copy/types";
 import { site } from "@/lib/site";
@@ -16,6 +17,8 @@ export function LandingPage({ copy }: Props) {
 
   return (
     <>
+      {/* Landing-only — keep off /app to protect Lighthouse (T-036 B3). */}
+      <Script src="/landing.js" strategy="lazyOnload" />
       <SiteHeader copy={copy} appHref={appHref} brandName={site.name} />
 
       <main id="top">
@@ -203,7 +206,9 @@ export function LandingPage({ copy }: Props) {
             <a href={copy.nav.langHref} hrefLang={locale === "en" ? "uk" : "en"}>
               {copy.nav.langSwitch}
             </a>
-            <a href={`mailto:${site.contactEmail}`}>{copy.footer.contact}</a>
+            {site.contactEmail ? (
+              <a href={`mailto:${site.contactEmail}`}>{copy.footer.contact}</a>
+            ) : null}
           </div>
         </div>
       </footer>

@@ -3,6 +3,8 @@
  * Production / Railway builds must set required vars (see scripts/check-env.mjs).
  */
 
+export type SiteMode = "preview" | "production";
+
 function required(name: string, value: string | undefined): string {
   const v = value?.trim() ?? "";
   if (!v) {
@@ -15,6 +17,14 @@ function required(name: string, value: string | undefined): string {
 
 const allowPlaceholder = process.env.DICTABLY_ALLOW_PLACEHOLDER_ENV === "1";
 
+/** Default production. Preview skips contact/controller at build (T-023a). */
+export const siteMode: SiteMode =
+  process.env.NEXT_PUBLIC_SITE_MODE?.trim() === "preview"
+    ? "preview"
+    : "production";
+
+export const isPreview = siteMode === "preview";
+
 function envOrPlaceholder(
   name: string,
   value: string | undefined,
@@ -26,20 +36,39 @@ function envOrPlaceholder(
   return required(name, v);
 }
 
+function contactOrPreview(value: string | undefined, placeholder: string): string {
+  const v = value?.trim() ?? "";
+  if (v) return v;
+  if (isPreview) return "";
+  if (allowPlaceholder) return placeholder;
+  return required("NEXT_PUBLIC_CONTACT_EMAIL", v);
+}
+
+function controllerOrPreview(
+  value: string | undefined,
+  placeholder: string,
+): string {
+  const v = value?.trim() ?? "";
+  if (v) return v;
+  if (isPreview) return "Dictably (test version, pre-launch)";
+  if (allowPlaceholder) return placeholder;
+  return required("NEXT_PUBLIC_CONTROLLER_NAME", v);
+}
+
 export const site = {
   name: "Dictably",
+  mode: siteMode,
+  isPreview,
   url: envOrPlaceholder(
     "NEXT_PUBLIC_SITE_URL",
     process.env.NEXT_PUBLIC_SITE_URL,
     "http://127.0.0.1:4173",
   ).replace(/\/$/, ""),
-  contactEmail: envOrPlaceholder(
-    "NEXT_PUBLIC_CONTACT_EMAIL",
+  contactEmail: contactOrPreview(
     process.env.NEXT_PUBLIC_CONTACT_EMAIL,
     "dev-only@localhost",
   ),
-  controller: envOrPlaceholder(
-    "NEXT_PUBLIC_CONTROLLER_NAME",
+  controller: controllerOrPreview(
     process.env.NEXT_PUBLIC_CONTROLLER_NAME,
     "[CONTROLLER — set NEXT_PUBLIC_CONTROLLER_NAME]",
   ),
@@ -57,3 +86,9 @@ export function localePath(locale: Locale, path = ""): string {
   const p = path.startsWith("/") ? path : path ? `/${path}` : "";
   return `${base}${p || "/"}`.replace(/\/?$/, "/");
 }
+
+/** Merge into page metadata when SITE_MODE=preview. */
+export const previewRobots = {
+  index: false,
+  follow: false,
+} as const;
