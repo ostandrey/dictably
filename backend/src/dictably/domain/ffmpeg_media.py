@@ -363,6 +363,78 @@ def normalize_for_asr(
     )
 
 
+def mix_audio_files(
+    sources: list[Path],
+    dest_dir: Path,
+    *,
+    soft_missing: bool = False,
+) -> NormalizeResult:
+    """Mix N mono/stereo inputs into one AAC playback (T-035b Zoom tracks)."""
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    playback = dest_dir / "playback.m4a"
+    peaks = dest_dir / "peaks.json"
+    if not sources:
+        raise FfmpegError("no sources to mix")
+    if len(sources) == 1:
+        return normalize_to_playback(sources[0], dest_dir, soft_missing=soft_missing)
+
+    try:
+        ffmpeg = require_ffmpeg()
+    except FfmpegError:
+        if soft_missing:
+            playback.write_bytes(b"")
+            peaks.write_text(json.dumps({"peaks": [], "duration_ms": None}), encoding="utf-8")
+            return NormalizeResult(playback, peaks, None)
+        raise
+
+    cmd = [ffmpeg, "-protocol_whitelist", "file", "-y"]
+    for src in sources:
+        cmd.extend(["-i", str(src)])
+    n = len(sources)
+    # amix → mono AAC
+    filter_complex = (
+        "".join(f"[{i}:a]" for i in range(n)) + f"amix=inputs={n}:duration=longest[aout]"
+    )
+    cmd.extend(
+        [
+            "-filter_complex",
+            filter_complex,
+            "-map",
+            "[aout]",
+            "-ac",
+            "1",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "64k",
+            str(playback),
+        ]
+    )
+    try:
+        subprocess.run(
+            cmd,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=FFMPEG_TIMEOUT_S,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise FfmpegError("ffmpeg timed out") from exc
+    except subprocess.CalledProcessError as exc:
+        if soft_missing:
+            playback.write_bytes(b"")
+            peaks.write_text(json.dumps({"peaks": [], "duration_ms": None}), encoding="utf-8")
+            return NormalizeResult(playback, peaks, None)
+        raise FfmpegError(exc.stderr or "ffmpeg mix failed") from exc
+
+    duration_ms, peak_vals = _peaks_via_pcm(ffmpeg, playback)
+    peaks.write_text(
+        json.dumps({"peaks": peak_vals, "duration_ms": duration_ms}),
+        encoding="utf-8",
+    )
+    return NormalizeResult(playback, peaks, duration_ms)
+
+
 def normalize_to_playback(
     src: Path,
     dest_dir: Path,

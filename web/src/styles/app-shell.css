@@ -632,13 +632,23 @@
   color: var(--ink-muted);
 }
 .rec-upload-details select,
-.rec-upload-details input {
+.rec-upload-details input[type="text"] {
   font: inherit;
   padding: 0.4rem 0.55rem;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--surface);
   color: inherit;
+}
+.rec-upload-details__check {
+  flex-direction: row !important;
+  align-items: flex-start;
+  gap: 0.5rem;
+  color: var(--ink) !important;
+}
+.rec-upload-details__check input[type="checkbox"] {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
 }
 .rec-rename__actions {
   display: flex;

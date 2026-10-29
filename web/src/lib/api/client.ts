@@ -396,11 +396,19 @@ type UploadOptions = {
   audioStreamIndex?: number;
 };
 
+export type UploadMediaOptions = UploadOptions & {
+  /** Zoom-style: several files → one meeting, each file a speaker (T-035b). */
+  meetingBundle?: boolean;
+};
+
 /** POST /api/media — multipart stream with upload progress (XHR). */
 export function uploadMedia(
-  file: File,
-  options: UploadOptions = {},
+  fileOrFiles: File | File[],
+  options: UploadMediaOptions = {},
 ): Promise<MediaItem> {
+  const files = Array.isArray(fileOrFiles) ? fileOrFiles : [fileOrFiles];
+  const bundle = Boolean(options.meetingBundle) && files.length >= 2;
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/media");
@@ -436,13 +444,18 @@ export function uploadMedia(
     }
 
     const body = new FormData();
-    body.append("file", file);
+    if (bundle) {
+      for (const f of files) body.append("files", f);
+      body.append("meeting_bundle", "1");
+    } else {
+      body.append("file", files[0]!);
+    }
     if (options.language) body.append("language", options.language);
-    if (options.speakersExpected != null) {
+    if (!bundle && options.speakersExpected != null) {
       body.append("speakers_expected", String(options.speakersExpected));
     }
     if (options.vocabulary) body.append("vocabulary", options.vocabulary);
-    if (options.audioStreamIndex != null) {
+    if (!bundle && options.audioStreamIndex != null) {
       body.append("audio_stream_index", String(options.audioStreamIndex));
     }
     xhr.send(body);

@@ -28,11 +28,14 @@ from dictably.domain import ledger as ledger_domain
 from dictably.domain.asr_postprocess import postprocess_transcript
 from dictably.domain.ffmpeg_media import (
     FfmpegError,
+    mix_audio_files,
     normalize_for_asr,
     normalize_to_playback,
     probe_audio,
 )
 from dictably.domain.media import MAX_DURATION_MS, probe_file
+from dictably.domain.meeting_bundle import media_is_multi_file
+from dictably.domain.track_energy import assign_speakers_by_energy, extract_track_envelopes
 from dictably.providers.factory import get_asr_fallback, get_asr_provider, get_storage_provider
 from dictably.providers.storage.base import StorageProvider
 
@@ -279,6 +282,16 @@ async def _pipeline(
     reserved["seconds"] = seconds
     await session.commit()
 
+    if media_is_multi_file(media):
+        await _pipeline_multi_file(
+            session,
+            storage,
+            settings,
+            media=media,
+            soft=soft,
+        )
+        return
+
     stream_idx_raw = (media.asr_meta or {}).get("audio_stream_index")
     audio_stream_index: int | None = None
     if stream_idx_raw is not None:
@@ -416,6 +429,152 @@ async def _pipeline(
         except Exception as exc:  # noqa: BLE001 — minutes failure must not lose transcript
             logger.exception("analyze failed for %s: %s", media.id, exc)
             # Keep going to ready; UI can regenerate.
+
+
+async def _pipeline_multi_file(
+    session: AsyncSession,
+    storage: StorageProvider,
+    settings: Settings,
+    *,
+    media: Media,
+    soft: bool,
+) -> None:
+    """Mix tracks → one ASR → speakers from per-track RMS energy (T-035b B1)."""
+    tracks = list((media.asr_meta or {}).get("tracks") or [])
+    if len(tracks) < 2:
+        raise ProcessError(
+            "multi_file incomplete",
+            human="Meeting files are incomplete.",
+            permanent=True,
+        )
+
+    with tempfile.TemporaryDirectory(prefix="dictably-multi-") as tmp:
+        tmp_path = Path(tmp)
+        local_paths: list[Path] = []
+        for meta in tracks:
+            key = meta.get("key")
+            if not key:
+                raise ProcessError(
+                    "missing track",
+                    human="A meeting track file is missing.",
+                    permanent=True,
+                )
+            try:
+                local_paths.append(await storage.get_path(str(key)))
+            except FileNotFoundError as exc:
+                raise ProcessError(
+                    "missing track",
+                    human="A meeting track file is missing.",
+                    permanent=True,
+                ) from exc
+
+        try:
+            norm = await asyncio.to_thread(
+                mix_audio_files, local_paths, tmp_path, soft_missing=soft
+            )
+        except FfmpegError as exc:
+            timed_out = "timed out" in str(exc).lower()
+            raise ProcessError(
+                str(exc),
+                human="Could not mix meeting tracks.",
+                permanent=not timed_out,
+            ) from exc
+
+        if norm.duration_ms is not None:
+            media.duration_ms = norm.duration_ms
+
+        keys = dict(media.storage_keys or {})
+        playback_key = f"u/{media.user_id}/{media.id}/playback.m4a"
+        peaks_key = f"u/{media.user_id}/{media.id}/peaks.json"
+        await storage.put_bytes(playback_key, norm.playback_path.read_bytes())
+        await storage.put_bytes(peaks_key, norm.peaks_path.read_bytes())
+        keys["playback"] = playback_key
+        keys["peaks"] = peaks_key
+        media.storage_keys = keys
+        media.status = MediaStatus.transcribing
+        await session.commit()
+
+        try:
+            envelopes = await asyncio.to_thread(
+                extract_track_envelopes,
+                local_paths,
+                duration_ms=media.duration_ms,
+                soft_missing=soft,
+            )
+        except FfmpegError as exc:
+            raise ProcessError(
+                str(exc),
+                human="Could not analyse the meeting tracks.",
+                permanent=True,
+            ) from exc
+
+        mix_src = norm.playback_path
+        if mix_src.stat().st_size == 0:
+            mix_src = local_paths[0]
+        try:
+            asr_audio = await asyncio.to_thread(
+                normalize_for_asr,
+                mix_src,
+                tmp_path,
+                soft_missing=soft,
+                dual_channel=False,
+            )
+        except FfmpegError as exc:
+            timed_out = "timed out" in str(exc).lower()
+            raise ProcessError(
+                str(exc),
+                human="Could not prepare meeting audio for transcription.",
+                permanent=not timed_out,
+            ) from exc
+        asr_path = str(asr_audio.path)
+        if asr_audio.path.stat().st_size == 0:
+            asr_path = str(mix_src)
+
+        vocab = [str(v) for v in (media.vocabulary or []) if str(v).strip()]
+        # One ASR call on the mix — speaker labels come from track energy, not diarization.
+        transcript = await _transcribe_with_fallback(
+            settings,
+            audio_path=asr_path,
+            language=media.language,
+            speakers_expected=None,
+            word_boost=vocab or None,
+            dual_channel=False,
+        )
+        transcript = assign_speakers_by_energy(transcript, tracks, envelopes)
+        transcript = postprocess_transcript(
+            transcript,
+            duration_ms=media.duration_ms,
+            channels=1,
+        )
+        pp = transcript.get("postprocess") or {}
+        media.quality_warning = pp.get("quality_warning")
+        asr_seconds = max(1, int((media.duration_ms or 0) / 1000)) if media.duration_ms else None
+        media.asr_meta = {
+            **dict(media.asr_meta or {}),
+            "multi_file": True,
+            "tracks": tracks,
+            "asr_prep": True,
+            "asr_passes": 1,
+            "asr_seconds": asr_seconds,
+            "energy_speakers": True,
+            "dropped_segments": pp.get("dropped_segments"),
+        }
+        if media.meeting_date is None:
+            created = media.created_at
+            media.meeting_date = created.date() if created else date.today()
+
+    media.language = transcript.get("language") or media.language
+    await _store_transcript(session, media=media, transcript=transcript)
+    await session.flush()
+    media.status = MediaStatus.analyzing
+    await session.commit()
+    tr_row = await session.get(Transcript, media.id)
+    if tr_row is not None:
+        try:
+            await analysis_domain.run_and_store(session, media=media, transcript=tr_row)
+            await session.flush()
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("analyze failed for %s: %s", media.id, exc)
 
 
 async def _probe_async(path: Path, *, soft_missing: bool):

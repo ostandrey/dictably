@@ -45,6 +45,7 @@ from dictably.db.session import get_db
 from dictably.domain import analysis as analysis_domain
 from dictably.domain import export as export_domain
 from dictably.domain import media as media_domain
+from dictably.domain import meeting_bundle as meeting_bundle_domain
 from dictably.domain import process as process_domain
 from dictably.domain import speakers as speakers_domain
 from dictably.domain import transcript_edit as transcript_edit_domain
@@ -491,52 +492,104 @@ async def upload_media(
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[StorageProvider, Depends(get_storage)],
     settings: Annotated[Settings, Depends(get_settings)],
-    file: Annotated[UploadFile, File(...)],
+    file: Annotated[UploadFile | None, File()] = None,
+    files: Annotated[list[UploadFile] | None, File()] = None,
     language: Annotated[str | None, Form()] = None,
     speakers_expected: Annotated[int | None, Form()] = None,
     vocabulary: Annotated[str | None, Form()] = None,
     audio_stream_index: Annotated[int | None, Form()] = None,
+    meeting_bundle: Annotated[str | None, Form()] = None,
 ) -> MediaOut:
-    """Upload recording. Optional Form: language, speakers_expected, vocabulary, audio_stream_index."""
-    row = await media_domain.upload_recording(
-        session,
-        storage,
-        user=user,
-        filename=file.filename,
-        content_type=file.content_type,
-        chunks=_file_chunks(file),
-        soft_probe_missing=settings.is_test,
-    )
-    if language and language.strip():
-        row.language = language.strip()[:16]
-    if speakers_expected is not None:
-        if speakers_expected < 1 or speakers_expected > 20:
+    """Upload one recording, or several as one Zoom-style meeting (T-035b).
+
+    Form: `file` and/or `files`; `meeting_bundle=1` (or 2+ files) → one media, each file a speaker.
+    """
+    uploads: list[UploadFile] = []
+    if files:
+        uploads.extend(files)
+    if file is not None:
+        uploads.insert(0, file)
+    # Dedupe if same object passed twice
+    seen: set[int] = set()
+    unique: list[UploadFile] = []
+    for u in uploads:
+        oid = id(u)
+        if oid in seen:
+            continue
+        seen.add(oid)
+        unique.append(u)
+    uploads = unique
+    if not uploads:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="file required",
+        )
+
+    want_bundle = (meeting_bundle or "").strip() in {"1", "true", "yes", "on"}
+    if want_bundle or len(uploads) >= 2:
+        if len(uploads) < 2:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="speakers_expected must be 1–20",
+                detail="Meeting bundle needs at least 2 files",
             )
-        row.speakers_expected = speakers_expected
-    if vocabulary and vocabulary.strip():
-        terms = [
-            t.strip()
-            for part in vocabulary.replace("\n", ",").split(",")
-            for t in [part]
-            if t.strip()
-        ][:200]
-        row.vocabulary = terms
-    if audio_stream_index is not None:
-        if audio_stream_index < 0:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="audio_stream_index must be ≥ 0",
-            )
-        meta = dict(row.asr_meta or {})
-        meta["audio_stream_index"] = int(audio_stream_index)
-        row.asr_meta = meta
-    await session.commit()
+        vocab_terms: list[str] = []
+        if vocabulary and vocabulary.strip():
+            vocab_terms = [
+                t.strip()
+                for part in vocabulary.replace("\n", ",").split(",")
+                for t in [part]
+                if t.strip()
+            ][:200]
+        row = await meeting_bundle_domain.upload_meeting_bundle(
+            session,
+            storage,
+            user=user,
+            files=[(u.filename, u.content_type, _file_chunks(u)) for u in uploads],
+            language=language,
+            vocabulary=vocab_terms,
+            soft_probe_missing=settings.is_test,
+        )
+    else:
+        one = uploads[0]
+        row = await media_domain.upload_recording(
+            session,
+            storage,
+            user=user,
+            filename=one.filename,
+            content_type=one.content_type,
+            chunks=_file_chunks(one),
+            soft_probe_missing=settings.is_test,
+        )
+        if language and language.strip():
+            row.language = language.strip()[:16]
+        if speakers_expected is not None:
+            if speakers_expected < 1 or speakers_expected > 20:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="speakers_expected must be 1–20",
+                )
+            row.speakers_expected = speakers_expected
+        if vocabulary and vocabulary.strip():
+            terms = [
+                t.strip()
+                for part in vocabulary.replace("\n", ",").split(",")
+                for t in [part]
+                if t.strip()
+            ][:200]
+            row.vocabulary = terms
+        if audio_stream_index is not None:
+            if audio_stream_index < 0:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="audio_stream_index must be ≥ 0",
+                )
+            meta = dict(row.asr_meta or {})
+            meta["audio_stream_index"] = int(audio_stream_index)
+            row.asr_meta = meta
+        await session.commit()
+
     media_id = row.id
     await process_domain.enqueue_or_run_process(session, media_id=media_id, settings=settings)
-    # Reload after inline processing (separate session in worker path).
     session.expire_all()
     refreshed = await session.get(Media, media_id)
     return await _media_out(session, refreshed or row)

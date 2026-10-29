@@ -51,6 +51,9 @@ export type RecordingsCopy = {
   uploadVocabLabel?: string;
   uploadVocabHint?: string;
   uploadTrackLabel?: string;
+  uploadMeetingBundle?: string;
+  uploadMeetingBundleHint?: string;
+  uploadBundleTooLarge?: string;
 };
 
 type Props = {
@@ -142,6 +145,7 @@ export function RecordingsPanel({
     speakersExpected?: number;
     vocabulary?: string;
     audioStreamIndex?: number;
+    meetingBundle?: boolean;
   }>({});
   const { push: pushToast } = useToast();
 
@@ -164,6 +168,7 @@ export function RecordingsPanel({
     audioStreamIndex: string;
     tracks: MediaProbe["audio_tracks"];
     probing: boolean;
+    meetingBundle: boolean;
   } | null>(null);
 
   const refresh = useCallback(async () => {
@@ -210,6 +215,21 @@ export function RecordingsPanel({
     return () => document.removeEventListener("mousedown", onDoc);
   }, [menuId]);
 
+  const markEnter = useCallback((id: string) => {
+    setEnterIds((cur) => {
+      const next = new Set(cur);
+      next.add(id);
+      return next;
+    });
+    window.setTimeout(() => {
+      setEnterIds((cur) => {
+        const next = new Set(cur);
+        next.delete(id);
+        return next;
+      });
+    }, 400);
+  }, []);
+
   const pump = useCallback(async () => {
     if (pumping.current) return;
     pumping.current = true;
@@ -229,22 +249,10 @@ export function RecordingsPanel({
           language: opts.language,
           speakersExpected: opts.speakersExpected,
           vocabulary: opts.vocabulary,
-          // Only first file in a batch gets track index (per-file probe is in details).
           audioStreamIndex: opts.audioStreamIndex,
         });
         setItems((prev) => [created, ...prev.filter((m) => m.id !== created.id)]);
-        setEnterIds((cur) => {
-          const next = new Set(cur);
-          next.add(created.id);
-          return next;
-        });
-        window.setTimeout(() => {
-          setEnterIds((cur) => {
-            const next = new Set(cur);
-            next.delete(created.id);
-            return next;
-          });
-        }, 400);
+        markEnter(created.id);
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           queueRef.current = [];
@@ -260,7 +268,46 @@ export function RecordingsPanel({
     setUploadName(null);
     setProgress(0);
     pumping.current = false;
-  }, [copy.error, copy.tooLarge]);
+  }, [copy.error, copy.tooLarge, markEnter]);
+
+  const uploadBundle = useCallback(
+    async (files: File[]) => {
+      if (pumping.current || files.length < 2) return;
+      pumping.current = true;
+      abortRef.current?.abort();
+      const ac = new AbortController();
+      abortRef.current = ac;
+      setUploadName(files.map((f) => f.name).join(" + "));
+      setProgress(0);
+      setError(null);
+      try {
+        const opts = uploadOptsRef.current;
+        const created = await uploadMedia(files, {
+          meetingBundle: true,
+          onProgress: setProgress,
+          signal: ac.signal,
+          language: opts.language,
+          vocabulary: opts.vocabulary,
+        });
+        setItems((prev) => [created, ...prev.filter((m) => m.id !== created.id)]);
+        markEnter(created.id);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          /* cancelled */
+        } else if (err instanceof ApiError && err.status === 413) {
+          setError(copy.uploadBundleTooLarge ?? copy.tooLarge);
+        } else {
+          setError(copy.error);
+        }
+      } finally {
+        abortRef.current = null;
+        setUploadName(null);
+        setProgress(0);
+        pumping.current = false;
+      }
+    },
+    [copy.error, copy.tooLarge, copy.uploadBundleTooLarge, markEnter],
+  );
 
   const openDetails = useCallback(
     (list: FileList | File[] | null) => {
@@ -278,6 +325,14 @@ export function RecordingsPanel({
         accepted.push(file);
       }
       if (!accepted.length) return;
+      const asBundle = accepted.length >= 2;
+      const totalBytes = accepted.reduce((sum, f) => sum + f.size, 0);
+      if (asBundle && totalBytes > MAX_UPLOAD_BYTES) {
+        setError(
+          copy.uploadBundleTooLarge ?? "Together over 500 MB. Remove a file or upload fewer tracks.",
+        );
+        return;
+      }
       setError(null);
       setDetails({
         files: accepted,
@@ -286,8 +341,10 @@ export function RecordingsPanel({
         vocabulary: "",
         audioStreamIndex: "0",
         tracks: [],
-        probing: true,
+        probing: !asBundle,
+        meetingBundle: asBundle,
       });
+      if (asBundle) return;
       const first = accepted[0]!;
       void probeMediaUpload(first)
         .then((probe) => {
@@ -306,24 +363,34 @@ export function RecordingsPanel({
           setDetails((cur) => (cur ? { ...cur, probing: false, tracks: [] } : cur));
         });
     },
-    [copy.badType, copy.tooLarge],
+    [copy.badType, copy.tooLarge, copy.uploadBundleTooLarge],
   );
 
   const confirmDetails = useCallback(() => {
     if (!details?.files.length) return;
+    const asBundle = details.meetingBundle && details.files.length >= 2;
     uploadOptsRef.current = {
       language: details.language || undefined,
-      speakersExpected: details.speakersExpected
-        ? Number(details.speakersExpected)
-        : undefined,
+      speakersExpected:
+        !asBundle && details.speakersExpected
+          ? Number(details.speakersExpected)
+          : undefined,
       vocabulary: details.vocabulary.trim() || undefined,
       audioStreamIndex:
-        details.tracks.length > 1 ? Number(details.audioStreamIndex || 0) : undefined,
+        !asBundle && details.tracks.length > 1
+          ? Number(details.audioStreamIndex || 0)
+          : undefined,
+      meetingBundle: asBundle,
     };
-    for (const file of details.files) queueRef.current.push(file);
+    const files = details.files;
     setDetails(null);
+    if (asBundle) {
+      void uploadBundle(files);
+      return;
+    }
+    for (const file of files) queueRef.current.push(file);
     void pump();
-  }, [details, pump]);
+  }, [details, pump, uploadBundle]);
 
   const enqueue = openDetails;
 
@@ -634,6 +701,53 @@ export function RecordingsPanel({
             <p className="dy-muted">
               {details.files.map((f) => f.name).join(", ")}
             </p>
+            {details.files.length >= 2 ? (
+              <label className="rec-upload-details__check" data-recordings="upload-meeting-bundle">
+                <input
+                  type="checkbox"
+                  checked={details.meetingBundle}
+                  onChange={(e) => {
+                    const on = e.target.checked;
+                    setDetails({
+                      ...details,
+                      meetingBundle: on,
+                      probing: !on && details.tracks.length === 0,
+                    });
+                    if (!on && details.tracks.length === 0) {
+                      const first = details.files[0]!;
+                      void probeMediaUpload(first)
+                        .then((probe) => {
+                          setDetails((cur) =>
+                            cur
+                              ? {
+                                  ...cur,
+                                  tracks: probe.audio_tracks,
+                                  audioStreamIndex: "0",
+                                  probing: false,
+                                }
+                              : cur,
+                          );
+                        })
+                        .catch(() => {
+                          setDetails((cur) =>
+                            cur ? { ...cur, probing: false, tracks: [] } : cur,
+                          );
+                        });
+                    }
+                  }}
+                />
+                <span>
+                  {copy.uploadMeetingBundle ??
+                    "One meeting — each file is a speaker"}
+                </span>
+              </label>
+            ) : null}
+            {details.meetingBundle && details.files.length >= 2 ? (
+              <p className="dy-muted" data-recordings="upload-meeting-hint">
+                {copy.uploadMeetingBundleHint ??
+                  "Names from filenames (e.g. audioOlena.m4a)."}
+              </p>
+            ) : null}
             <label>
               <span>{copy.uploadLanguageLabel ?? "Language"}</span>
               <select
@@ -651,23 +765,25 @@ export function RecordingsPanel({
                 <option value="de">German</option>
               </select>
             </label>
-            <label>
-              <span>{copy.uploadSpeakersLabel ?? "Participants"}</span>
-              <select
-                value={details.speakersExpected}
-                data-recordings="upload-speakers"
-                onChange={(e) =>
-                  setDetails({ ...details, speakersExpected: e.target.value })
-                }
-              >
-                <option value="">{copy.uploadSpeakersAuto ?? "Auto"}</option>
-                {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                  <option key={n} value={String(n)}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {!details.meetingBundle ? (
+              <label>
+                <span>{copy.uploadSpeakersLabel ?? "Participants"}</span>
+                <select
+                  value={details.speakersExpected}
+                  data-recordings="upload-speakers"
+                  onChange={(e) =>
+                    setDetails({ ...details, speakersExpected: e.target.value })
+                  }
+                >
+                  <option value="">{copy.uploadSpeakersAuto ?? "Auto"}</option>
+                  {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                    <option key={n} value={String(n)}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <label>
               <span>{copy.uploadVocabLabel ?? "Names & terms"}</span>
               <input
@@ -680,7 +796,7 @@ export function RecordingsPanel({
                 }
               />
             </label>
-            {details.tracks.length > 1 ? (
+            {!details.meetingBundle && details.tracks.length > 1 ? (
               <label data-recordings="upload-track">
                 <span>{copy.uploadTrackLabel ?? "Audio track"}</span>
                 <select

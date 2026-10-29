@@ -50,6 +50,9 @@ export default async function AppHomePage() {
         uploadVocabLabel: t("app.uploadVocabLabel"),
         uploadVocabHint: t("app.uploadVocabHint"),
         uploadTrackLabel: t("app.uploadTrackLabel"),
+        uploadMeetingBundle: t("app.uploadMeetingBundle"),
+        uploadMeetingBundleHint: t("app.uploadMeetingBundleHint"),
+        uploadBundleTooLarge: t("app.uploadBundleTooLarge"),
       }}
     />
   );
