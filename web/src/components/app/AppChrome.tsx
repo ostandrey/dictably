@@ -37,7 +37,7 @@ export function AppChrome({
   const adminHref = locale === "uk" ? "/uk/admin/" : "/admin/";
 
   return (
-    <>
+    <div data-app-inert-root>
       <AppShell
         backHref={localePath(locale)}
         backLabel={t("back")}
@@ -60,6 +60,6 @@ export function AppChrome({
         dropLabel={t("uploadDrop")}
         recordingsHref={recordingsHref}
       />
-    </>
+    </div>
   );
 }

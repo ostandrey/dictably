@@ -4,7 +4,7 @@ import { isPreview, site } from "@/lib/site";
 
 export const dynamic = "force-static";
 
-const pages = ["", "privacy"];
+const pages = ["", "privacy", "terms"];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   if (isPreview) return [];

@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { passAccountGates } from "./utils/auth";
 import { VIEWPORTS } from "./utils/shots";
 
 const SHOT_ROOT = path.join("e2e", "__screenshots__", "T-019");
@@ -32,6 +33,11 @@ test.describe("T-019 admin", () => {
       "Admin",
     );
     await page.locator("[data-auth='dev-login']").click();
+    await page.waitForSelector(
+      "[data-consent='accept'], [data-admin='forbidden'], [data-admin='panel']",
+      { timeout: 15_000 },
+    );
+    await passAccountGates(page);
     await page
       .locator("[data-admin='forbidden'], [data-admin='panel']")
       .first()
@@ -61,6 +67,11 @@ test.describe("T-019 admin", () => {
   test("API /admin/users is 404 for non-admin session", async ({ page }) => {
     await page.goto("/app/");
     await page.locator("[data-auth='dev-login']").click();
+    await page.waitForSelector(
+      "[data-consent='accept'], [data-recordings='panel']",
+      { timeout: 15_000 },
+    );
+    await passAccountGates(page);
     await expect(page.locator("[data-recordings='panel']")).toBeVisible({
       timeout: 15_000,
     });
@@ -83,6 +94,11 @@ test.describe("T-019 admin", () => {
   test("screenshots admin panel 375/768/1440 light+dark", async ({ page }) => {
     await page.goto("/admin/");
     await page.locator("[data-auth='dev-login']").click();
+    await page.waitForSelector(
+      "[data-consent='accept'], [data-admin='forbidden'], [data-admin='panel']",
+      { timeout: 15_000 },
+    );
+    await passAccountGates(page);
     await page
       .locator("[data-admin='forbidden'], [data-admin='panel']")
       .first()

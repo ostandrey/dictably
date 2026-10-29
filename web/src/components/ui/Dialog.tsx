@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useId, useRef } from "react";
+import { createPortal } from "react-dom";
 
 export function Dialog({
   open,
@@ -9,12 +10,15 @@ export function Dialog({
   children,
   actions,
   onClose,
+  dismissible = true,
 }: {
   open: boolean;
   title: string;
   children: ReactNode;
   actions?: ReactNode;
   onClose: () => void;
+  /** When false, Escape / backdrop cancel are ignored (consent gate). */
+  dismissible?: boolean;
 }) {
   const titleId = useId();
   const ref = useRef<HTMLDialogElement>(null);
@@ -26,21 +30,52 @@ export function Dialog({
     if (!open && el.open) el.close();
   }, [open]);
 
-  if (!open) return null;
+  // Hide the rest of the app from AT / interaction while modal is open (T-033 B1).
+  useEffect(() => {
+    if (!open || typeof document === "undefined") return;
+    const roots = document.querySelectorAll<HTMLElement>("[data-app-inert-root]");
+    for (const node of roots) node.inert = true;
+    return () => {
+      for (const node of roots) node.inert = false;
+    };
+  }, [open]);
 
-  return (
+  // Focus primary action (not the first link in body — avoids Terms outline) once shown.
+  useEffect(() => {
+    if (!open) return;
+    const el = ref.current;
+    if (!el) return;
+    const primary =
+      el.querySelector<HTMLElement>(".dy-dialog__actions .dy-btn--primary") ??
+      el.querySelector<HTMLElement>(".dy-dialog__actions button");
+    (primary ?? el).focus();
+  }, [open]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  return createPortal(
     <dialog
       ref={ref}
       className="dy-dialog"
+      data-dialog="open"
       aria-labelledby={titleId}
-      onClose={onClose}
-      onCancel={onClose}
+      onClose={() => {
+        if (dismissible) onClose();
+      }}
+      onCancel={(e) => {
+        if (!dismissible) {
+          e.preventDefault();
+          return;
+        }
+        onClose();
+      }}
     >
       <h2 id={titleId} className="dy-dialog__title">
         {title}
       </h2>
       <div className="dy-dialog__body">{children}</div>
       {actions ? <div className="dy-dialog__actions">{actions}</div> : null}
-    </dialog>
+    </dialog>,
+    document.body,
   );
 }

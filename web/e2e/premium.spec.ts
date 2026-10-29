@@ -1,21 +1,12 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { ensureSignedIn } from "./utils/auth";
 import fs from "node:fs";
 import path from "node:path";
 import { VIEWPORTS } from "./utils/shots";
 
 const SHOT_ROOT = path.join("e2e", "__screenshots__", "T-036");
 const FIXTURE = path.join("e2e", "fixtures", "short.wav");
-
-async function ensureSignedIn(page: import("@playwright/test").Page) {
-  await page.waitForSelector(
-    "[data-auth='dev-login'], [data-recordings='panel']",
-  );
-  const panel = page.locator("[data-recordings='panel']");
-  if (await panel.isVisible()) return;
-  await page.locator("[data-auth='dev-login']").click();
-  await expect(panel).toBeVisible({ timeout: 15_000 });
-}
 
 test.describe("T-036 premium feel", () => {
   test.describe.configure({ mode: "serial" });
@@ -45,7 +36,7 @@ test.describe("T-036 premium feel", () => {
     await expect(page.locator("[data-shell='skeleton']")).toHaveCount(0);
 
     await page.locator("[data-shell='sidebar-nav'] a", { hasText: "Settings" }).click();
-    await expect(page.locator("[data-placeholder='settings']")).toBeVisible();
+    await expect(page.locator("[data-settings='panel']")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Sign in" })).toHaveCount(0);
 
     await page.locator("[data-shell='sidebar-nav'] a", { hasText: "Recordings" }).click();
@@ -123,7 +114,7 @@ test.describe("T-036 premium feel", () => {
           fullPage: true,
         });
         await page.goto("/app/settings/");
-        await expect(page.locator("[data-placeholder='settings']")).toBeVisible();
+        await expect(page.locator("[data-settings='panel']")).toBeVisible();
         await page.screenshot({
           path: path.join(SHOT_ROOT, `settings-${vp.name}-${scheme}.png`),
           fullPage: true,

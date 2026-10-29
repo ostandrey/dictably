@@ -7,6 +7,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     DateTime,
     Float,
     ForeignKey,
@@ -66,6 +67,24 @@ class User(Base, TimestampMixin):
     locale: Mapped[str] = mapped_column(String(16), default="en", nullable=False)
     role: Mapped[str] = mapped_column(String(32), default="user", nullable=False)
     google_sub: Mapped[str | None] = mapped_column(String(128), unique=True)
+    # T-033 — profile extras, consents, first-touch attribution, onboarding
+    timezone: Mapped[str | None] = mapped_column(String(64))
+    consent_terms_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    terms_version: Mapped[str | None] = mapped_column(String(32))
+    marketing_opt_in: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
+    marketing_opt_in_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    signup_utm: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, insert_default=dict, server_default="{}"
+    )
+    signup_referrer: Mapped[str | None] = mapped_column(String(512))
+    onboarding_use_cases: Mapped[list[Any]] = mapped_column(
+        JSONB, nullable=False, insert_default=list, server_default="[]"
+    )
+    onboarding_meeting_locale: Mapped[str | None] = mapped_column(String(16))
+    onboarding_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    onboarding_skipped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     sessions: Mapped[list[Session]] = relationship(back_populates="user")
     media: Mapped[list[Media]] = relationship(back_populates="user")

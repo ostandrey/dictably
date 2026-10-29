@@ -180,18 +180,37 @@ a.dy-rec__title:hover { color: var(--accent); }
 .dy-alert--danger { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 32%, transparent); }
 .dy-alert--danger .dy-alert__title { color: var(--danger); } .dy-alert--danger .dy-icon { color: var(--danger); }
 .dy-empty__action { margin-top: var(--space-2); }
-.dy-dialog::backdrop { background: color-mix(in srgb, var(--ink) 24%, transparent); animation: dy-fade-in var(--duration-base) var(--ease); }
-
-/* Dialog */
-.dy-scrim { display: grid; place-items: center; padding: var(--space-6); background: color-mix(in srgb, var(--ink) 24%, transparent); border-radius: var(--radius-md); }
-.dy-dialog { width: 100%; max-width: 420px; padding: var(--space-6); background: var(--surface-raised); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: var(--space-3); animation: dy-dialog-in var(--duration-base) var(--ease); }
+/* Dialog — opaque surface + dense scrim so page content never shows through (T-033 B1). */
+.dy-dialog::backdrop {
+  background: color-mix(in srgb, var(--ink) 72%, var(--canvas));
+  animation: dy-fade-in var(--duration-base) var(--ease);
+}
+.dy-scrim { display: grid; place-items: center; padding: var(--space-6); background: color-mix(in srgb, var(--ink) 72%, var(--canvas)); border-radius: var(--radius-md); }
+.dy-dialog {
+  position: fixed;
+  z-index: 200;
+  width: 100%;
+  max-width: 420px;
+  padding: var(--space-6);
+  background-color: var(--surface-raised);
+  opacity: 1;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  /* Scale only — never animate opacity (content behind must not bleed through). */
+  animation: dy-dialog-in var(--duration-base) var(--ease);
+}
 @keyframes dy-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 @keyframes dy-dialog-in {
-  from { opacity: 0; transform: scale(0.98); }
-  to { opacity: 1; transform: none; }
+  from { transform: scale(0.98); }
+  to { transform: none; }
 }
 .dy-dialog__title { font: 600 20px/28px var(--font-sans); letter-spacing: -0.01em; margin: 0; }
 .dy-dialog__body { font: 400 15px/24px var(--font-sans); color: var(--ink-muted); margin: 0; }

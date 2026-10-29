@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dictably.api.deps import require_user, require_user_csrf
+from dictably.api.deps import require_user, require_user_csrf, require_user_csrf_consent
 from dictably.api.schemas import (
     AnalysisOut,
     MediaListOut,
@@ -187,7 +187,7 @@ async def get_analysis(
 @router.post("/media/{media_id}/analysis", response_model=AnalysisOut)
 async def regenerate_analysis(
     media_id: UUID,
-    user: Annotated[User, Depends(require_user_csrf)],
+    user: Annotated[User, Depends(require_user_csrf_consent)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> AnalysisOut:
     try:
@@ -285,7 +285,7 @@ async def get_peaks(
 @router.post("/media", response_model=MediaOut, status_code=201)
 async def upload_media(
     _size_guard: Annotated[None, Depends(reject_huge_upload)],
-    user: Annotated[User, Depends(require_user_csrf)],
+    user: Annotated[User, Depends(require_user_csrf_consent)],
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[StorageProvider, Depends(get_storage)],
     settings: Annotated[Settings, Depends(get_settings)],

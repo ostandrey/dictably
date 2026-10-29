@@ -117,6 +117,58 @@ export interface paths {
         get: operations["me_api_me_get"];
         put?: never;
         post?: never;
+        /** Delete Me */
+        delete: operations["delete_me_api_me_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Consent */
+        post: operations["post_consent_api_me_consent_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/onboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Onboarding */
+        post: operations["post_onboarding_api_me_onboarding_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Account */
+        get: operations["export_account_api_me_export_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -549,6 +601,24 @@ export interface components {
             /** File */
             file: string;
         };
+        /** ConsentIn */
+        ConsentIn: {
+            /**
+             * Marketing Opt In
+             * @default false
+             */
+            marketing_opt_in: boolean;
+            /** Timezone */
+            timezone?: string | null;
+            /** Locale */
+            locale?: string | null;
+            /** Signup Utm */
+            signup_utm?: {
+                [key: string]: string;
+            } | null;
+            /** Signup Referrer */
+            signup_referrer?: string | null;
+        };
         /** DevLoginIn */
         DevLoginIn: {
             /**
@@ -674,6 +744,18 @@ export interface components {
             /** Start Ms */
             start_ms?: number | null;
         };
+        /** OnboardingIn */
+        OnboardingIn: {
+            /**
+             * Skipped
+             * @default false
+             */
+            skipped: boolean;
+            /** Use Cases */
+            use_cases?: string[];
+            /** Meeting Locale */
+            meeting_locale?: string | null;
+        };
         /** SpeakerOut */
         SpeakerOut: {
             /**
@@ -766,6 +848,31 @@ export interface components {
              * @default 0
              */
             balance_seconds: number;
+            /** Timezone */
+            timezone?: string | null;
+            /**
+             * Needs Consent
+             * @default false
+             */
+            needs_consent: boolean;
+            /**
+             * Needs Onboarding
+             * @default false
+             */
+            needs_onboarding: boolean;
+            /**
+             * Marketing Opt In
+             * @default false
+             */
+            marketing_opt_in: boolean;
+            /** Terms Version */
+            terms_version?: string | null;
+            /** Consent Terms At */
+            consent_terms_at?: string | null;
+            /** Onboarding Completed At */
+            onboarding_completed_at?: string | null;
+            /** Onboarding Skipped At */
+            onboarding_skipped_at?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -977,6 +1084,147 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_me_api_me_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_consent_api_me_consent_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_onboarding_api_me_onboarding_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_account_api_me_export_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                dictably_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

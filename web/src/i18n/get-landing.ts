@@ -23,6 +23,7 @@ export async function getLandingCopy(locale: string): Promise<LandingCopy> {
       langSwitch: locale === "en" ? "Українська" : "English",
       langHref: locale === "en" ? localePath("uk") : localePath("en"),
       privacyHref: localePath(locale, "privacy"),
+      termsHref: localePath(locale, "terms"),
     },
     hero: {
       badge: t("hero.badge"),
@@ -101,6 +102,7 @@ export async function getLandingCopy(locale: string): Promise<LandingCopy> {
     },
     footer: {
       privacy: t("footer.privacy"),
+      terms: t("footer.terms"),
       contact: t("footer.contact"),
       rights: t("footer.rights"),
     },
@@ -141,6 +143,51 @@ export async function getPrivacyCopy(locale: string) {
         h: t("changesTitle"),
         body: t("changesBody", { date: site.privacyUpdated }),
       },
+    ],
+    cookiesTitle: t("cookiesTitle"),
+    cookiesIntro: t("cookiesIntro"),
+    cookiesHeaders: {
+      name: t("cookiesColName"),
+      purpose: t("cookiesColPurpose"),
+      duration: t("cookiesColDuration"),
+    },
+    cookies: [
+      {
+        name: "dictably_session",
+        purpose: t("cookieSessionPurpose"),
+        duration: t("cookieSessionDuration"),
+      },
+      {
+        name: "dictably_csrf",
+        purpose: t("cookieCsrfPurpose"),
+        duration: t("cookieCsrfDuration"),
+      },
+      {
+        name: "dictably_oauth_state",
+        purpose: t("cookieOauthPurpose"),
+        duration: t("cookieOauthDuration"),
+      },
+    ],
+    back: t("back"),
+  };
+}
+
+export async function getTermsCopy(locale: string) {
+  const t = await getTranslations({ locale, namespace: "terms" });
+  const { site, isPreview } = await import("@/lib/site");
+  return {
+    title: t("title"),
+    metaDescription: t("metaDescription"),
+    h1: t("h1"),
+    intro: t("intro", { date: site.privacyUpdated }),
+    contactEmail: isPreview ? undefined : site.contactEmail,
+    sections: [
+      { h: t("serviceTitle"), body: t("serviceBody") },
+      { h: t("accountTitle"), body: t("accountBody") },
+      { h: t("contentTitle"), body: t("contentBody") },
+      { h: t("acceptableTitle"), body: t("acceptableBody") },
+      { h: t("liabilityTitle"), body: t("liabilityBody") },
+      { h: t("changesTitle"), body: t("changesBody", { date: site.privacyUpdated }) },
     ],
     back: t("back"),
   };

@@ -13,6 +13,28 @@ class UserOut(BaseModel):
     locale: str
     role: str
     balance_seconds: int = 0
+    timezone: str | None = None
+    needs_consent: bool = False
+    needs_onboarding: bool = False
+    marketing_opt_in: bool = False
+    terms_version: str | None = None
+    consent_terms_at: datetime | None = None
+    onboarding_completed_at: datetime | None = None
+    onboarding_skipped_at: datetime | None = None
+
+
+class ConsentIn(BaseModel):
+    marketing_opt_in: bool = False
+    timezone: str | None = Field(default=None, max_length=64)
+    locale: str | None = Field(default=None, max_length=16)
+    signup_utm: dict[str, str] | None = None
+    signup_referrer: str | None = Field(default=None, max_length=512)
+
+
+class OnboardingIn(BaseModel):
+    skipped: bool = False
+    use_cases: list[str] = Field(default_factory=list, max_length=5)
+    meeting_locale: str | None = Field(default=None, max_length=16)
 
 
 class SpeakerOut(BaseModel):

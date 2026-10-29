@@ -9,7 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dictably.core.config import Settings, get_settings
 from dictably.db.models import User
 from dictably.db.session import get_db
+from dictably.domain import account as account_domain
 from dictably.domain import auth as auth_domain
+
+CONSENT_REQUIRED_DETAIL = "consent_required"
 
 
 async def get_current_user_optional(
@@ -51,6 +54,30 @@ async def require_user_csrf(
     _: Annotated[None, Depends(require_csrf)],
 ) -> User:
     """Auth first (401), then CSRF (403) — for cookie-authenticated mutations."""
+    return user
+
+
+async def require_consent(
+    user: Annotated[User, Depends(require_user)],
+) -> User:
+    """Block product mutations until Terms/Privacy accepted (T-033 S1)."""
+    if account_domain.needs_consent(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=CONSENT_REQUIRED_DETAIL,
+        )
+    return user
+
+
+async def require_user_csrf_consent(
+    user: Annotated[User, Depends(require_user_csrf)],
+) -> User:
+    """CSRF + consent for upload / regenerate."""
+    if account_domain.needs_consent(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=CONSENT_REQUIRED_DETAIL,
+        )
     return user
 
 

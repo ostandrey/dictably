@@ -62,7 +62,7 @@ e2e:
 
 # Kill whatever is listening on API port (T-036 S2 / Owner Docker).
 free-api-port:
-    powershell -NoLogo -Command "$p = netstat -ano | Select-String 'LISTENING' | Select-String ':8000\\s'; foreach ($line in $p) { $pid = ($line -split '\\s+')[-1]; if ($pid -match '^\\d+$' -and [int]$pid -gt 0) { Stop-Process -Id ([int]$pid) -Force -ErrorAction SilentlyContinue; Write-Host \"killed $pid\" } }; Write-Host 'port 8000 cleared'"
+    powershell -NoLogo -Command "$p = netstat -ano | Select-String 'LISTENING' | Select-String ':8000\\s'; foreach ($line in $p) { $procId = ($line.ToString() -split '\\s+')[-1]; if ($procId -match '^\\d+$' -and [int]$procId -gt 0) { Stop-Process -Id ([int]$procId) -Force -ErrorAction SilentlyContinue; Write-Host \"killed $procId\" } }; Write-Host 'port 8000 cleared'"
 
 lh:
     cd web && pnpm build:local && pnpm lh

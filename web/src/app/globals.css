@@ -698,6 +698,29 @@ a {
   white-space: pre-wrap;
 }
 
+.legal__table-wrap {
+  overflow-x: auto;
+  margin-top: var(--space-4);
+}
+.legal__table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 400 14px/22px var(--font-sans);
+}
+.legal__table th,
+.legal__table td {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+.legal__table th {
+  font-weight: 600;
+  color: var(--ink);
+}
+.legal__table code {
+  font: 500 13px/18px var(--font-mono, ui-monospace, monospace);
+}
 .legal__section p:last-child {
   margin-bottom: 0;
 }

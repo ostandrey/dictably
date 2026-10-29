@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { PlaceholderPanel } from "@/components/app/PlaceholderPanel";
-import { IllSettings } from "@/components/illustrations";
+import { SettingsPanel } from "@/components/app/SettingsPanel";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations({ locale: "uk" });
@@ -11,14 +10,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function UkSettingsPage() {
-  const t = await getTranslations({ locale: "uk" });
-  return (
-    <PlaceholderPanel
-      illustration={<IllSettings />}
-      title={t("app.settingsSectionsTitle")}
-      body={t("app.settingsSectionsBody")}
-      data-testid="settings"
-    />
-  );
+export default function SettingsUkPage() {
+  return <SettingsPanel />;
 }

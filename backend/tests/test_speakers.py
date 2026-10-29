@@ -20,7 +20,14 @@ async def _login(client: AsyncClient, email: str = "dev@example.com") -> str:
         json={"email": email, "name": "Dev"},
     )
     assert res.status_code == 200, res.text
-    return res.cookies[auth_domain.CSRF_COOKIE]
+    csrf = res.cookies[auth_domain.CSRF_COOKIE]
+    cons = await client.post(
+        "/api/me/consent",
+        headers={auth_domain.CSRF_HEADER: csrf},
+        json={"marketing_opt_in": False},
+    )
+    assert cons.status_code == 200, cons.text
+    return csrf
 
 
 def _ok_probe(_path: Path, **_kwargs: object) -> ProbeResult:

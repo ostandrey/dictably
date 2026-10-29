@@ -97,7 +97,22 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm i18n:check
+      - run: pnpm site-mode:check
       - run: pnpm build:local
+      - name: Docker preview — robots Disallow / (T-023a.1)
+        # Build without CONTACT/CONTROLLER; SITE_MODE=preview must bake Disallow:/ into out/
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_SITE_URL=https://preview.example.com \
+            --build-arg NEXT_PUBLIC_SITE_MODE=preview \
+            -t dictably-web-preview-ci \
+            .
+          cid=$(docker create dictably-web-preview-ci)
+          docker cp "$cid:/usr/share/nginx/html/robots.txt" /tmp/robots-preview.txt
+          docker rm "$cid"
+          echo "--- robots.txt ---"
+          cat /tmp/robots-preview.txt
+          grep -F 'Disallow: /' /tmp/robots-preview.txt
       - name: nginx -t without API host (B1)
         working-directory: web
         run: sh scripts/nginx-config-test.sh

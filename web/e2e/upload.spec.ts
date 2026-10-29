@@ -1,26 +1,12 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { ensureSignedIn } from "./utils/auth";
 import fs from "node:fs";
 import path from "node:path";
 import { VIEWPORTS } from "./utils/shots";
 
 const SHOT_ROOT = path.join("e2e", "__screenshots__", "T-012");
 const FIXTURE = path.join("e2e", "fixtures", "short.wav");
-
-async function ensureSignedIn(page: import("@playwright/test").Page) {
-  await page.waitForSelector(
-    "[data-auth='dev-login'], [data-recordings='panel']",
-  );
-  const panel = page.locator("[data-recordings='panel']");
-  if (await panel.isVisible()) return;
-  const login = page.locator("[data-auth='dev-login']");
-  await expect(login).toBeEnabled({ timeout: 15_000 });
-  await login.click();
-  await expect(panel).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    /Recordings|Записи/,
-  );
-}
 
 /** S4: unique filename per upload so list/screenshots don't pile identical short.wav. */
 function uniqueFixture() {

@@ -1,5 +1,11 @@
 import { site } from "@/lib/site";
 
+export type CookieRow = {
+  name: string;
+  purpose: string;
+  duration: string;
+};
+
 export type PrivacyCopy = {
   title: string;
   metaDescription: string;
@@ -7,6 +13,10 @@ export type PrivacyCopy = {
   intro: string;
   contactEmail?: string;
   sections: { h: string; body: string }[];
+  cookiesTitle?: string;
+  cookiesIntro?: string;
+  cookiesHeaders?: { name: string; purpose: string; duration: string };
+  cookies?: CookieRow[];
   back: string;
 };
 
@@ -39,6 +49,38 @@ export function PrivacyPage({ copy, homeHref }: Props) {
             ))}
           </section>
         ))}
+        {copy.cookies && copy.cookies.length > 0 ? (
+          <section className="legal__section" data-privacy="cookies">
+            <h2>{copy.cookiesTitle}</h2>
+            {copy.cookiesIntro ? <p>{copy.cookiesIntro}</p> : null}
+            <div className="legal__table-wrap">
+              <table className="legal__table">
+                <thead>
+                  <tr>
+                    <th scope="col">{copy.cookiesHeaders?.name ?? "Name"}</th>
+                    <th scope="col">
+                      {copy.cookiesHeaders?.purpose ?? "Purpose"}
+                    </th>
+                    <th scope="col">
+                      {copy.cookiesHeaders?.duration ?? "Duration"}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {copy.cookies.map((row) => (
+                    <tr key={row.name}>
+                      <td>
+                        <code>{row.name}</code>
+                      </td>
+                      <td>{row.purpose}</td>
+                      <td>{row.duration}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
       </main>
       <footer className="site-footer shell">
         <span>© {site.name}</span>

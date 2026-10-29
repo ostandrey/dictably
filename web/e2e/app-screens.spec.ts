@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { ensureSignedIn } from "./utils/auth";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -41,18 +42,6 @@ const SAMPLE = {
     },
   ],
 };
-
-async function ensureSignedIn(page: import("@playwright/test").Page) {
-  await page.waitForSelector(
-    "[data-auth='dev-login'], [data-recordings='panel']",
-  );
-  const panel = page.locator("[data-recordings='panel']");
-  if (await panel.isVisible()) return;
-  const login = page.locator("[data-auth='dev-login']");
-  await expect(login).toBeEnabled({ timeout: 15_000 });
-  await login.click();
-  await expect(panel).toBeVisible({ timeout: 15_000 });
-}
 
 async function mockMediaList(
   page: import("@playwright/test").Page,

@@ -14,9 +14,9 @@ from dictably.api.cookies import (
     set_session_cookies,
 )
 from dictably.api.deps import client_ip, require_csrf
+from dictably.api.me import user_out
 from dictably.api.schemas import AuthConfigOut, DevLoginIn, UserOut
 from dictably.core.config import Settings, get_settings
-from dictably.db.models import User
 from dictably.db.session import get_db
 from dictably.domain import auth as auth_domain
 from dictably.domain import google_oauth
@@ -38,17 +38,6 @@ AUTH_ERROR_CODES = frozenset(
         "incomplete_profile",
     }
 )
-
-
-def _user_out(user: User, *, balance_seconds: int = 0) -> UserOut:
-    return UserOut(
-        id=user.id,
-        email=user.email,
-        name=user.name,
-        locale=user.locale,
-        role=user.role,
-        balance_seconds=balance_seconds,
-    )
 
 
 def _app_redirect(
@@ -195,7 +184,7 @@ async def dev_login(
     csrf = auth_domain.new_token()
     await session.commit()
     set_session_cookies(response, settings=settings, session_token=raw, csrf_token=csrf)
-    return _user_out(user)
+    return user_out(user)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

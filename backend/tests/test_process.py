@@ -33,7 +33,14 @@ async def _login(client: AsyncClient, email: str = "owner@example.com") -> str:
         json={"email": email, "name": "Owner"},
     )
     assert login.status_code == 200, login.text
-    return login.cookies[auth_domain.CSRF_COOKIE]
+    csrf = login.cookies[auth_domain.CSRF_COOKIE]
+    cons = await client.post(
+        "/api/me/consent",
+        headers={auth_domain.CSRF_HEADER: csrf},
+        json={"marketing_opt_in": False},
+    )
+    assert cons.status_code == 200, cons.text
+    return csrf
 
 
 @pytest.fixture

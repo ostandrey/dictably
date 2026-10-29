@@ -39,6 +39,7 @@ export type LandingCopy = {
     langSwitch: string;
     langHref: string;
     privacyHref: string;
+    termsHref: string;
   };
   hero: {
     badge: string;
@@ -97,6 +98,7 @@ export type LandingCopy = {
   };
   footer: {
     privacy: string;
+    terms: string;
     contact: string;
     rights: string;
   };

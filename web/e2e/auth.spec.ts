@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
+import { passAccountGates } from "./utils/auth";
 import { VIEWPORTS } from "./utils/shots";
 
 const SHOT_ROOT = path.join("e2e", "__screenshots__", "T-011");
@@ -30,6 +31,11 @@ test.describe("T-011 auth", () => {
       "Sign in",
     );
     await page.locator("[data-auth='dev-login']").click();
+    await page.waitForSelector(
+      "[data-consent='accept'], [data-recordings='panel']",
+      { timeout: 15_000 },
+    );
+    await passAccountGates(page);
     await expect(page.locator("[data-recordings='panel']")).toBeVisible();
     await expect(page.locator("[data-auth='logout']")).toBeVisible();
     await expect(page.locator("[data-auth='account']")).toBeVisible();

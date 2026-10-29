@@ -97,6 +97,48 @@ export function getMe(): Promise<User> {
   return apiFetch<User>("/api/me");
 }
 
+export type ConsentBody = {
+  marketing_opt_in?: boolean;
+  timezone?: string | null;
+  locale?: string | null;
+  signup_utm?: Record<string, string> | null;
+  signup_referrer?: string | null;
+};
+
+export type OnboardingBody = {
+  skipped?: boolean;
+  use_cases?: string[];
+  meeting_locale?: string | null;
+};
+
+export type AccountExport = {
+  exported_at: string;
+  user: Record<string, unknown>;
+  recordings: Array<Record<string, unknown>>;
+};
+
+export function postConsent(body: ConsentBody): Promise<User> {
+  return apiFetch<User>("/api/me/consent", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function postOnboarding(body: OnboardingBody): Promise<User> {
+  return apiFetch<User>("/api/me/onboarding", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function exportAccount(): Promise<AccountExport> {
+  return apiFetch<AccountExport>("/api/me/export");
+}
+
+export function deleteAccount(): Promise<void> {
+  return apiFetch<void>("/api/me", { method: "DELETE" });
+}
+
 export function devLogin(
   email = "dev@example.com",
   name = "Dev User",

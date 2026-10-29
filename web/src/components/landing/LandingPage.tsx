@@ -7,6 +7,7 @@ import { HeroSignature } from "./HeroSignature";
 import { AppCtaLink } from "./AppCtaLink";
 import { SiteHeader } from "./SiteHeader";
 import { WhyIcons } from "./WhyIcons";
+import { AttributionCapture } from "./AttributionCapture";
 
 type Props = { copy: LandingCopy };
 
@@ -17,6 +18,7 @@ export function LandingPage({ copy }: Props) {
 
   return (
     <>
+      <AttributionCapture />
       {/* Landing-only — keep off /app to protect Lighthouse (T-036 B3). */}
       <Script src="/landing.js" strategy="lazyOnload" />
       <SiteHeader copy={copy} appHref={appHref} brandName={site.name} />
@@ -203,6 +205,7 @@ export function LandingPage({ copy }: Props) {
           <span>{copy.footer.rights}</span>
           <div className="lp-footer__links">
             <a href={copy.nav.privacyHref}>{copy.footer.privacy}</a>
+            <a href={copy.nav.termsHref}>{copy.footer.terms}</a>
             <a href={copy.nav.langHref} hrefLang={locale === "en" ? "uk" : "en"}>
               {copy.nav.langSwitch}
             </a>

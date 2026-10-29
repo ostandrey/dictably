@@ -6,6 +6,7 @@ import { expect, test } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { passAccountGates } from "./utils/auth";
 
 const SHOT_ROOT = path.join("e2e", "__screenshots__", "MVP0");
 const FIXTURE = path.join("e2e", "fixtures", "short.wav");
@@ -38,6 +39,11 @@ test.describe("MVP-0 demo path", () => {
 
       // 2. Dev login (same path as other e2e)
       await page.locator("[data-auth='dev-login']").click();
+      await page.waitForSelector(
+        "[data-consent='accept'], [data-recordings='panel']",
+        { timeout: 15_000 },
+      );
+      await passAccountGates(page);
       await expect(page.locator("[data-recordings='panel']")).toBeVisible({
         timeout: 15_000,
       });
