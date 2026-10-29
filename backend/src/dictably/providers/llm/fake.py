@@ -4,15 +4,39 @@ from typing import Any
 
 
 class FakeLLMProvider:
+    """Deterministic two-pass provider for tests (quotes match segment text)."""
+
     name = "fake"
 
     async def analyze(self, *, transcript: dict[str, Any]) -> dict[str, Any]:
+        return await self.extract(
+            transcript=transcript,
+            user_message="",
+            language=str(transcript.get("language") or "en"),
+        )
+
+    async def extract(
+        self,
+        *,
+        transcript: dict[str, Any],
+        user_message: str,
+        language: str,
+    ) -> dict[str, Any]:
+        del user_message
         segments = list(transcript.get("segments") or [])
         seg_ids = [str(s.get("id")) for s in segments[:2] if isinstance(s, dict) and s.get("id")]
         if not seg_ids:
             seg_ids = ["S1"]
         first = seg_ids[0]
-        lang = str(transcript.get("language") or "en")
+        last = seg_ids[-1]
+        texts = {
+            str(s.get("id")): str(s.get("text") or "")
+            for s in segments
+            if isinstance(s, dict) and s.get("id")
+        }
+        quote_first = _quote_from(texts.get(first, "Fake meeting summary point."))
+        quote_last = _quote_from(texts.get(last, "Fake agreement to update the table."))
+        lang = language or str(transcript.get("language") or "en")
         assigned = [
             p for p in (transcript.get("parties") or []) if isinstance(p, dict) and p.get("id")
         ]
@@ -50,7 +74,9 @@ class FakeLLMProvider:
             ]
         return {
             "provider": self.name,
-            "model": "fake-v0",
+            "model": "fake-v2",
+            "prompt_version": "v2-two-pass-2026-10-29",
+            "cost_usd": 0.0,
             "language": lang,
             "title": "Fake meeting minutes",
             "parties": parties,
@@ -59,25 +85,82 @@ class FakeLLMProvider:
                 {
                     "text": "Fake meeting summary point.",
                     "segment_ids": [first],
+                    "quote": quote_first,
+                    "status": "agreed",
                 }
             ],
             "decisions": [],
             "agreements": [
                 {
-                    "party_id": "our",
+                    "party_id": parties[0]["id"],
                     "text": "Fake agreement to update the table.",
-                    "segment_ids": seg_ids[-1:],
+                    "segment_ids": [last],
+                    "quote": quote_last,
+                    "status": "agreed",
                 }
             ],
             "tasks": [
                 {
-                    "party_id": "their",
+                    "party_id": parties[min(1, len(parties) - 1)]["id"],
                     "text": "Fake follow-up task.",
                     "segment_ids": [first],
-                    "owner_speaker": "B",
+                    "quote": quote_first,
+                    "owner_speaker": participants[-1]["speaker"],
                     "due_text": None,
+                    "status": "agreed",
                 }
             ],
             "deadlines_and_facts": [],
             "open_questions": [],
         }
+
+    async def verify(
+        self,
+        *,
+        items: list[dict[str, Any]],
+        language: str,
+    ) -> dict[str, Any]:
+        del language
+        out = []
+        for it in items:
+            text = str(it.get("text") or "")
+            # Synthetic hook for unit tests: mark fabricated items.
+            if text.startswith("FABRICATED:"):
+                out.append(
+                    {
+                        "item_id": it["item_id"],
+                        "verdict": "not_supported",
+                        "party_ok": True,
+                        "due_ok": True,
+                        "reason": "fabricated fixture",
+                    }
+                )
+            elif "WEAK:" in text:
+                out.append(
+                    {
+                        "item_id": it["item_id"],
+                        "verdict": "weak",
+                        "party_ok": True,
+                        "due_ok": True,
+                        "reason": "soft evidence",
+                    }
+                )
+            else:
+                out.append(
+                    {
+                        "item_id": it["item_id"],
+                        "verdict": "supported",
+                        "party_ok": True,
+                        "due_ok": True,
+                        "reason": "",
+                    }
+                )
+        return {"items": out}
+
+
+def _quote_from(text: str) -> str:
+    words = text.split()
+    if not words:
+        return "placeholder"
+    # Must be a contiguous substring of the cited segment(s) for code validation.
+    return " ".join(words[: min(12, len(words))])

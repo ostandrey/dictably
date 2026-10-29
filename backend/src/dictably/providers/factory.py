@@ -5,6 +5,7 @@ from dictably.providers.asr.assemblyai import AssemblyAIProvider
 from dictably.providers.asr.base import TranscriptionProvider
 from dictably.providers.asr.fake import FakeASRProvider
 from dictably.providers.llm.anthropic import AnthropicLLMProvider
+from dictably.providers.llm.assemblyai_gateway import AssemblyAILLMProvider
 from dictably.providers.llm.base import MinutesProvider
 from dictably.providers.llm.fake import FakeLLMProvider
 from dictably.providers.storage.local import LocalStorageProvider
@@ -56,7 +57,16 @@ def get_llm_provider(settings: Settings | None = None) -> MinutesProvider:
             settings.anthropic_api_key,
             model=settings.anthropic_model,
         )
-    raise ValueError(f"LLM provider {settings.llm_provider!r} not supported; use fake or anthropic")
+    if name in {"assemblyai_gateway", "assemblyai-llm", "lemur"}:
+        return AssemblyAILLMProvider(
+            settings.assemblyai_api_key,
+            model=settings.assemblyai_llm_model or None,
+            region=settings.assemblyai_llm_region,
+        )
+    raise ValueError(
+        f"LLM provider {settings.llm_provider!r} not supported; "
+        "use fake, anthropic, or assemblyai_gateway"
+    )
 
 
 def get_storage_provider(settings: Settings | None = None) -> LocalStorageProvider:

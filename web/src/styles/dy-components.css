@@ -107,6 +107,18 @@
 .dy-item__text { font: 400 17px/28px var(--font-sans); margin: 0; text-align: start; overflow-wrap: break-word; }
 .dy-item__text.is-done { color: var(--ink-muted); text-decoration: line-through; }
 .dy-item__meta { font: 400 13px/20px var(--font-sans); color: var(--ink-muted); }
+.dy-item--weak { background: color-mix(in srgb, var(--evidence) 12%, transparent); }
+.dy-item__weak {
+  display: inline-block;
+  margin-inline-start: var(--space-2);
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  font: 600 11px/18px var(--font-sans);
+  color: var(--ink-muted);
+  vertical-align: middle;
+  cursor: help;
+}
 .dy-item .dy-timecode { justify-self: end; }
 
 /* Player */

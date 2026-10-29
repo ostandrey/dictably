@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     asr_fallback: str = Field(default="assemblyai", alias="ASR_FALLBACK")
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
     anthropic_model: str = Field(default="claude-haiku-5-5", alias="ANTHROPIC_MODEL")
+    # AssemblyAI LLM Gateway (T-016a): model id from their Available models page.
+    assemblyai_llm_model: str = Field(default="claude-haiku-5-5", alias="ASSEMBLYAI_LLM_MODEL")
+    # eu keeps data in EU (Claude/Gemini); us for OpenAI-only models.
+    assemblyai_llm_region: str = Field(default="eu", alias="ASSEMBLYAI_LLM_REGION")
     # MVP-0 trial budget per user (N2); PRODUCT later may use 60 min / file.
     trial_seconds: int = Field(default=3 * 60 * 60, alias="TRIAL_SECONDS")
 

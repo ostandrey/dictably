@@ -112,3 +112,81 @@ test.describe("T-016 minutes + M1/M2", () => {
     }
   });
 });
+
+test.describe("T-016a weak badge", () => {
+  test("weak verify shows Review badge", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.goto("/app/");
+    await ensureSignedIn(page);
+    const name = `t016a-weak-${Date.now()}.wav`;
+    await page.locator("[data-recordings='file']").setInputFiles({
+      name,
+      mimeType: "audio/wav",
+      buffer: fs.readFileSync(FIXTURE),
+    });
+    const row = page.locator("[data-recordings='row']").filter({ hasText: name });
+    await expect(row).toBeVisible({ timeout: 30_000 });
+    await expect(row).toContainText(/Ready|Готово/, { timeout: 30_000 });
+
+    await page.route("**/api/media/*/analysis", async (route) => {
+      if (route.request().method() !== "GET") {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "00000000-0000-4000-8000-000000000099",
+          media_id: "00000000-0000-4000-8000-000000000001",
+          provider: "fake",
+          model: "fake-v2",
+          created_at: new Date().toISOString(),
+          regenerations_left: 3,
+          result: {
+            language: "en",
+            title: "Weak demo",
+            parties: [{ id: "our", label: "Our side" }],
+            participants: [],
+            summary: [],
+            decisions: [],
+            agreements: [
+              {
+                party_id: "our",
+                text: "Maybe ship the update if budget allows",
+                segment_ids: ["S1"],
+                start_ms: 1000,
+                quote: "ship the update",
+                verify: "weak",
+                verify_reason: "Conditional commitment",
+              },
+            ],
+            tasks: [],
+            deadlines_and_facts: [],
+            open_questions: [],
+          },
+        }),
+      });
+    });
+
+    await row.click();
+    await expect(page.locator("[data-minutes='weak']")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(
+      page.locator("[data-minutes='item'][data-verify='weak']"),
+    ).toBeVisible();
+    fs.mkdirSync(path.join("e2e", "__screenshots__", "T-016a"), {
+      recursive: true,
+    });
+    await page.screenshot({
+      path: path.join(
+        "e2e",
+        "__screenshots__",
+        "T-016a",
+        "weak-badge-1440-light.png",
+      ),
+      fullPage: true,
+    });
+  });
+});

@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dictably.db.models import Analysis, Media, MediaStatus, Transcript
 from dictably.domain import speakers as speakers_domain
-from dictably.domain.minutes_schema import Minutes, validate_minutes
+from dictably.domain.minutes_pipeline import parse_minutes_result, run_minutes_pipeline
+from dictably.domain.minutes_schema import Minutes
 from dictably.providers.factory import get_llm_provider
 from dictably.providers.llm.base import MinutesProvider
 
@@ -51,7 +52,7 @@ async def run_and_store(
     transcript: Transcript,
     llm: MinutesProvider | None = None,
 ) -> Analysis:
-    """Call LLM, soft-validate segment_ids, persist Analysis row."""
+    """Two-pass LLM + code validation; persist Analysis row (T-016a)."""
     llm = llm or get_llm_provider()
     speaker_rows = await speakers_domain.list_for_media(session, media.id)
     speakers_payload = [
@@ -81,8 +82,8 @@ async def run_and_store(
         "speakers": speakers_payload,
         "parties": parties_payload,
     }
-    raw = await llm.analyze(transcript=payload)
-    cleaned, dropped = validate_minutes(list(transcript.segments or []), raw)
+    raw = await run_minutes_pipeline(llm, transcript=payload, require_quote=True)
+    dropped = list(raw.pop("_validation_dropped", []) or [])
     if dropped:
         log.info(
             "analysis.dropped media=%s count=%s sample=%s",
@@ -90,15 +91,16 @@ async def run_and_store(
             len(dropped),
             dropped[:3],
         )
+    cleaned = parse_minutes_result(raw)
     data = cleaned.model_dump()
-    data["provider"] = raw.get("provider") or getattr(llm, "name", "unknown")
-    data["model"] = raw.get("model")
+    data["provider"] = data.get("provider") or getattr(llm, "name", "unknown")
     row = Analysis(
         media_id=media.id,
         template="default",
         provider=str(data["provider"]),
         model=data.get("model"),
         result=data,
+        cost_usd=data.get("cost_usd"),
     )
     session.add(row)
     await session.flush()

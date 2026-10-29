@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   ApiError,
   getAnalysis,
@@ -15,6 +16,9 @@ type Point = {
   party_id?: string;
   due_text?: string | null;
   owner_speaker?: string | null;
+  verify?: "supported" | "weak" | "not_supported" | null;
+  verify_reason?: string | null;
+  condition?: string | null;
 };
 
 type Props = {
@@ -79,6 +83,8 @@ export function MinutesPanel({
   speakerMeta = {},
   onSeek,
 }: Props) {
+  const t = useTranslations("app");
+  const verifyLabel = t("minutesVerify");
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -154,15 +160,18 @@ export function MinutesPanel({
     const ids = (item.segment_ids ?? []).map(String);
     const start = item.start_ms ?? null;
     const owner = ownerName(item.owner_speaker);
-    const metaBits = [owner, item.due_text].filter(Boolean);
+    const metaBits = [owner, item.due_text, item.condition].filter(Boolean);
+    const weak = item.verify === "weak";
     return (
       <button
         key={key}
         type="button"
-        className={`dy-item${withCheck ? "" : " dy-item--plain"}`}
+        className={`dy-item${withCheck ? "" : " dy-item--plain"}${weak ? " dy-item--weak" : ""}`}
         data-minutes="item"
+        data-verify={item.verify ?? undefined}
         data-start-ms={start ?? undefined}
         data-segs={ids.join(",")}
+        title={weak ? (item.verify_reason || verifyLabel) : undefined}
         onClick={() => {
           if (start == null) return;
           onSeek(start, ids);
@@ -170,7 +179,18 @@ export function MinutesPanel({
       >
         {withCheck ? <span className="dy-item__check" aria-hidden /> : null}
         <div className="dy-item__body">
-          <p className="dy-item__text">{item.text}</p>
+          <p className="dy-item__text">
+            {item.text}
+            {weak ? (
+              <span
+                className="dy-item__weak"
+                data-minutes="weak"
+                title={item.verify_reason || verifyLabel}
+              >
+                {verifyLabel}
+              </span>
+            ) : null}
+          </p>
           {metaBits.length ? (
             <span className="dy-item__meta">{metaBits.join(" · ")}</span>
           ) : null}

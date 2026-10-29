@@ -1,0 +1,17 @@
+{
+  "request_id": "abc123",
+  "choices": [
+    {
+      "message": {
+        "role": "assistant",
+        "content": "{\"language\":\"en\",\"title\":\"Gateway fixture\",\"parties\":[{\"id\":\"our\",\"label\":\"Our side\"}],\"participants\":[],\"summary\":[],\"decisions\":[],\"agreements\":[{\"party_id\":\"our\",\"text\":\"Ship Friday\",\"segment_ids\":[\"S1\"],\"quote\":\"We will ship Friday\",\"status\":\"agreed\"}],\"tasks\":[],\"deadlines_and_facts\":[],\"open_questions\":[]}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "input_tokens": 85,
+    "output_tokens": 120,
+    "total_tokens": 205
+  }
+}

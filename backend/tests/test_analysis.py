@@ -82,20 +82,20 @@ def test_validate_minutes_drops_unknown_segment_ids() -> None:
         "parties": [{"id": "our", "label": "Our"}],
         "participants": [],
         "summary": [
-            {"text": "ok", "segment_ids": ["S1"]},
-            {"text": "bad", "segment_ids": ["S_MISSING"]},
-            {"text": "empty", "segment_ids": []},
+            {"text": "ok", "segment_ids": ["S1"], "quote": "one"},
+            {"text": "bad", "segment_ids": ["S_MISSING"], "quote": "one"},
+            {"text": "empty", "segment_ids": [], "quote": "one"},
         ],
         "agreements": [
-            {"party_id": "our", "text": "ok agree", "segment_ids": ["S2"]},
-            {"party_id": "ghost", "text": "bad party", "segment_ids": ["S1"]},
+            {"party_id": "our", "text": "ok agree", "segment_ids": ["S2"], "quote": "two"},
+            {"party_id": "ghost", "text": "bad party", "segment_ids": ["S1"], "quote": "one"},
         ],
         "tasks": [],
         "decisions": [],
         "deadlines_and_facts": [],
         "open_questions": [],
     }
-    cleaned, dropped = validate_minutes(segments, raw)
+    cleaned, dropped = validate_minutes(segments, raw, require_quote=True)
     assert len(cleaned.summary) == 1
     assert cleaned.summary[0].text == "ok"
     assert len(cleaned.agreements) == 1
