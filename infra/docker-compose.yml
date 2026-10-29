@@ -6,8 +6,9 @@ services:
       POSTGRES_PASSWORD: dictably
       POSTGRES_DB: dictably
     # Host port offset — avoids collision with local postgresql-x64 on 5432 (B1).
+    # Bind localhost only (MVP-0 demo S1) — not reachable from LAN.
     ports:
-      - "55432:5432"
+      - "127.0.0.1:55432:5432"
     volumes:
       - dictably_pg:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d:ro
@@ -21,7 +22,7 @@ services:
     image: redis:7-alpine
     # Host port offset — avoids collision with local/WSL redis on 6379 (B1).
     ports:
-      - "56379:6379"
+      - "127.0.0.1:56379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -31,11 +32,14 @@ services:
   api:
     build:
       context: ../backend
+    # Optional secrets / ASR+LLM keys — never commit; defaults stay fake (B1).
+    env_file:
+      - path: ../backend/.env
+        required: false
     environment:
+      # Docker network overrides host URLs that may be in backend/.env
       DATABASE_URL: postgresql+asyncpg://dictably:dictably@postgres:5432/dictably
       REDIS_URL: redis://redis:6379/0
-      ASR_PROVIDER: fake
-      LLM_PROVIDER: fake
       STORAGE_PROVIDER: local
       LOCAL_STORAGE_PATH: /data/storage
       ENV: dev
@@ -43,10 +47,11 @@ services:
       PUBLIC_APP_URL: http://127.0.0.1:3000
       COOKIE_SECURE: "0"
       TRUSTED_PROXY_HOPS: "1"
+      # ASR_PROVIDER / LLM_PROVIDER / *_API_KEY: from env_file if set; else Settings defaults (fake)
     volumes:
       - dictably_storage:/data/storage
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,11 +64,12 @@ services:
   worker:
     build:
       context: ../backend
+    env_file:
+      - path: ../backend/.env
+        required: false
     environment:
       DATABASE_URL: postgresql+asyncpg://dictably:dictably@postgres:5432/dictably
       REDIS_URL: redis://redis:6379/0
-      ASR_PROVIDER: fake
-      LLM_PROVIDER: fake
       STORAGE_PROVIDER: local
       LOCAL_STORAGE_PATH: /data/storage
       ENV: dev
@@ -75,6 +81,24 @@ services:
       redis:
         condition: service_healthy
     command: ["arq", "dictably.worker.settings.WorkerSettings"]
+
+  # Static export + nginx /api proxy → api:8000. Host http://127.0.0.1:3000
+  web:
+    build:
+      context: ../web
+      args:
+        LOCAL_BUILD: "1"
+        NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+        NEXT_PUBLIC_CONTACT_EMAIL: owner@example.com
+        NEXT_PUBLIC_CONTROLLER_NAME: Local Dev, Ukraine
+    environment:
+      PORT: "80"
+      API_UPSTREAM: api:8000
+      NGINX_RESOLVER: 127.0.0.11
+    ports:
+      - "127.0.0.1:3000:80"
+    depends_on:
+      - api
 
 volumes:
   dictably_pg:

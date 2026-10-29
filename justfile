@@ -31,9 +31,20 @@ infra-up:
 infra-down:
     docker compose -f infra/docker-compose.yml down
 
-# Full stack: postgres, redis, api, worker
+# Full stack: postgres, redis, api, worker, web → http://127.0.0.1:3000 (MVP-0)
 dev:
     docker compose -f infra/docker-compose.yml up --build
+
+# Detached full stack (Owner smoke)
+mvp0-up:
+    docker compose -f infra/docker-compose.yml up --build -d
+
+mvp0-down:
+    docker compose -f infra/docker-compose.yml down
+
+# Promote admin inside running api container (after Dev login once)
+mvp0-admin email:
+    docker compose -f infra/docker-compose.yml exec api python -m dictably.cli set-admin {{email}}
 
 migrate:
     cd backend && uv run alembic upgrade head
