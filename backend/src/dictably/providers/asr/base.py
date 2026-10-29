@@ -8,6 +8,14 @@ class TranscriptionProvider(Protocol):
 
     name: str
 
-    async def transcribe(self, *, audio_path: str, language: str | None = None) -> dict[str, Any]:
+    async def transcribe(
+        self,
+        *,
+        audio_path: str,
+        language: str | None = None,
+        speakers_expected: int | None = None,
+        word_boost: list[str] | None = None,
+        dual_channel: bool = False,
+    ) -> dict[str, Any]:
         """Return normalized transcript JSON (segments / words / speakers)."""
         ...

@@ -26,12 +26,19 @@ export {
   logout,
   mediaAudioUrl,
   mediaExportUrl,
+  mergeSpeakers,
+  patchMedia,
+  patchSegmentSpeaker,
   patchSpeaker,
+  patchWord,
   postConsent,
   postOnboarding,
+  probeMediaUpload,
   regenerateAnalysis,
+  splitSegmentSpeaker,
   uploadMedia,
 } from "./client";
+export type { MediaProbe } from "./client";
 export type {
   AccountExport,
   AdminCosts,

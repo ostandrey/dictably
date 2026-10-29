@@ -19,14 +19,20 @@ import {
   getPeaks,
   getTranscript,
   mediaAudioUrl,
+  mergeSpeakers,
+  patchMedia,
+  patchSegmentSpeaker,
   patchSpeaker,
+  patchWord,
+  splitSegmentSpeaker,
   type ExportFormat,
   type ExportKind,
   type MediaItem,
   type Speaker,
   type Transcript,
 } from "@/lib/api";
-import { Alert, Button } from "@/components/ui";
+import { useToast } from "@/components/app/ToastProvider";
+import { Alert, Button, Dialog } from "@/components/ui";
 import { MinutesPanel } from "./MinutesPanel";
 
 type Word = {
@@ -72,6 +78,14 @@ type Props = {
   exportTranscriptSrt: string;
   exportTranscriptVtt: string;
   exportFailed: string;
+  partySideLabel?: string;
+  mergeWithLabel?: string;
+  changeSpeakerLabel?: string;
+  newSpeakerLabel?: string;
+  cleanModeLabel?: string;
+  verbatimModeLabel?: string;
+  meetingDateHint?: string;
+  dueDatesRecalcToast?: string;
 };
 
 function formatClock(seconds: number): string {
@@ -98,6 +112,16 @@ function formatDateTime(iso: string, locale: "en" | "uk"): string {
   const get = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((p) => p.type === type)?.value ?? "";
   return `${get("day")} ${get("month")}, ${get("hour")}:${get("minute")}`;
+}
+
+function formatMeetingDate(isoDate: string, locale: "en" | "uk"): string {
+  const d = new Date(`${isoDate}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return isoDate;
+  return new Intl.DateTimeFormat(locale === "uk" ? "uk-UA" : "en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(d);
 }
 
 function speakerName(speakers: Speaker[], label: string | null | undefined): string {
@@ -202,7 +226,16 @@ export function RecordingView({
   exportTranscriptSrt,
   exportTranscriptVtt,
   exportFailed,
+  partySideLabel = "Side",
+  mergeWithLabel = "Merge with…",
+  changeSpeakerLabel = "Change speaker",
+  newSpeakerLabel = "New speaker from this turn",
+  cleanModeLabel = "Clean",
+  verbatimModeLabel = "Verbatim",
+  meetingDateHint = "Change meeting date",
+  dueDatesRecalcToast = "Due dates in minutes recalculated",
 }: Props) {
+  const { push: pushToast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const waveRef = useRef<HTMLDivElement | null>(null);
@@ -230,6 +263,14 @@ export function RecordingView({
   const [exportOpen, setExportOpen] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
   const [copiedFlash, setCopiedFlash] = useState(false);
+  const [editingWord, setEditingWord] = useState<{
+    index: number;
+    text: string;
+  } | null>(null);
+  const [mergeWith, setMergeWith] = useState<Record<string, string>>({});
+  const [meetingDraft, setMeetingDraft] = useState<string>("");
+  const [editingMeeting, setEditingMeeting] = useState(false);
+  const [segMenuId, setSegMenuId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -498,8 +539,94 @@ export function RecordingView({
           party: draftParty[sp.id] || null,
         });
       }
+      // Pairwise merges: source → keep target (S1).
+      const done = new Set<string>();
+      for (const [fromId, intoId] of Object.entries(mergeWith)) {
+        if (!intoId || fromId === intoId || done.has(fromId)) continue;
+        await mergeSpeakers(mediaId, { keep_id: intoId, merge_ids: [fromId] });
+        done.add(fromId);
+      }
       await load();
       setRenameOpen(false);
+      setMergeWith({});
+    } catch {
+      setError(errorLabel);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveWordEdit() {
+    if (!editingWord) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const next = await patchWord(mediaId, {
+        word_index: editingWord.index,
+        text: editingWord.text,
+      });
+      setTranscript(next);
+      setEditingWord(null);
+    } catch {
+      setError(errorLabel);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveMeetingDate() {
+    if (!meetingDraft) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const prev = media?.meeting_date;
+      const m = await patchMedia(mediaId, { meeting_date: meetingDraft });
+      setMedia(m);
+      setEditingMeeting(false);
+      if (prev && prev !== meetingDraft) pushToast(dueDatesRecalcToast);
+    } catch {
+      setError(errorLabel);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function setTranscriptMode(mode: "clean" | "verbatim") {
+    setSaving(true);
+    setError(null);
+    try {
+      const m = await patchMedia(mediaId, { transcript_mode: mode });
+      setMedia(m);
+      const t = await getTranscript(mediaId);
+      setTranscript(t);
+    } catch {
+      setError(errorLabel);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function changeSegSpeaker(segId: string, speakerId: string) {
+    setSegMenuId(null);
+    setSaving(true);
+    setError(null);
+    try {
+      const t = await patchSegmentSpeaker(mediaId, segId, speakerId);
+      setTranscript(t);
+    } catch {
+      setError(errorLabel);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function splitSegSpeaker(segId: string) {
+    setSegMenuId(null);
+    setSaving(true);
+    setError(null);
+    try {
+      const t = await splitSegmentSpeaker(mediaId, segId);
+      setTranscript(t);
     } catch {
       setError(errorLabel);
     } finally {
@@ -516,11 +643,44 @@ export function RecordingView({
       const isNow = globalIdx === activeWordIndex;
       const hit =
         q && w.text.toLowerCase().includes(q.toLowerCase()) ? " rec-hit" : "";
+      const editing = editingWord?.index === globalIdx;
+      if (editing) {
+        return (
+          <span key={`${segId}-w-${i}`} className="rec-word is-editing" data-recording="word-edit">
+            <input
+              value={editingWord.text}
+              aria-label="Edit word"
+              data-recording="word-input"
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) =>
+                setEditingWord({ index: globalIdx, text: e.target.value })
+              }
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void saveWordEdit();
+                }
+                if (e.key === "Escape") setEditingWord(null);
+              }}
+              onBlur={() => void saveWordEdit()}
+            />
+          </span>
+        );
+      }
       return (
         <span
           key={`${segId}-w-${i}`}
           className={`rec-word${isNow ? " is-now" : ""}${hit}`}
           data-recording="word"
+          data-word-index={globalIdx}
+          title="Click to edit"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (globalIdx < 0) return;
+            setEditingWord({ index: globalIdx, text: w.text });
+          }}
         >
           {w.text}
           {i < segWords.length - 1 ? " " : ""}
@@ -710,6 +870,55 @@ export function RecordingView({
                 formatClock(durationSec),
                 media.language || transcript.language || "—",
               ].join(" · ")}
+              {" · "}
+              {editingMeeting ? (
+                <span data-recording="meeting-date-edit">
+                  <input
+                    type="date"
+                    value={meetingDraft}
+                    aria-label={meetingDateHint}
+                    data-recording="meeting-date-input"
+                    onChange={(e) => setMeetingDraft(e.target.value)}
+                    onBlur={() => void saveMeetingDate()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void saveMeetingDate();
+                      if (e.key === "Escape") setEditingMeeting(false);
+                    }}
+                  />
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-text rec-page__meeting-date"
+                  data-recording="meeting-date"
+                  title={meetingDateHint}
+                  onClick={() => {
+                    setMeetingDraft(
+                      media.meeting_date ||
+                        (media.created_at ? media.created_at.slice(0, 10) : ""),
+                    );
+                    setEditingMeeting(true);
+                  }}
+                >
+                  {formatMeetingDate(
+                    media.meeting_date ||
+                      (media.created_at ? media.created_at.slice(0, 10) : ""),
+                    locale,
+                  )}
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    aria-hidden
+                  >
+                    <path d="M4 20h4l10-10-4-4L4 16v4z" />
+                    <path d="M13 7l4 4" />
+                  </svg>
+                </button>
+              )}
             </p>
           </div>
           <div className="rec-page__speakers">
@@ -807,6 +1016,12 @@ export function RecordingView({
         />
       </section>
 
+      {media.quality_warning ? (
+        <Alert tone="warning" data-recording="quality-warning">
+          {media.quality_warning}
+        </Alert>
+      ) : null}
+
       {error ? (
         <Alert tone="danger" data-recording="error">
           {error}
@@ -841,6 +1056,31 @@ export function RecordingView({
         >
           <div className="rec-page__transcript-head">
             <h2>{transcriptTab}</h2>
+            <div
+              className="rec-page__mode"
+              role="group"
+              aria-label="Transcript mode"
+              data-recording="transcript-mode"
+            >
+              <button
+                type="button"
+                className={`btn-text${(media.transcript_mode || "clean") === "clean" ? " is-active" : ""}`}
+                data-recording="mode-clean"
+                disabled={saving}
+                onClick={() => void setTranscriptMode("clean")}
+              >
+                {cleanModeLabel}
+              </button>
+              <button
+                type="button"
+                className={`btn-text${media.transcript_mode === "verbatim" ? " is-active" : ""}`}
+                data-recording="mode-verbatim"
+                disabled={saving}
+                onClick={() => void setTranscriptMode("verbatim")}
+              >
+                {verbatimModeLabel}
+              </button>
+            </div>
             <div className="rec-page__find">
               <label className="app-search">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
@@ -924,12 +1164,54 @@ export function RecordingView({
                         seekTo(seg.start_ms);
                       }}
                     >
-                      <span className="dy-speaker">
+                      <span className="dy-speaker rec-seg-speaker">
                         <span
                           className={`dy-speaker__dot sp-${speakerTone(speakers, seg.speaker_id)}`}
                           aria-hidden
                         />
-                        {speakerName(speakers, seg.speaker_id)}
+                        <button
+                          type="button"
+                          className="btn-text"
+                          data-recording="seg-speaker"
+                          aria-haspopup="menu"
+                          aria-expanded={segMenuId === seg.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSegMenuId((cur) => (cur === seg.id ? null : seg.id));
+                          }}
+                        >
+                          {speakerName(speakers, seg.speaker_id)}
+                        </button>
+                        {segMenuId === seg.id ? (
+                          <span
+                            className="rec-seg-menu"
+                            role="menu"
+                            data-recording="seg-speaker-menu"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span className="rec-seg-menu__label">{changeSpeakerLabel}</span>
+                            {speakers.map((sp) => (
+                              <button
+                                key={sp.id}
+                                type="button"
+                                role="menuitem"
+                                className="rec-seg-menu__item"
+                                onClick={() => void changeSegSpeaker(seg.id, sp.id)}
+                              >
+                                {sp.display_name || sp.label}
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="rec-seg-menu__item"
+                              data-recording="seg-split"
+                              onClick={() => void splitSegSpeaker(seg.id)}
+                            >
+                              {newSpeakerLabel}
+                            </button>
+                          </span>
+                        ) : null}
                       </span>
                       <span className={`dy-timecode${active ? " is-active" : ""}`}>
                         <svg className="dy-icon" viewBox="0 0 12 12" aria-hidden>
@@ -994,46 +1276,81 @@ export function RecordingView({
         />
       </section>
 
-      {renameOpen ? (
-        <div className="rec-rename" role="dialog" aria-modal="true" aria-label={renameLabel}>
-          <div className="rec-rename__card">
-            <h2>{renameLabel}</h2>
-            <ul className="rec-rename__list">
-              {speakers.map((sp) => (
-                <li key={sp.id}>
-                  <span className={`dy-speaker__dot sp-${(sp.color_idx % 6) + 1}`} aria-hidden />
-                  <input
-                    value={draftNames[sp.id] ?? ""}
-                    onChange={(e) =>
-                      setDraftNames((prev) => ({ ...prev, [sp.id]: e.target.value }))
-                    }
-                    aria-label={`Name for ${sp.label}`}
-                  />
+      <Dialog
+        open={renameOpen}
+        title={renameLabel}
+        onClose={() => {
+          setRenameOpen(false);
+          setMergeWith({});
+        }}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setRenameOpen(false);
+                setMergeWith({});
+              }}
+            >
+              {cancelLabel}
+            </Button>
+            <Button onClick={() => void saveRename()} disabled={saving}>
+              {saveLabel}
+            </Button>
+          </>
+        }
+      >
+        <ul className="rec-rename__list" data-recording="rename-list">
+          {speakers.map((sp) => (
+            <li key={sp.id}>
+              <span className={`dy-speaker__dot sp-${(sp.color_idx % 6) + 1}`} aria-hidden />
+              <input
+                value={draftNames[sp.id] ?? ""}
+                onChange={(e) =>
+                  setDraftNames((prev) => ({ ...prev, [sp.id]: e.target.value }))
+                }
+                aria-label={`Name for ${sp.label}`}
+              />
+              <label className="rec-rename__party">
+                <span>{partySideLabel}</span>
+                <select
+                  value={draftParty[sp.id] ?? ""}
+                  onChange={(e) =>
+                    setDraftParty((prev) => ({ ...prev, [sp.id]: e.target.value }))
+                  }
+                  aria-label={`${partySideLabel}: ${sp.label}`}
+                >
+                  <option value="">—</option>
+                  <option value="our">{ourLabel}</option>
+                  <option value="their">{theirLabel}</option>
+                </select>
+              </label>
+              {speakers.length >= 2 ? (
+                <label className="rec-rename__merge" data-recording="merge-speakers">
+                  <span>{mergeWithLabel}</span>
                   <select
-                    value={draftParty[sp.id] ?? ""}
+                    value={mergeWith[sp.id] ?? ""}
+                    data-recording="merge-keep"
                     onChange={(e) =>
-                      setDraftParty((prev) => ({ ...prev, [sp.id]: e.target.value }))
+                      setMergeWith((prev) => ({ ...prev, [sp.id]: e.target.value }))
                     }
-                    aria-label={`Side for ${sp.label}`}
+                    aria-label={`${mergeWithLabel} ${sp.label}`}
                   >
                     <option value="">—</option>
-                    <option value="our">{ourLabel}</option>
-                    <option value="their">{theirLabel}</option>
+                    {speakers
+                      .filter((other) => other.id !== sp.id)
+                      .map((other) => (
+                        <option key={other.id} value={other.id}>
+                          {draftNames[other.id] || other.display_name || other.label}
+                        </option>
+                      ))}
                   </select>
-                </li>
-              ))}
-            </ul>
-            <div className="rec-rename__actions">
-              <Button variant="secondary" onClick={() => setRenameOpen(false)}>
-                {cancelLabel}
-              </Button>
-              <Button onClick={() => void saveRename()} disabled={saving}>
-                {saveLabel}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+                </label>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      </Dialog>
     </div>
   );
 }

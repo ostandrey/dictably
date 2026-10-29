@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -50,6 +50,40 @@ class SpeakerPatchIn(BaseModel):
     party: str | None = Field(default=None, max_length=32)
 
 
+class SpeakersMergeIn(BaseModel):
+    keep_id: UUID
+    merge_ids: list[UUID] = Field(min_length=1, max_length=32)
+
+
+class SegmentSpeakerIn(BaseModel):
+    speaker_id: UUID
+
+
+class WordEditIn(BaseModel):
+    word_index: int = Field(ge=0)
+    text: str = Field(min_length=1, max_length=200)
+
+
+class MediaPatchIn(BaseModel):
+    meeting_date: date | None = None
+    vocabulary: list[str] | None = Field(default=None, max_length=200)
+    transcript_mode: str | None = Field(default=None, max_length=16)
+    language: str | None = Field(default=None, max_length=16)
+    speakers_expected: int | None = Field(default=None, ge=1, le=20)
+
+
+class AudioTrackOut(BaseModel):
+    index: int
+    label: str
+    language: str | None = None
+    channels: int = 1
+
+
+class MediaProbeOut(BaseModel):
+    audio_tracks: list[AudioTrackOut] = Field(default_factory=list)
+    needs_track_choice: bool = False
+
+
 class AuthConfigOut(BaseModel):
     google: bool
     dev_login: bool
@@ -71,6 +105,11 @@ class MediaOut(BaseModel):
     error: str | None = None
     language: str | None = None
     speaker_count: int = 0
+    meeting_date: date | None = None
+    speakers_expected: int | None = None
+    quality_warning: str | None = None
+    vocabulary: list[str] = Field(default_factory=list)
+    transcript_mode: str = "clean"
 
 
 class MediaListOut(BaseModel):

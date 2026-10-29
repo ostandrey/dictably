@@ -531,6 +531,115 @@
   font: 400 15px/20px var(--font-sans);
   padding: 0 var(--space-3);
 }
+.rec-rename__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.rec-rename__list li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+}
+.rec-rename__list input,
+.rec-rename__list select {
+  font: inherit;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+}
+.rec-rename__party,
+.rec-rename__merge {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--ink-muted);
+}
+.rec-rename__party span,
+.rec-rename__merge span {
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+}
+.rec-page__meeting-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.rec-page__mode {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-inline-end: 0.5rem;
+}
+.rec-page__mode .btn-text.is-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+.rec-seg-speaker {
+  position: relative;
+}
+.rec-seg-menu {
+  position: absolute;
+  z-index: 5;
+  top: 100%;
+  left: 0;
+  min-width: 12rem;
+  margin-top: 0.25rem;
+  padding: 0.35rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.rec-seg-menu__label {
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+  padding: 0.25rem 0.5rem;
+}
+.rec-seg-menu__item {
+  text-align: left;
+  font: inherit;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.rec-seg-menu__item:hover {
+  background: var(--accent-soft);
+}
+.rec-upload-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.rec-upload-details label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--ink-muted);
+}
+.rec-upload-details select,
+.rec-upload-details input {
+  font: inherit;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+}
 .rec-rename__actions {
   display: flex;
   justify-content: flex-end;

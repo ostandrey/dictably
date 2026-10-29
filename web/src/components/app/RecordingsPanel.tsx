@@ -7,8 +7,10 @@ import {
   ApiError,
   deleteMedia,
   listMedia,
+  probeMediaUpload,
   uploadMedia,
   type MediaItem,
+  type MediaProbe,
 } from "@/lib/api";
 import { takeStashedFiles } from "@/lib/fileQueue";
 import { ACCEPT, isAcceptedUpload, MAX_UPLOAD_BYTES } from "@/lib/uploadAccept";
@@ -40,6 +42,15 @@ export type RecordingsCopy = {
   keepLabel: string;
   deleteBusyHint: string;
   emptyBody: string;
+  uploadDetailsTitle?: string;
+  uploadDetailsContinue?: string;
+  uploadLanguageLabel?: string;
+  uploadLanguageAuto?: string;
+  uploadSpeakersLabel?: string;
+  uploadSpeakersAuto?: string;
+  uploadVocabLabel?: string;
+  uploadVocabHint?: string;
+  uploadTrackLabel?: string;
 };
 
 type Props = {
@@ -126,6 +137,12 @@ export function RecordingsPanel({
   const abortRef = useRef<AbortController | null>(null);
   const queueRef = useRef<File[]>([]);
   const pumping = useRef(false);
+  const uploadOptsRef = useRef<{
+    language?: string;
+    speakersExpected?: number;
+    vocabulary?: string;
+    audioStreamIndex?: number;
+  }>({});
   const { push: pushToast } = useToast();
 
   const [items, setItems] = useState<MediaItem[]>([]);
@@ -139,6 +156,15 @@ export function RecordingsPanel({
   const [pendingDelete, setPendingDelete] = useState<MediaItem | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [enterIds, setEnterIds] = useState<Set<string>>(new Set());
+  const [details, setDetails] = useState<{
+    files: File[];
+    language: string;
+    speakersExpected: string;
+    vocabulary: string;
+    audioStreamIndex: string;
+    tracks: MediaProbe["audio_tracks"];
+    probing: boolean;
+  } | null>(null);
 
   const refresh = useCallback(async () => {
     const list = await listMedia();
@@ -196,9 +222,15 @@ export function RecordingsPanel({
       setProgress(0);
       setError(null);
       try {
+        const opts = uploadOptsRef.current;
         const created = await uploadMedia(file, {
           onProgress: setProgress,
           signal: ac.signal,
+          language: opts.language,
+          speakersExpected: opts.speakersExpected,
+          vocabulary: opts.vocabulary,
+          // Only first file in a batch gets track index (per-file probe is in details).
+          audioStreamIndex: opts.audioStreamIndex,
         });
         setItems((prev) => [created, ...prev.filter((m) => m.id !== created.id)]);
         setEnterIds((cur) => {
@@ -230,9 +262,10 @@ export function RecordingsPanel({
     pumping.current = false;
   }, [copy.error, copy.tooLarge]);
 
-  const enqueue = useCallback(
+  const openDetails = useCallback(
     (list: FileList | File[] | null) => {
       if (!list?.length) return;
+      const accepted: File[] = [];
       for (const file of Array.from(list)) {
         if (!isAcceptedUpload(file)) {
           setError(copy.badType);
@@ -242,12 +275,57 @@ export function RecordingsPanel({
           setError(copy.tooLarge);
           continue;
         }
-        queueRef.current.push(file);
+        accepted.push(file);
       }
-      void pump();
+      if (!accepted.length) return;
+      setError(null);
+      setDetails({
+        files: accepted,
+        language: "",
+        speakersExpected: "",
+        vocabulary: "",
+        audioStreamIndex: "0",
+        tracks: [],
+        probing: true,
+      });
+      const first = accepted[0]!;
+      void probeMediaUpload(first)
+        .then((probe) => {
+          setDetails((cur) =>
+            cur
+              ? {
+                  ...cur,
+                  tracks: probe.audio_tracks,
+                  audioStreamIndex: "0",
+                  probing: false,
+                }
+              : cur,
+          );
+        })
+        .catch(() => {
+          setDetails((cur) => (cur ? { ...cur, probing: false, tracks: [] } : cur));
+        });
     },
-    [copy.badType, copy.tooLarge, pump],
+    [copy.badType, copy.tooLarge],
   );
+
+  const confirmDetails = useCallback(() => {
+    if (!details?.files.length) return;
+    uploadOptsRef.current = {
+      language: details.language || undefined,
+      speakersExpected: details.speakersExpected
+        ? Number(details.speakersExpected)
+        : undefined,
+      vocabulary: details.vocabulary.trim() || undefined,
+      audioStreamIndex:
+        details.tracks.length > 1 ? Number(details.audioStreamIndex || 0) : undefined,
+    };
+    for (const file of details.files) queueRef.current.push(file);
+    setDetails(null);
+    void pump();
+  }, [details, pump]);
+
+  const enqueue = openDetails;
 
   useEffect(() => {
     function onFiles(e: Event) {
@@ -530,6 +608,97 @@ export function RecordingsPanel({
             pendingDelete?.filename ?? "",
           )}
         </p>
+      </Dialog>
+
+      <Dialog
+        open={details != null}
+        title={copy.uploadDetailsTitle ?? "Upload details"}
+        onClose={() => setDetails(null)}
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => setDetails(null)}>
+              {copy.cancel}
+            </Button>
+            <Button
+              onClick={confirmDetails}
+              disabled={details?.probing}
+              data-recordings="upload-details-continue"
+            >
+              {copy.uploadDetailsContinue ?? copy.uploadCta}
+            </Button>
+          </>
+        }
+      >
+        {details ? (
+          <div className="rec-upload-details" data-recordings="upload-details">
+            <p className="dy-muted">
+              {details.files.map((f) => f.name).join(", ")}
+            </p>
+            <label>
+              <span>{copy.uploadLanguageLabel ?? "Language"}</span>
+              <select
+                value={details.language}
+                data-recordings="upload-language"
+                onChange={(e) =>
+                  setDetails({ ...details, language: e.target.value })
+                }
+              >
+                <option value="">{copy.uploadLanguageAuto ?? "Auto"}</option>
+                <option value="en">English</option>
+                <option value="uk">Ukrainian</option>
+                <option value="ru">Russian</option>
+                <option value="pl">Polish</option>
+                <option value="de">German</option>
+              </select>
+            </label>
+            <label>
+              <span>{copy.uploadSpeakersLabel ?? "Participants"}</span>
+              <select
+                value={details.speakersExpected}
+                data-recordings="upload-speakers"
+                onChange={(e) =>
+                  setDetails({ ...details, speakersExpected: e.target.value })
+                }
+              >
+                <option value="">{copy.uploadSpeakersAuto ?? "Auto"}</option>
+                {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                  <option key={n} value={String(n)}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{copy.uploadVocabLabel ?? "Names & terms"}</span>
+              <input
+                type="text"
+                value={details.vocabulary}
+                data-recordings="upload-vocab"
+                placeholder={copy.uploadVocabHint ?? "Comma-separated"}
+                onChange={(e) =>
+                  setDetails({ ...details, vocabulary: e.target.value })
+                }
+              />
+            </label>
+            {details.tracks.length > 1 ? (
+              <label data-recordings="upload-track">
+                <span>{copy.uploadTrackLabel ?? "Audio track"}</span>
+                <select
+                  value={details.audioStreamIndex}
+                  onChange={(e) =>
+                    setDetails({ ...details, audioStreamIndex: e.target.value })
+                  }
+                >
+                  {details.tracks.map((t) => (
+                    <option key={t.index} value={String(t.index)}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+          </div>
+        ) : null}
       </Dialog>
     </section>
   );

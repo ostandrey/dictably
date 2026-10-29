@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { ensureSignedIn } from "./utils/auth";
+import { confirmUploadDetailsIfOpen } from "./utils/upload";
 import fs from "node:fs";
 import path from "node:path";
 import { VIEWPORTS } from "./utils/shots";
@@ -32,6 +33,7 @@ test.describe("T-012 upload + my recordings", () => {
 
     const file = uniqueFixture();
     await page.locator("[data-recordings='file']").setInputFiles(file);
+    await confirmUploadDetailsIfOpen(page);
     const row = page
       .locator("[data-recordings='row']")
       .filter({ hasText: file.name });

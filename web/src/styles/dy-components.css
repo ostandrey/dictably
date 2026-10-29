@@ -86,6 +86,17 @@
 .dy-turn.is-match-current { outline: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
 .dy-turn.is-evidence .dy-turn__text { background: var(--evidence); border-radius: var(--radius-xs); }
 .rec-word.is-now { text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.rec-word { cursor: text; }
+.rec-word.is-editing input {
+  font: inherit;
+  width: 6ch;
+  min-width: 3ch;
+  border: 0;
+  border-bottom: 1px solid var(--accent);
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
 .rec-hit { background: var(--accent-soft); border-radius: 2px; }
 .rec-word.rec-hit { background: var(--accent-soft); }
 .dy-mark:hover { box-shadow: 0 0 0 2px var(--evidence), inset 0 -2px 0 color-mix(in srgb, var(--ink) 30%, transparent); }

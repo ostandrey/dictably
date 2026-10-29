@@ -185,6 +185,90 @@ export function patchSpeaker(
   });
 }
 
+export function mergeSpeakers(
+  mediaId: string,
+  body: { keep_id: string; merge_ids: string[] },
+): Promise<Speaker[]> {
+  return apiFetch<Speaker[]>(`/api/media/${mediaId}/speakers/merge`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function patchSegmentSpeaker(
+  mediaId: string,
+  segmentId: string,
+  speakerId: string,
+): Promise<Transcript> {
+  return apiFetch<Transcript>(
+    `/api/media/${mediaId}/segments/${encodeURIComponent(segmentId)}/speaker`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ speaker_id: speakerId }),
+    },
+  );
+}
+
+export function splitSegmentSpeaker(
+  mediaId: string,
+  segmentId: string,
+): Promise<Transcript> {
+  return apiFetch<Transcript>(
+    `/api/media/${mediaId}/segments/${encodeURIComponent(segmentId)}/split-speaker`,
+    { method: "POST" },
+  );
+}
+
+export type MediaProbe = {
+  audio_tracks: Array<{
+    index: number;
+    label: string;
+    language?: string | null;
+    channels?: number;
+  }>;
+  needs_track_choice: boolean;
+};
+
+export async function probeMediaUpload(file: File): Promise<MediaProbe> {
+  const body = new FormData();
+  body.append("file", file);
+  const csrf = readCookie("dictably_csrf");
+  const res = await fetch("/api/media/probe", {
+    method: "POST",
+    credentials: "include",
+    headers: csrf ? { "X-CSRF-Token": csrf } : undefined,
+    body,
+  });
+  if (!res.ok) throw new ApiError(`${res.status} ${res.statusText}`, res.status);
+  return (await res.json()) as MediaProbe;
+}
+
+export function patchWord(
+  mediaId: string,
+  body: { word_index: number; text: string },
+): Promise<Transcript> {
+  return apiFetch<Transcript>(`/api/media/${mediaId}/words`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export function patchMedia(
+  mediaId: string,
+  body: {
+    meeting_date?: string | null;
+    vocabulary?: string[];
+    transcript_mode?: string;
+    language?: string | null;
+    speakers_expected?: number | null;
+  },
+): Promise<MediaItem> {
+  return apiFetch<MediaItem>(`/api/media/${mediaId}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export function getPeaks(id: string): Promise<number[]> {
   return apiFetch<number[]>(`/api/media/${id}/peaks`);
 }
@@ -306,6 +390,10 @@ export function adminCosts(period: "day" | "month" = "day"): Promise<AdminCosts>
 type UploadOptions = {
   onProgress?: (pct: number) => void;
   signal?: AbortSignal;
+  language?: string;
+  speakersExpected?: number;
+  vocabulary?: string;
+  audioStreamIndex?: number;
 };
 
 /** POST /api/media — multipart stream with upload progress (XHR). */
@@ -349,6 +437,14 @@ export function uploadMedia(
 
     const body = new FormData();
     body.append("file", file);
+    if (options.language) body.append("language", options.language);
+    if (options.speakersExpected != null) {
+      body.append("speakers_expected", String(options.speakersExpected));
+    }
+    if (options.vocabulary) body.append("vocabulary", options.vocabulary);
+    if (options.audioStreamIndex != null) {
+      body.append("audio_stream_index", String(options.audioStreamIndex));
+    }
     xhr.send(body);
   });
 }

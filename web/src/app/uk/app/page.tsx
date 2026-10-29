@@ -41,6 +41,15 @@ export default async function UkAppHomePage() {
         keepLabel: t("app.keepRecording"),
         deleteBusyHint: t("app.deleteBusyHint"),
         emptyBody: t("app.recordingsEmptyBody"),
+        uploadDetailsTitle: t("app.uploadDetailsTitle"),
+        uploadDetailsContinue: t("app.uploadDetailsContinue"),
+        uploadLanguageLabel: t("app.uploadLanguageLabel"),
+        uploadLanguageAuto: t("app.uploadLanguageAuto"),
+        uploadSpeakersLabel: t("app.uploadSpeakersLabel"),
+        uploadSpeakersAuto: t("app.uploadSpeakersAuto"),
+        uploadVocabLabel: t("app.uploadVocabLabel"),
+        uploadVocabHint: t("app.uploadVocabHint"),
+        uploadTrackLabel: t("app.uploadTrackLabel"),
       }}
     />
   );

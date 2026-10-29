@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Any
 from uuid import UUID
@@ -8,6 +8,7 @@ from uuid import UUID
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -128,6 +129,18 @@ class Media(Base, TimestampMixin):
     language: Mapped[str | None] = mapped_column(String(16))
     error: Mapped[str | None] = mapped_column(Text)
     delete_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    meeting_date: Mapped[date | None] = mapped_column(Date)
+    speakers_expected: Mapped[int | None] = mapped_column(Integer)
+    quality_warning: Mapped[str | None] = mapped_column(Text)
+    vocabulary: Mapped[list[Any]] = mapped_column(
+        JSONB, nullable=False, insert_default=list, server_default="[]"
+    )
+    transcript_mode: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="clean", server_default="clean"
+    )
+    asr_meta: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, insert_default=dict, server_default="{}"
+    )
 
     user: Mapped[User] = relationship(back_populates="media")
     jobs: Mapped[list[Job]] = relationship(back_populates="media")

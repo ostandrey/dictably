@@ -39,6 +39,14 @@ type Props = {
   exportTranscriptSrt: string;
   exportTranscriptVtt: string;
   exportFailed: string;
+  partySideLabel?: string;
+  mergeWithLabel?: string;
+  changeSpeakerLabel?: string;
+  newSpeakerLabel?: string;
+  cleanModeLabel?: string;
+  verbatimModeLabel?: string;
+  meetingDateHint?: string;
+  dueDatesRecalcToast?: string;
 };
 
 function subscribe() {
@@ -104,6 +112,14 @@ export function RecordingPageClient(props: Props) {
       exportTranscriptSrt={props.exportTranscriptSrt}
       exportTranscriptVtt={props.exportTranscriptVtt}
       exportFailed={props.exportFailed}
+      partySideLabel={props.partySideLabel}
+      mergeWithLabel={props.mergeWithLabel}
+      changeSpeakerLabel={props.changeSpeakerLabel}
+      newSpeakerLabel={props.newSpeakerLabel}
+      cleanModeLabel={props.cleanModeLabel}
+      verbatimModeLabel={props.verbatimModeLabel}
+      meetingDateHint={props.meetingDateHint}
+      dueDatesRecalcToast={props.dueDatesRecalcToast}
     />
   );
 }

@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 import { ensureSignedIn } from "./utils/auth";
+import { confirmUploadDetailsIfOpen } from "./utils/upload";
 
 const SHOT_ROOT = path.join("e2e", "__screenshots__", "T-017");
 const FIXTURE = path.join("e2e", "fixtures", "short.wav");
@@ -19,6 +20,7 @@ test.describe("T-017 exports", () => {
       mimeType: "audio/wav",
       buffer: fs.readFileSync(FIXTURE),
     });
+    await confirmUploadDetailsIfOpen(page);
     const row = page.locator("[data-recordings='row']").filter({ hasText: name });
     await expect(row).toBeVisible({ timeout: 30_000 });
     await expect(row).toContainText(/Ready|Готово/, { timeout: 30_000 });

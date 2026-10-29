@@ -1,26 +1,43 @@
 from __future__ import annotations
 
 import json
+import tempfile
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dictably.api.deps import require_user, require_user_csrf, require_user_csrf_consent
 from dictably.api.schemas import (
     AnalysisOut,
+    AudioTrackOut,
     MediaListOut,
     MediaOut,
+    MediaPatchIn,
+    MediaProbeOut,
+    SegmentSpeakerIn,
     SpeakerOut,
     SpeakerPatchIn,
+    SpeakersMergeIn,
     TranscriptOut,
     TranscriptSegmentOut,
     TranscriptWordOut,
+    WordEditIn,
 )
 from dictably.core.config import Settings, get_settings
 from dictably.db.models import Media, Speaker, Transcript, User
@@ -30,6 +47,9 @@ from dictably.domain import export as export_domain
 from dictably.domain import media as media_domain
 from dictably.domain import process as process_domain
 from dictably.domain import speakers as speakers_domain
+from dictably.domain import transcript_edit as transcript_edit_domain
+from dictably.domain.asr_postprocess import apply_transcript_mode
+from dictably.domain.ffmpeg_media import FfmpegError, list_audio_tracks
 from dictably.providers.factory import get_storage_provider
 from dictably.providers.storage.base import StorageProvider
 
@@ -62,6 +82,7 @@ def _speaker_out(row: Speaker) -> SpeakerOut:
 
 async def _media_out(session: AsyncSession, row: Media) -> MediaOut:
     count = await speakers_domain.count_for_media(session, row.id)
+    vocab = [str(v) for v in (row.vocabulary or [])]
     return MediaOut(
         id=row.id,
         filename=row.filename,
@@ -73,6 +94,11 @@ async def _media_out(session: AsyncSession, row: Media) -> MediaOut:
         error=row.error,
         language=row.language,
         speaker_count=count,
+        meeting_date=row.meeting_date,
+        speakers_expected=row.speakers_expected,
+        quality_warning=row.quality_warning,
+        vocabulary=vocab,
+        transcript_mode=row.transcript_mode or "clean",
     )
 
 
@@ -103,6 +129,44 @@ async def list_media(
     return MediaListOut(items=items)
 
 
+@router.post("/media/probe", response_model=MediaProbeOut)
+async def probe_media_upload(
+    _size_guard: Annotated[None, Depends(reject_huge_upload)],
+    user: Annotated[User, Depends(require_user_csrf_consent)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    file: Annotated[UploadFile, File(...)],
+) -> MediaProbeOut:
+    """Probe audio tracks before upload (T-035 S3). Does not store the file."""
+    _ = user
+    suffix = Path(file.filename or "probe.bin").suffix or ".bin"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp_path = Path(tmp.name)
+        while True:
+            chunk = await file.read(media_domain.CHUNK_SIZE)
+            if not chunk:
+                break
+            tmp.write(chunk)
+    try:
+        tracks = list_audio_tracks(tmp_path, soft_missing=settings.is_test)
+    except FfmpegError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Could not read audio tracks",
+        ) from exc
+    finally:
+        tmp_path.unlink(missing_ok=True)
+    out = [
+        AudioTrackOut(
+            index=t.index,
+            label=t.label,
+            language=t.language,
+            channels=t.channels,
+        )
+        for t in tracks
+    ]
+    return MediaProbeOut(audio_tracks=out, needs_track_choice=len(out) > 1)
+
+
 @router.get("/media/{media_id}", response_model=MediaOut)
 async def get_media(
     media_id: UUID,
@@ -110,6 +174,39 @@ async def get_media(
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> MediaOut:
     row = await media_domain.get_for_user(session, user.id, media_id)
+    return await _media_out(session, row)
+
+
+@router.patch("/media/{media_id}", response_model=MediaOut)
+async def patch_media(
+    media_id: UUID,
+    body: MediaPatchIn,
+    user: Annotated[User, Depends(require_user_csrf)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> MediaOut:
+    row = await media_domain.get_for_user(session, user.id, media_id)
+    fields = body.model_fields_set
+    if "meeting_date" in fields and body.meeting_date is not None:
+        await transcript_edit_domain.set_meeting_date(
+            session, media=row, meeting_date=body.meeting_date
+        )
+    if "vocabulary" in fields and body.vocabulary is not None:
+        cleaned = [v.strip() for v in body.vocabulary if v and v.strip()][:200]
+        row.vocabulary = cleaned
+    if "transcript_mode" in fields and body.transcript_mode is not None:
+        mode = body.transcript_mode.strip().lower()
+        if mode not in {"clean", "verbatim"}:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="transcript_mode must be clean or verbatim",
+            )
+        row.transcript_mode = mode
+    if "language" in fields and body.language is not None:
+        row.language = body.language.strip() or None
+    if "speakers_expected" in fields:
+        row.speakers_expected = body.speakers_expected
+    await session.commit()
+    await session.refresh(row)
     return await _media_out(session, row)
 
 
@@ -138,6 +235,8 @@ async def get_transcript(
     row = await session.get(Transcript, media.id)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    raw_segments = [s for s in (row.segments or []) if isinstance(s, dict)]
+    display_segments = apply_transcript_mode(raw_segments, mode=media.transcript_mode or "clean")
     segments = [
         TranscriptSegmentOut(
             id=str(s.get("id") or ""),
@@ -146,8 +245,7 @@ async def get_transcript(
             end_ms=int(s.get("end_ms") or 0),
             text=str(s.get("text") or ""),
         )
-        for s in (row.segments or [])
-        if isinstance(s, dict)
+        for s in display_segments
     ]
     words = [
         TranscriptWordOut(
@@ -232,6 +330,79 @@ async def patch_speaker(
     )
     await session.commit()
     return _speaker_out(row)
+
+
+@router.post("/media/{media_id}/speakers/merge", response_model=list[SpeakerOut])
+async def merge_speakers(
+    media_id: UUID,
+    body: SpeakersMergeIn,
+    user: Annotated[User, Depends(require_user_csrf)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> list[SpeakerOut]:
+    await media_domain.get_for_user(session, user.id, media_id)
+    rows = await speakers_domain.merge_speakers(
+        session,
+        media_id=media_id,
+        keep_id=body.keep_id,
+        merge_ids=body.merge_ids,
+    )
+    await session.commit()
+    return [_speaker_out(s) for s in rows]
+
+
+@router.patch("/media/{media_id}/segments/{segment_id}/speaker", response_model=TranscriptOut)
+async def patch_segment_speaker(
+    media_id: UUID,
+    segment_id: str,
+    body: SegmentSpeakerIn,
+    user: Annotated[User, Depends(require_user_csrf)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> TranscriptOut:
+    await media_domain.get_for_user(session, user.id, media_id)
+    await speakers_domain.reassign_segment_speaker(
+        session,
+        media_id=media_id,
+        segment_id=segment_id,
+        speaker_id=body.speaker_id,
+    )
+    await session.commit()
+    return await get_transcript(media_id, user, session)
+
+
+@router.post(
+    "/media/{media_id}/segments/{segment_id}/split-speaker",
+    response_model=TranscriptOut,
+)
+async def split_segment_speaker(
+    media_id: UUID,
+    segment_id: str,
+    user: Annotated[User, Depends(require_user_csrf)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> TranscriptOut:
+    await media_domain.get_for_user(session, user.id, media_id)
+    await speakers_domain.split_segment_to_new_speaker(
+        session, media_id=media_id, segment_id=segment_id
+    )
+    await session.commit()
+    return await get_transcript(media_id, user, session)
+
+
+@router.patch("/media/{media_id}/words", response_model=TranscriptOut)
+async def patch_word(
+    media_id: UUID,
+    body: WordEditIn,
+    user: Annotated[User, Depends(require_user_csrf)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> TranscriptOut:
+    await media_domain.get_for_user(session, user.id, media_id)
+    await transcript_edit_domain.edit_word(
+        session,
+        media_id=media_id,
+        word_index=body.word_index,
+        text=body.text,
+    )
+    await session.commit()
+    return await get_transcript(media_id, user, session)
 
 
 @router.get("/media/{media_id}/audio")
@@ -321,7 +492,12 @@ async def upload_media(
     storage: Annotated[StorageProvider, Depends(get_storage)],
     settings: Annotated[Settings, Depends(get_settings)],
     file: Annotated[UploadFile, File(...)],
+    language: Annotated[str | None, Form()] = None,
+    speakers_expected: Annotated[int | None, Form()] = None,
+    vocabulary: Annotated[str | None, Form()] = None,
+    audio_stream_index: Annotated[int | None, Form()] = None,
 ) -> MediaOut:
+    """Upload recording. Optional Form: language, speakers_expected, vocabulary, audio_stream_index."""
     row = await media_domain.upload_recording(
         session,
         storage,
@@ -331,6 +507,33 @@ async def upload_media(
         chunks=_file_chunks(file),
         soft_probe_missing=settings.is_test,
     )
+    if language and language.strip():
+        row.language = language.strip()[:16]
+    if speakers_expected is not None:
+        if speakers_expected < 1 or speakers_expected > 20:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="speakers_expected must be 1–20",
+            )
+        row.speakers_expected = speakers_expected
+    if vocabulary and vocabulary.strip():
+        terms = [
+            t.strip()
+            for part in vocabulary.replace("\n", ",").split(",")
+            for t in [part]
+            if t.strip()
+        ][:200]
+        row.vocabulary = terms
+    if audio_stream_index is not None:
+        if audio_stream_index < 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="audio_stream_index must be ≥ 0",
+            )
+        meta = dict(row.asr_meta or {})
+        meta["audio_stream_index"] = int(audio_stream_index)
+        row.asr_meta = meta
+    await session.commit()
     media_id = row.id
     await process_domain.enqueue_or_run_process(session, media_id=media_id, settings=settings)
     # Reload after inline processing (separate session in worker path).

@@ -674,6 +674,19 @@ export interface components {
              * @default 0
              */
             speaker_count: number;
+            /** Meeting Date */
+            meeting_date?: string | null;
+            /** Speakers Expected */
+            speakers_expected?: number | null;
+            /** Quality Warning */
+            quality_warning?: string | null;
+            /** Vocabulary */
+            vocabulary?: string[];
+            /**
+             * Transcript Mode
+             * @default clean
+             */
+            transcript_mode?: string;
         };
         /** MinutesAgreementOut */
         MinutesAgreementOut: {

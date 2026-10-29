@@ -30,7 +30,15 @@ class AssemblyAIProvider:
         self.api_key = api_key.strip()
         self.poll_timeout_s = poll_timeout_s
 
-    async def transcribe(self, *, audio_path: str, language: str | None = None) -> dict[str, Any]:
+    async def transcribe(
+        self,
+        *,
+        audio_path: str,
+        language: str | None = None,
+        speakers_expected: int | None = None,
+        word_boost: list[str] | None = None,
+        dual_channel: bool = False,
+    ) -> dict[str, Any]:
         path = Path(audio_path)
         if not path.is_file():
             raise AssemblyAIError(f"audio not found: {audio_path}")
@@ -42,8 +50,16 @@ class AssemblyAIProvider:
                 upload_url = await self._upload(client, headers, path)
                 body: dict[str, Any] = {
                     "audio_url": upload_url,
-                    "speaker_labels": True,
+                    "dual_channel": dual_channel,
+                    # Dual channel maps channel→speaker; speaker_labels only for mono diarization.
+                    "speaker_labels": not dual_channel,
                 }
+                if speakers_expected is not None and speakers_expected >= 1 and not dual_channel:
+                    body["speakers_expected"] = int(speakers_expected)
+                if word_boost:
+                    # AssemblyAI word_boost: up to ~1000 terms.
+                    body["word_boost"] = [w.strip() for w in word_boost if w and w.strip()][:200]
+                    body["boost_param"] = "high"
                 if language:
                     body["language_code"] = language
                 else:
@@ -90,16 +106,31 @@ class AssemblyAIProvider:
         raise AssemblyAIError("transcription timed out")
 
 
+def _channel_label(raw_speaker: object) -> str:
+    """Map AssemblyAI dual-channel speakers 1/2 → L/R."""
+    s = str(raw_speaker or "A")
+    if s in {"1", "channel_1", "Channel 1"}:
+        return "L"
+    if s in {"2", "channel_2", "Channel 2"}:
+        return "R"
+    return s
+
+
 def normalize_assemblyai(raw: dict[str, Any]) -> dict[str, Any]:
     """Map AssemblyAI transcript JSON → Dictably segments/words/speakers."""
     utterances = raw.get("utterances") or []
     words_raw = raw.get("words") or []
     speakers_map: dict[str, dict[str, str]] = {}
     segments: list[dict[str, Any]] = []
+    dual = bool(raw.get("dual_channel_mode") or raw.get("dual_channel"))
 
     for i, utt in enumerate(utterances, start=1):
-        label = str(utt.get("speaker") or "A")
-        speakers_map.setdefault(label, {"id": label, "label": label})
+        label = _channel_label(utt.get("speaker")) if dual else str(utt.get("speaker") or "A")
+        display = {"L": "Left", "R": "Right"}.get(label)
+        speakers_map.setdefault(
+            label,
+            {"id": label, "label": label, **({"display_name": display} if display else {})},
+        )
         start_ms = int(utt.get("start") or 0)
         end_ms = int(utt.get("end") or start_ms)
         segments.append(
@@ -129,7 +160,8 @@ def normalize_assemblyai(raw: dict[str, Any]) -> dict[str, Any]:
             "text": w.get("text"),
             "start_ms": int(w.get("start") or 0),
             "end_ms": int(w.get("end") or 0),
-            "speaker_id": w.get("speaker"),
+            "speaker_id": (_channel_label(w.get("speaker")) if dual else w.get("speaker")),
+            **({"confidence": float(w["confidence"])} if w.get("confidence") is not None else {}),
         }
         for w in words_raw
     ]

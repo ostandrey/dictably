@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import tempfile
+from datetime import date
 from pathlib import Path
 from uuid import UUID
 
@@ -24,7 +25,13 @@ from dictably.db.models import (
 from dictably.db.session import get_session_factory
 from dictably.domain import analysis as analysis_domain
 from dictably.domain import ledger as ledger_domain
-from dictably.domain.ffmpeg_media import FfmpegError, normalize_to_playback
+from dictably.domain.asr_postprocess import postprocess_transcript
+from dictably.domain.ffmpeg_media import (
+    FfmpegError,
+    normalize_for_asr,
+    normalize_to_playback,
+    probe_audio,
+)
 from dictably.domain.media import MAX_DURATION_MS, probe_file
 from dictably.providers.factory import get_asr_fallback, get_asr_provider, get_storage_provider
 from dictably.providers.storage.base import StorageProvider
@@ -272,10 +279,30 @@ async def _pipeline(
     reserved["seconds"] = seconds
     await session.commit()
 
+    stream_idx_raw = (media.asr_meta or {}).get("audio_stream_index")
+    audio_stream_index: int | None = None
+    if stream_idx_raw is not None:
+        try:
+            audio_stream_index = int(stream_idx_raw)
+        except (TypeError, ValueError):
+            audio_stream_index = None
+
     with tempfile.TemporaryDirectory(prefix="dictably-proc-") as tmp:
         tmp_path = Path(tmp)
         try:
-            norm = await _normalize_async(original_path, tmp_path, soft_missing=soft)
+            norm = await asyncio.to_thread(
+                normalize_to_playback,
+                original_path,
+                tmp_path,
+                soft_missing=soft,
+                audio_stream_index=audio_stream_index,
+            )
+            audio_info = await asyncio.to_thread(
+                probe_audio,
+                original_path,
+                soft_missing=soft,
+                audio_stream_index=audio_stream_index,
+            )
         except FfmpegError as exc:
             # Timeout → transient; bad convert → permanent (S1).
             timed_out = "timed out" in str(exc).lower()
@@ -306,15 +333,74 @@ async def _pipeline(
         media.status = MediaStatus.transcribing
         await session.commit()
 
-        playback_local = await storage.get_path(playback_key)
-        # Empty soft stub — still let fake ASR run.
-        asr_path = str(playback_local if playback_local.stat().st_size > 0 else original_path)
+        # ASR prep (16 kHz + highpass + loudnorm). Stereo with 2 live channels → dual.
+        dual = len(audio_info.live_channels) >= 2 and audio_info.channels >= 2
+        channel_index: int | None = None
+        if not dual and audio_info.channels >= 2 and len(audio_info.live_channels) == 1:
+            channel_index = audio_info.live_channels[0]
+        # Multi-track: default to first track; warn if more exist and none chosen.
+        tracks = list(audio_info.audio_tracks or [])
+        if audio_stream_index is None and len(tracks) > 1:
+            media.quality_warning = (
+                (media.quality_warning + " " if media.quality_warning else "")
+                + f"This file has {len(tracks)} audio tracks — using track 1. "
+                "Re-upload and pick a track if that is wrong."
+            ).strip()
 
+        try:
+            asr_audio = await asyncio.to_thread(
+                normalize_for_asr,
+                original_path,
+                tmp_path,
+                soft_missing=soft,
+                dual_channel=dual,
+                channel_index=channel_index,
+                audio_stream_index=audio_stream_index,
+            )
+        except FfmpegError as exc:
+            timed_out = "timed out" in str(exc).lower()
+            raise ProcessError(
+                str(exc),
+                human="Could not prepare audio for transcription.",
+                permanent=not timed_out,
+            ) from exc
+
+        asr_path = str(asr_audio.path)
+        if asr_audio.path.stat().st_size == 0:
+            # Soft stub — fall back to original / playback.
+            playback_local = await storage.get_path(playback_key)
+            asr_path = str(playback_local if playback_local.stat().st_size > 0 else original_path)
+
+        vocab = [str(v) for v in (media.vocabulary or []) if str(v).strip()]
         transcript = await _transcribe_with_fallback(
             settings,
             audio_path=asr_path,
             language=media.language,
+            speakers_expected=media.speakers_expected,
+            word_boost=vocab or None,
+            dual_channel=dual,
         )
+        transcript = postprocess_transcript(
+            transcript,
+            duration_ms=media.duration_ms,
+            sample_rate_hint=audio_info.sample_rate,
+            channels=audio_info.channels,
+        )
+        pp = transcript.get("postprocess") or {}
+        media.quality_warning = pp.get("quality_warning")
+        media.asr_meta = {
+            **dict(media.asr_meta or {}),
+            "dual_channel": dual,
+            "channels": audio_info.channels,
+            "live_channels": list(audio_info.live_channels),
+            "sample_rate": audio_info.sample_rate,
+            "dropped_segments": pp.get("dropped_segments"),
+            "asr_prep": True,
+        }
+        if media.meeting_date is None:
+            # Prefer upload day in UTC (created_at); Owner can edit later.
+            created = media.created_at
+            media.meeting_date = created.date() if created else date.today()
 
     media.language = transcript.get("language") or media.language
     await _store_transcript(session, media=media, transcript=transcript)
@@ -345,10 +431,20 @@ async def _transcribe_with_fallback(
     *,
     audio_path: str,
     language: str | None,
+    speakers_expected: int | None = None,
+    word_boost: list[str] | None = None,
+    dual_channel: bool = False,
 ) -> dict:
+    kwargs = {
+        "audio_path": audio_path,
+        "language": language,
+        "speakers_expected": speakers_expected,
+        "word_boost": word_boost,
+        "dual_channel": dual_channel,
+    }
     primary = get_asr_provider(settings)
     try:
-        return await primary.transcribe(audio_path=audio_path, language=language)
+        return await primary.transcribe(**kwargs)
     except Exception as primary_exc:  # noqa: BLE001
         logger.warning("primary ASR %s failed: %s", primary.name, primary_exc)
         fallback = get_asr_fallback(settings, exclude=primary.name)
@@ -358,7 +454,7 @@ async def _transcribe_with_fallback(
                 human="Transcription failed. Please try again.",
             ) from primary_exc
         try:
-            result = await fallback.transcribe(audio_path=audio_path, language=language)
+            result = await fallback.transcribe(**kwargs)
             result["fallback_from"] = primary.name
             return result
         except Exception as fb_exc:  # noqa: BLE001

@@ -7,6 +7,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { passAccountGates } from "./utils/auth";
+import { confirmUploadDetailsIfOpen } from "./utils/upload";
 
 const SHOT_ROOT = path.join("e2e", "__screenshots__", "MVP0");
 const FIXTURE = path.join("e2e", "fixtures", "short.wav");
@@ -55,6 +56,7 @@ test.describe("MVP-0 demo path", () => {
         mimeType: "audio/wav",
         buffer: fs.readFileSync(FIXTURE),
       });
+    await confirmUploadDetailsIfOpen(page);
       const row = page
         .locator("[data-recordings='row']")
         .filter({ hasText: name });

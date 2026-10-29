@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { ensureSignedIn } from "./utils/auth";
+import { confirmUploadDetailsIfOpen } from "./utils/upload";
 import fs from "node:fs";
 import path from "node:path";
 import { VIEWPORTS } from "./utils/shots";
@@ -62,6 +63,7 @@ test.describe("T-036 premium feel", () => {
         mimeType: "audio/wav",
         buffer: fs.readFileSync(FIXTURE),
       });
+    await confirmUploadDetailsIfOpen(page);
       await expect(
         page.locator("[data-recordings='row']").filter({ hasText: name }),
       ).toBeVisible({ timeout: 30_000 });

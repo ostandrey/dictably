@@ -49,6 +49,14 @@ export default async function RecordingPage() {
       exportTranscriptSrt={t("app.exportTranscriptSrt")}
       exportTranscriptVtt={t("app.exportTranscriptVtt")}
       exportFailed={t("app.exportFailed")}
+      partySideLabel={t("app.partySideLabel")}
+      mergeWithLabel={t("app.mergeWithLabel")}
+      changeSpeakerLabel={t("app.changeSpeakerLabel")}
+      newSpeakerLabel={t("app.newSpeakerLabel")}
+      cleanModeLabel={t("app.cleanModeLabel")}
+      verbatimModeLabel={t("app.verbatimModeLabel")}
+      meetingDateHint={t("app.meetingDateHint")}
+      dueDatesRecalcToast={t("app.dueDatesRecalcToast")}
     />
   );
 }
