@@ -287,10 +287,18 @@ async def get_analysis(
     user: Annotated[User, Depends(require_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> AnalysisOut:
+    from dictably.domain import analytics as analytics_domain
+
     media = await media_domain.get_for_user(session, user.id, media_id)
     row = await analysis_domain.get_latest(session, media.id)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    await analytics_domain.track_minutes_viewed(
+        session,
+        user_id=user.id,
+        media_id=media.id,
+    )
+    await session.commit()
     payload = await analysis_domain.to_out_payload(session, row)
     return AnalysisOut.model_validate(payload)
 
@@ -482,6 +490,8 @@ async def export_media(
     format: Annotated[str, Query(alias="format", description="docx|pdf|md|txt|srt|vtt")],
 ) -> Response:
     """Download minutes or transcript export (T-017). Foreign media → 404."""
+    from dictably.domain import analytics as analytics_domain
+
     file = await export_domain.build_export(
         session,
         user,
@@ -490,6 +500,14 @@ async def export_media(
         fmt=format,
         public_app_url=settings.public_app_url,
     )
+    await analytics_domain.track(
+        session,
+        name=analytics_domain.EVENT_EXPORT_DOWNLOADED,
+        user_id=user.id,
+        media_id=media_id,
+        props={"kind": kind, "format": format},
+    )
+    await session.commit()
     # RFC 5987 filename* for non-ASCII stems; ASCII fallback for old agents.
     ascii_name = file.filename.encode("ascii", "ignore").decode("ascii") or "export"
     headers = {

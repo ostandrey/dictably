@@ -253,6 +253,29 @@ class AuditLog(Base, TimestampMixin):
     ip: Mapped[str | None] = mapped_column(String(64))
 
 
+class ProductEvent(Base, TimestampMixin):
+    """Server-side product analytics (T-034). No IP, no recording text."""
+
+    __tablename__ = "product_events"
+    __table_args__ = (
+        Index("ix_product_events_created_at", "created_at"),
+        Index("ix_product_events_name_created_at", "name", "created_at"),
+        Index("ix_product_events_user_id", "user_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=new_uuid)
+    user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    media_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("media.id", ondelete="SET NULL")
+    )
+    props: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, insert_default=dict, server_default="{}"
+    )
+
+
 class CreditLedger(Base, TimestampMixin):
     """Append-only quota ledger (ARCHITECTURE §6)."""
 

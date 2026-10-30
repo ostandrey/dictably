@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dictably.api.deps import client_ip, require_admin, require_admin_csrf
 from dictably.api.schemas import (
     AdminCostsOut,
+    AdminFunnelOut,
     AdminGrantIn,
     AdminJobListOut,
     AdminJobOut,
@@ -23,6 +24,7 @@ from dictably.core.config import get_settings
 from dictably.db.models import Job, User
 from dictably.db.session import get_db
 from dictably.domain import admin as admin_domain
+from dictably.domain import analytics as analytics_domain
 from dictably.providers.factory import get_storage_provider
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -168,3 +170,15 @@ async def admin_costs(
 ) -> AdminCostsOut:
     data = await admin_domain.costs_report(session, period=period)
     return AdminCostsOut(**data)
+
+
+@router.get("/funnel", response_model=AdminFunnelOut)
+async def admin_funnel(
+    session: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[User, Depends(require_admin)],
+    days: Annotated[int, Query(ge=7, le=30)] = 7,
+) -> AdminFunnelOut:
+    """Product funnel + UTM sources (T-034)."""
+    window = 30 if days >= 30 else 7
+    data = await analytics_domain.funnel_report(session, days=window)
+    return AdminFunnelOut.model_validate(data)

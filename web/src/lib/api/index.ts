@@ -3,6 +3,7 @@ export {
   ApiError,
   adminCosts,
   adminDeleteMedia,
+  adminFunnel,
   adminGrantHours,
   adminListJobs,
   adminListMedia,
@@ -44,6 +45,7 @@ export type { MediaProbe } from "./client";
 export type {
   AccountExport,
   AdminCosts,
+  AdminFunnel,
   AdminJob,
   AdminMedia,
   AdminUser,

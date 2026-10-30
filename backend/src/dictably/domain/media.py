@@ -323,6 +323,14 @@ async def upload_recording(
     media.storage_keys = {"original": key}
     media.status = MediaStatus.uploaded
     media.error = None
+    from dictably.domain import analytics as analytics_domain
+
+    await analytics_domain.track(
+        session,
+        name=analytics_domain.EVENT_UPLOADED,
+        user_id=media.user_id,
+        media_id=media.id,
+    )
     await session.commit()
     await session.refresh(media)
     return media

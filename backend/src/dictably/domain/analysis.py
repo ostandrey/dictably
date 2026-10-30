@@ -153,6 +153,15 @@ async def regenerate_for_user(
         row = await run_and_store(session, media=media, transcript=transcript, template=tid)
         media.status = MediaStatus.ready
         media.error = None
+        from dictably.domain import analytics as analytics_domain
+
+        await analytics_domain.track(
+            session,
+            name=analytics_domain.EVENT_REGENERATED,
+            user_id=user_id,
+            media_id=media.id,
+            props={"template": tid},
+        )
         await session.commit()
         await session.refresh(row)
         return row

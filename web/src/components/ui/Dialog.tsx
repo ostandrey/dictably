@@ -73,9 +73,22 @@ export function Dialog({
         onClose();
       }}
     >
-      <h2 id={titleId} className="dy-dialog__title">
-        {title}
-      </h2>
+      <div className="dy-dialog__head">
+        <h2 id={titleId} className="dy-dialog__title">
+          {title}
+        </h2>
+        {dismissible ? (
+          <button
+            type="button"
+            className="dy-dialog__close"
+            aria-label="Close"
+            data-dialog="close"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        ) : null}
+      </div>
       <div className="dy-dialog__body">{children}</div>
       {actions ? <div className="dy-dialog__actions">{actions}</div> : null}
     </dialog>,

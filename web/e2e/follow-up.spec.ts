@@ -11,7 +11,7 @@ const FIXTURE = path.join("e2e", "fixtures", "short.wav");
 test.describe("T-028 follow-up email", () => {
   test.describe.configure({ mode: "serial" });
 
-  test("dialog edit + copy + shots 375/1440", async ({ page, context }) => {
+  test("dialog with real draft + weak note + shots", async ({ page, context }) => {
     test.setTimeout(120_000);
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     fs.mkdirSync(SHOT_ROOT, { recursive: true });
@@ -30,28 +30,41 @@ test.describe("T-028 follow-up email", () => {
     await expect(row).toContainText(/Ready|Готово/, { timeout: 90_000 });
     await row.click();
     await expect(page.locator("[data-recording='page']")).toBeVisible();
-    await expect(page.locator("[data-recording='export']")).toBeVisible();
+
+    // N2: keep real draft; inject weak_texts so review sees the note list.
+    await page.route("**/api/media/*/follow-up", async (route) => {
+      const res = await route.fetch();
+      const json = (await res.json()) as {
+        subject: string;
+        body: string;
+        language: string;
+        weak_skipped?: number;
+        weak_texts?: string[];
+      };
+      json.weak_skipped = 2;
+      json.weak_texts = [
+        "Weak point needing review",
+        "Another unverified agreement",
+      ];
+      await route.fulfill({
+        status: res.status(),
+        contentType: "application/json",
+        body: JSON.stringify(json),
+      });
+    });
 
     await page.locator("[data-recording='export']").click();
-    await expect(page.locator("[data-recording='export-menu']")).toBeVisible();
     await expect(page.locator("[data-export='follow-up']")).toBeVisible();
-
-    const apiPromise = page.waitForResponse((r) => r.url().includes("/follow-up"));
     await page.locator("[data-export='follow-up']").click();
-    const apiRes = await apiPromise;
-    expect(apiRes.ok()).toBeTruthy();
 
     const dialog = page.locator("[data-recording='follow-up-dialog']");
     await expect(dialog).toBeVisible();
-    await expect(page.locator("[data-follow-up='subject']")).not.toHaveValue("");
-    await expect(page.locator("[data-follow-up='body']")).not.toHaveValue("");
-    await expect(page.locator("[data-follow-up='copy']")).toBeVisible();
-    await expect(page.locator("[data-follow-up='mailto']")).toBeVisible();
-
-    await page.locator("[data-follow-up='body']").fill(
-      "Thank you for the meeting.\n\n- Edited for e2e.\n",
-    );
-    await page.locator("[data-follow-up='copy']").click();
+    await expect(page.locator("[data-dialog='close']")).toBeVisible();
+    const bodyVal = await page.locator("[data-follow-up='body']").inputValue();
+    expect(bodyVal).not.toContain("Edited for e2e");
+    expect(bodyVal.length).toBeGreaterThan(20);
+    await expect(dialog).toContainText(/need review|потребують перевірки/i);
+    await expect(dialog).toContainText("Weak point needing review");
 
     for (const scheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });

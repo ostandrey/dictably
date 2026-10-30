@@ -2689,6 +2689,68 @@
           }
         }
       }
+    },
+    "/api/admin/funnel": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Funnel",
+        "description": "Product funnel + UTM sources (T-034).",
+        "operationId": "admin_funnel_api_admin_funnel_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 30,
+              "minimum": 7,
+              "default": 7,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "dictably_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminFunnelOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2730,6 +2792,94 @@
           "since"
         ],
         "title": "AdminCostsOut"
+      },
+      "AdminFunnelOut": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "since": {
+            "type": "string",
+            "title": "Since"
+          },
+          "cohort": {
+            "type": "integer",
+            "title": "Cohort",
+            "default": 0
+          },
+          "active_users": {
+            "type": "integer",
+            "title": "Active Users",
+            "default": 0
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/AdminFunnelStepOut"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/AdminFunnelSourceOut"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "since"
+        ],
+        "title": "AdminFunnelOut"
+      },
+      "AdminFunnelSourceOut": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "users": {
+            "type": "integer",
+            "title": "Users",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "title": "AdminFunnelSourceOut"
+      },
+      "AdminFunnelStepOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "users": {
+            "type": "integer",
+            "title": "Users",
+            "default": 0
+          },
+          "pct_signups": {
+            "type": "number",
+            "title": "Pct Signups",
+            "default": 0
+          },
+          "pct_prev": {
+            "type": "number",
+            "title": "Pct Prev",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "AdminFunnelStepOut"
       },
       "AdminGrantIn": {
         "properties": {

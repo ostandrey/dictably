@@ -298,3 +298,24 @@ class AdminCostsOut(BaseModel):
     gpu_usd: float = 0
     api_usd: float = 0
     total_usd: float = 0
+
+
+class AdminFunnelStepOut(BaseModel):
+    name: str
+    users: int = 0
+    pct_signups: float = 0
+    pct_prev: float = 0
+
+
+class AdminFunnelSourceOut(BaseModel):
+    source: str
+    users: int = 0
+
+
+class AdminFunnelOut(BaseModel):
+    days: int
+    since: str
+    cohort: int = 0
+    active_users: int = 0
+    steps: list[AdminFunnelStepOut] = Field(default_factory=list)
+    sources: list[AdminFunnelSourceOut] = Field(default_factory=list)

@@ -567,6 +567,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/funnel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Admin Funnel
+         * @description Product funnel + UTM sources (T-034).
+         */
+        get: operations["admin_funnel_api_admin_funnel_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -597,6 +617,57 @@ export interface components {
              * @default 0
              */
             total_usd: number;
+        };
+        /** AdminFunnelOut */
+        AdminFunnelOut: {
+            /** Days */
+            days: number;
+            /** Since */
+            since: string;
+            /**
+             * Cohort
+             * @default 0
+             */
+            cohort: number;
+            /**
+             * Active Users
+             * @default 0
+             */
+            active_users: number;
+            /** Steps */
+            steps?: components["schemas"]["AdminFunnelStepOut"][];
+            /** Sources */
+            sources?: components["schemas"]["AdminFunnelSourceOut"][];
+        };
+        /** AdminFunnelSourceOut */
+        AdminFunnelSourceOut: {
+            /** Source */
+            source: string;
+            /**
+             * Users
+             * @default 0
+             */
+            users: number;
+        };
+        /** AdminFunnelStepOut */
+        AdminFunnelStepOut: {
+            /** Name */
+            name: string;
+            /**
+             * Users
+             * @default 0
+             */
+            users: number;
+            /**
+             * Pct Signups
+             * @default 0
+             */
+            pct_signups: number;
+            /**
+             * Pct Prev
+             * @default 0
+             */
+            pct_prev: number;
         };
         /** AdminGrantIn */
         AdminGrantIn: {
@@ -2496,6 +2567,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminCostsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_funnel_api_admin_funnel_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                dictably_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFunnelOut"];
                 };
             };
             /** @description Validation Error */

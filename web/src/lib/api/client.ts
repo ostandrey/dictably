@@ -21,6 +21,20 @@ type AdminMedia = components["schemas"]["AdminMediaOut"];
 type AdminJob = components["schemas"]["AdminJobOut"];
 type AdminCosts = components["schemas"]["AdminCostsOut"];
 
+export type AdminFunnel = {
+  days: number;
+  since: string;
+  cohort: number;
+  active_users: number;
+  steps: {
+    name: string;
+    users: number;
+    pct_signups: number;
+    pct_prev: number;
+  }[];
+  sources: { source: string; users: number }[];
+};
+
 export type {
   AuthConfig,
   User,
@@ -410,6 +424,10 @@ export function adminGrantHours(
 
 export function adminCosts(period: "day" | "month" = "day"): Promise<AdminCosts> {
   return apiFetch<AdminCosts>(`/api/admin/costs?period=${period}`);
+}
+
+export function adminFunnel(days: 7 | 30 = 7): Promise<AdminFunnel> {
+  return apiFetch<AdminFunnel>(`/api/admin/funnel?days=${days}`);
 }
 
 type UploadOptions = {

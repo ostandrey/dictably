@@ -231,6 +231,38 @@ a.dy-rec__title:hover { color: var(--accent); }
   animation: dy-dialog-in var(--duration-base) var(--ease);
 }
 .dy-dialog--lg { max-width: 560px; }
+.dy-dialog__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.dy-dialog__close {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  margin: -6px -6px 0 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-muted);
+  font: 500 24px/1 var(--font-sans);
+  cursor: pointer;
+}
+.dy-dialog__close:hover { color: var(--ink); background: var(--surface-sunken); }
+.dy-dialog__close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+@media (max-width: 480px) {
+  .dy-dialog {
+    width: calc(100% - 32px);
+    max-width: calc(100% - 32px);
+    margin: 16px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+}
 .dy-textarea {
   width: 100%;
   min-height: 220px;

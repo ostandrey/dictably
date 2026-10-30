@@ -43,10 +43,13 @@ async def upsert_google_user(
     name: str | None,
     locale: str = "en",
 ) -> User:
+    from dictably.domain import analytics as analytics_domain
+
     email_norm = email.lower().strip()
     user = await get_user_by_google_sub(session, google_sub)
     if user is None:
         user = await get_user_by_email(session, email_norm)
+    created = False
     if user is None:
         user = User(
             email=email_norm,
@@ -55,12 +58,20 @@ async def upsert_google_user(
             google_sub=google_sub,
         )
         session.add(user)
+        created = True
     else:
         user.email = email_norm
         if name:
             user.name = name
         user.google_sub = google_sub
     await session.flush()
+    if created:
+        await analytics_domain.track(
+            session,
+            name=analytics_domain.EVENT_SIGNED_UP,
+            user_id=user.id,
+            props={"provider": "google"},
+        )
     return user
 
 
@@ -70,6 +81,8 @@ async def upsert_dev_user(
     email: str,
     name: str | None = "Dev User",
 ) -> User:
+    from dictably.domain import analytics as analytics_domain
+
     email_norm = email.lower().strip()
     user = await get_user_by_email(session, email_norm)
     if user is not None:
@@ -79,6 +92,12 @@ async def upsert_dev_user(
             user = User(email=email_norm, name=name, locale="en")
             session.add(user)
             await session.flush()
+            await analytics_domain.track(
+                session,
+                name=analytics_domain.EVENT_SIGNED_UP,
+                user_id=user.id,
+                props={"provider": "dev"},
+            )
         return user
     except IntegrityError:
         # Parallel e2e / concurrent Dev login — email unique race.

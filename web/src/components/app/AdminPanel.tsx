@@ -5,12 +5,14 @@ import {
   ApiError,
   adminCosts,
   adminDeleteMedia,
+  adminFunnel,
   adminGrantHours,
   adminListJobs,
   adminListMedia,
   adminListUsers,
   adminRetryJob,
   type AdminCosts,
+  type AdminFunnel,
   type AdminJob,
   type AdminMedia,
   type AdminUser,
@@ -21,6 +23,24 @@ export type AdminCopy = {
   tabRecordings: string;
   tabJobs: string;
   tabCosts: string;
+  tabFunnel: string;
+  funnelUsers: string;
+  funnelStep: string;
+  funnelPctSignups: string;
+  funnelPctPrev: string;
+  funnelCohort: string;
+  funnelActive: string;
+  funnelSources: string;
+  funnelSource: string;
+  funnelDays7: string;
+  funnelDays30: string;
+  funnelStepSignedUp: string;
+  funnelStepUploaded: string;
+  funnelStepReady: string;
+  funnelStepFailed: string;
+  funnelStepMinutes: string;
+  funnelStepExport: string;
+  funnelStepRegen: string;
   email: string;
   role: string;
   balance: string;
@@ -47,7 +67,7 @@ export type AdminCopy = {
   actionError: string;
 };
 
-type Tab = "users" | "media" | "jobs" | "costs";
+type Tab = "users" | "media" | "jobs" | "costs" | "funnel";
 
 type Props = {
   copy: AdminCopy;
@@ -59,14 +79,37 @@ function formatHours(seconds: number): string {
   return `${h.toFixed(1)} h`;
 }
 
+function funnelStepLabel(copy: AdminCopy, name: string): string {
+  switch (name) {
+    case "signed_up":
+      return copy.funnelStepSignedUp;
+    case "uploaded":
+      return copy.funnelStepUploaded;
+    case "processing_ready":
+      return copy.funnelStepReady;
+    case "processing_failed":
+      return copy.funnelStepFailed;
+    case "minutes_viewed":
+      return copy.funnelStepMinutes;
+    case "export_downloaded":
+      return copy.funnelStepExport;
+    case "regenerated":
+      return copy.funnelStepRegen;
+    default:
+      return name;
+  }
+}
+
 export function AdminPanel({ copy }: Props) {
   const [tab, setTab] = useState<Tab>("users");
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [media, setMedia] = useState<AdminMedia[]>([]);
   const [jobs, setJobs] = useState<AdminJob[]>([]);
   const [costs, setCosts] = useState<AdminCosts | null>(null);
+  const [funnel, setFunnel] = useState<AdminFunnel | null>(null);
   const [failedOnly, setFailedOnly] = useState(true);
   const [costPeriod, setCostPeriod] = useState<"day" | "month">("day");
+  const [funnelDays, setFunnelDays] = useState<7 | 30>(7);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -85,6 +128,8 @@ export function AdminPanel({ copy }: Props) {
       } else if (tab === "jobs") {
         const res = await adminListJobs(failedOnly ? "failed" : undefined);
         setJobs(res.items);
+      } else if (tab === "funnel") {
+        setFunnel(await adminFunnel(funnelDays));
       } else {
         setCosts(await adminCosts(costPeriod));
       }
@@ -93,7 +138,7 @@ export function AdminPanel({ copy }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [tab, failedOnly, costPeriod, copy.actionError]);
+  }, [tab, failedOnly, costPeriod, funnelDays, copy.actionError]);
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -153,6 +198,7 @@ export function AdminPanel({ copy }: Props) {
             ["users", copy.tabUsers],
             ["media", copy.tabRecordings],
             ["jobs", copy.tabJobs],
+            ["funnel", copy.tabFunnel],
             ["costs", copy.tabCosts],
           ] as const
         ).map(([id, label]) => (
@@ -187,6 +233,31 @@ export function AdminPanel({ copy }: Props) {
             onClick={() => setFailedOnly(false)}
           >
             {copy.filterAll}
+          </button>
+        </div>
+      )}
+
+      {tab === "funnel" && (
+        <div className="admin-seg" role="tablist" aria-label={copy.tabFunnel}>
+          <button
+            type="button"
+            role="tab"
+            className="admin-seg__btn"
+            aria-selected={funnelDays === 7}
+            data-admin="funnel-7"
+            onClick={() => setFunnelDays(7)}
+          >
+            {copy.funnelDays7}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className="admin-seg__btn"
+            aria-selected={funnelDays === 30}
+            data-admin="funnel-30"
+            onClick={() => setFunnelDays(30)}
+          >
+            {copy.funnelDays30}
           </button>
         </div>
       )}
@@ -365,6 +436,68 @@ export function AdminPanel({ copy }: Props) {
                 ))}
               </tbody>
             </table>
+          )}
+        </div>
+      )}
+
+      {!loading && tab === "funnel" && funnel && (
+        <div className="admin-funnel" data-admin="funnel">
+          <dl className="admin-funnel__meta" data-admin="funnel-meta">
+            <div>
+              <dt>{copy.funnelCohort}</dt>
+              <dd className="dy-time">{funnel.cohort}</dd>
+            </div>
+            <div>
+              <dt>{copy.funnelActive}</dt>
+              <dd className="dy-time">{funnel.active_users}</dd>
+            </div>
+          </dl>
+          <div className="admin-table-wrap">
+            <table className="admin-table" data-admin="funnel-steps">
+              <thead>
+                <tr>
+                  <th>{copy.funnelStep}</th>
+                  <th>{copy.funnelUsers}</th>
+                  <th>{copy.funnelPctSignups}</th>
+                  <th>{copy.funnelPctPrev}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {funnel.steps.map((s) => (
+                  <tr key={s.name}>
+                    <td className="admin-table__primary">
+                      {funnelStepLabel(copy, s.name)}
+                    </td>
+                    <td className="dy-time">{s.users}</td>
+                    <td className="dy-time">{s.pct_signups.toFixed(1)}%</td>
+                    <td className="dy-time">{s.pct_prev.toFixed(1)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <h3 className="admin-funnel__h">{copy.funnelSources}</h3>
+          {funnel.sources.length === 0 ? (
+            <p className="dy-muted">{copy.empty}</p>
+          ) : (
+            <div className="admin-table-wrap">
+              <table className="admin-table" data-admin="funnel-sources">
+                <thead>
+                  <tr>
+                    <th>{copy.funnelSource}</th>
+                    <th>{copy.funnelUsers}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {funnel.sources.map((s) => (
+                    <tr key={s.source}>
+                      <td className="admin-table__primary">{s.source}</td>
+                      <td className="dy-time">{s.users}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}

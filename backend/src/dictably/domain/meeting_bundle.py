@@ -154,6 +154,15 @@ async def upload_meeting_bundle(
     media.error = None
     names = [t["speaker_name"] for t in tracks_meta]
     media.filename = f"Meeting · {' · '.join(names[:4])}"[:200]
+    from dictably.domain import analytics as analytics_domain
+
+    await analytics_domain.track(
+        session,
+        name=analytics_domain.EVENT_UPLOADED,
+        user_id=media.user_id,
+        media_id=media.id,
+        props={"multi_file": True, "tracks": len(tracks_meta)},
+    )
     await session.commit()
     await session.refresh(media)
     return media

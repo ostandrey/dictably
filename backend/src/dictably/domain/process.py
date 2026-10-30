@@ -162,6 +162,14 @@ async def run_process_media(*, media_id: UUID, job_id: UUID | None = None) -> No
                         seconds=reserved["seconds"],
                         ref=reserve_ref,
                     )
+                from dictably.domain import analytics as analytics_domain
+
+                await analytics_domain.track(
+                    session,
+                    name=analytics_domain.EVENT_PROCESSING_READY,
+                    user_id=media.user_id,
+                    media_id=media.id,
+                )
                 await session.commit()
                 return
             except ProcessError as exc:
@@ -206,6 +214,16 @@ async def run_process_media(*, media_id: UUID, job_id: UUID | None = None) -> No
         job.status = JobStatus.failed
         media.status = MediaStatus.failed
         media.error = last_error
+        from dictably.domain import analytics as analytics_domain
+
+        # S1: final failure only — short code, no human error text in props.
+        await analytics_domain.track(
+            session,
+            name=analytics_domain.EVENT_PROCESSING_FAILED,
+            user_id=media.user_id,
+            media_id=media.id,
+            props={"code": "process_failed"},
+        )
         await session.commit()
 
 

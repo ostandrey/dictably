@@ -56,6 +56,7 @@ def _alembic_upgrade(url: str) -> None:
 
 async def _truncate(session: AsyncSession) -> None:
     for table in (
+        "product_events",
         "audit_log",
         "credit_ledger",
         "jobs",
