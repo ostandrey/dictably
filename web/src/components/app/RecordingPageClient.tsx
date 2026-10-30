@@ -34,6 +34,15 @@ type Props = {
   exportMinutesPdf: string;
   exportMinutesCopy: string;
   exportMinutesCopied: string;
+  exportFollowUp: string;
+  exportFollowUpTitle: string;
+  exportFollowUpSubject: string;
+  exportFollowUpBody: string;
+  exportFollowUpCopy: string;
+  exportFollowUpCopied: string;
+  exportFollowUpMail: string;
+  exportFollowUpMailtoHint: string;
+  exportFollowUpWeak: string;
   exportTranscriptTxt: string;
   exportTranscriptDocx: string;
   exportTranscriptSrt: string;
@@ -107,6 +116,15 @@ export function RecordingPageClient(props: Props) {
       exportMinutesPdf={props.exportMinutesPdf}
       exportMinutesCopy={props.exportMinutesCopy}
       exportMinutesCopied={props.exportMinutesCopied}
+      exportFollowUp={props.exportFollowUp}
+      exportFollowUpTitle={props.exportFollowUpTitle}
+      exportFollowUpSubject={props.exportFollowUpSubject}
+      exportFollowUpBody={props.exportFollowUpBody}
+      exportFollowUpCopy={props.exportFollowUpCopy}
+      exportFollowUpCopied={props.exportFollowUpCopied}
+      exportFollowUpMail={props.exportFollowUpMail}
+      exportFollowUpMailtoHint={props.exportFollowUpMailtoHint}
+      exportFollowUpWeak={props.exportFollowUpWeak}
       exportTranscriptTxt={props.exportTranscriptTxt}
       exportTranscriptDocx={props.exportTranscriptDocx}
       exportTranscriptSrt={props.exportTranscriptSrt}

@@ -230,6 +230,38 @@ a.dy-rec__title:hover { color: var(--accent); }
   /* Scale only — never animate opacity (content behind must not bleed through). */
   animation: dy-dialog-in var(--duration-base) var(--ease);
 }
+.dy-dialog--lg { max-width: 560px; }
+.dy-textarea {
+  width: 100%;
+  min-height: 220px;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font: 400 15px/24px var(--font-sans);
+  resize: vertical;
+}
+.dy-textarea:focus-visible {
+  outline: none;
+  background: var(--canvas);
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+.rec-follow-up { display: flex; flex-direction: column; gap: var(--space-3); }
+.rec-follow-up .dy-field { max-width: none; }
+.rec-follow-up__note {
+  margin: 0;
+  font: 400 13px/20px var(--font-sans);
+  color: var(--ink-muted);
+}
+.rec-follow-up__weak {
+  margin: 0;
+  padding: 0;
+  padding-left: 1.2em;
+  font: 400 13px/20px var(--font-sans);
+  color: var(--ink-muted);
+}
 @keyframes dy-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }

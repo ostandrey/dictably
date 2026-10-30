@@ -27,6 +27,7 @@ from dictably.api.schemas import (
     AnalysisOut,
     AnalysisRegenerateIn,
     AudioTrackOut,
+    FollowUpEmailOut,
     MediaListOut,
     MediaOut,
     MediaPatchIn,
@@ -53,6 +54,8 @@ from dictably.domain import speakers as speakers_domain
 from dictably.domain import transcript_edit as transcript_edit_domain
 from dictably.domain.asr_postprocess import apply_transcript_mode
 from dictably.domain.ffmpeg_media import FfmpegError, list_audio_tracks
+from dictably.domain.follow_up import draft_follow_up_email
+from dictably.domain.minutes_schema import Minutes
 from dictably.domain.minutes_templates import normalize_template
 from dictably.providers.factory import get_storage_provider
 from dictably.providers.storage.base import StorageProvider
@@ -443,6 +446,29 @@ async def get_audio(
         media_type=media_type,
         filename=path.name,
         content_disposition_type="inline",
+    )
+
+
+@router.get("/media/{media_id}/follow-up", response_model=FollowUpEmailOut)
+async def follow_up_email(
+    media_id: UUID,
+    user: Annotated[User, Depends(require_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> FollowUpEmailOut:
+    """Draft follow-up email from latest minutes (T-028). No ASR/LLM call."""
+    media = await media_domain.get_for_user(session, user.id, media_id)
+    row = await analysis_domain.get_latest(session, media.id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    speakers = await speakers_domain.list_for_media(session, media.id)
+    minutes = Minutes.model_validate(row.result or {})
+    draft = draft_follow_up_email(media=media, minutes=minutes, speakers=speakers)
+    return FollowUpEmailOut(
+        subject=draft.subject,
+        body=draft.body,
+        language=draft.language,
+        weak_skipped=draft.weak_skipped,
+        weak_texts=list(draft.weak_texts),
     )
 
 

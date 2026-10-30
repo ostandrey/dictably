@@ -44,6 +44,15 @@ export default async function RecordingPage() {
       exportMinutesPdf={t("app.exportMinutesPdf")}
       exportMinutesCopy={t("app.exportMinutesCopy")}
       exportMinutesCopied={t("app.exportMinutesCopied")}
+      exportFollowUp={t("app.exportFollowUp")}
+      exportFollowUpTitle={t("app.exportFollowUpTitle")}
+      exportFollowUpSubject={t("app.exportFollowUpSubject")}
+      exportFollowUpBody={t("app.exportFollowUpBody")}
+      exportFollowUpCopy={t("app.exportFollowUpCopy")}
+      exportFollowUpCopied={t("app.exportFollowUpCopied")}
+      exportFollowUpMail={t("app.exportFollowUpMail")}
+      exportFollowUpMailtoHint={t("app.exportFollowUpMailtoHint")}
+      exportFollowUpWeak={t("app.exportFollowUpWeak")}
       exportTranscriptTxt={t("app.exportTranscriptTxt")}
       exportTranscriptDocx={t("app.exportTranscriptDocx")}
       exportTranscriptSrt={t("app.exportTranscriptSrt")}

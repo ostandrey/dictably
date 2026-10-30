@@ -11,6 +11,7 @@ export function Dialog({
   actions,
   onClose,
   dismissible = true,
+  size = "default",
 }: {
   open: boolean;
   title: string;
@@ -19,6 +20,8 @@ export function Dialog({
   onClose: () => void;
   /** When false, Escape / backdrop cancel are ignored (consent gate). */
   dismissible?: boolean;
+  /** `lg` for longer forms (follow-up email). */
+  size?: "default" | "lg";
 }) {
   const titleId = useId();
   const ref = useRef<HTMLDialogElement>(null);
@@ -56,7 +59,7 @@ export function Dialog({
   return createPortal(
     <dialog
       ref={ref}
-      className="dy-dialog"
+      className={size === "lg" ? "dy-dialog dy-dialog--lg" : "dy-dialog"}
       data-dialog="open"
       aria-labelledby={titleId}
       onClose={() => {

@@ -351,6 +351,22 @@ export async function fetchMinutesMarkdown(id: string): Promise<string> {
   return res.text();
 }
 
+export type FollowUpEmail = {
+  subject: string;
+  body: string;
+  language: string;
+  weak_skipped?: number;
+  weak_texts?: string[];
+};
+
+/** mailto bodies longer than this often get truncated (Outlook/Windows). */
+export const FOLLOW_UP_MAILTO_BODY_MAX = 1800;
+
+/** Draft follow-up email from stored minutes (T-028). */
+export function getFollowUpEmail(id: string): Promise<FollowUpEmail> {
+  return apiFetch<FollowUpEmail>(`/api/media/${id}/follow-up`);
+}
+
 export async function adminListUsers(): Promise<{ items: AdminUser[] }> {
   const data = await apiFetch<{ items?: AdminUser[] }>("/api/admin/users");
   return { items: data.items ?? [] };

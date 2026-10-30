@@ -15,6 +15,8 @@ import {
   ApiError,
   downloadMediaExport,
   fetchMinutesMarkdown,
+  FOLLOW_UP_MAILTO_BODY_MAX,
+  getFollowUpEmail,
   getMedia,
   getPeaks,
   getTranscript,
@@ -73,6 +75,15 @@ type Props = {
   exportMinutesPdf: string;
   exportMinutesCopy: string;
   exportMinutesCopied: string;
+  exportFollowUp: string;
+  exportFollowUpTitle: string;
+  exportFollowUpSubject: string;
+  exportFollowUpBody: string;
+  exportFollowUpCopy: string;
+  exportFollowUpCopied: string;
+  exportFollowUpMail: string;
+  exportFollowUpMailtoHint: string;
+  exportFollowUpWeak: string;
   exportTranscriptTxt: string;
   exportTranscriptDocx: string;
   exportTranscriptSrt: string;
@@ -221,6 +232,15 @@ export function RecordingView({
   exportMinutesPdf,
   exportMinutesCopy,
   exportMinutesCopied,
+  exportFollowUp,
+  exportFollowUpTitle,
+  exportFollowUpSubject,
+  exportFollowUpBody,
+  exportFollowUpCopy,
+  exportFollowUpCopied,
+  exportFollowUpMail,
+  exportFollowUpMailtoHint,
+  exportFollowUpWeak,
   exportTranscriptTxt,
   exportTranscriptDocx,
   exportTranscriptSrt,
@@ -262,6 +282,11 @@ export function RecordingView({
   const [evidenceSegIds, setEvidenceSegIds] = useState<string[]>([]);
   const [exportOpen, setExportOpen] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [followUpSubject, setFollowUpSubject] = useState("");
+  const [followUpBody, setFollowUpBody] = useState("");
+  const [followUpWeak, setFollowUpWeak] = useState<string[]>([]);
+  const [followUpBusy, setFollowUpBusy] = useState(false);
   const [copiedFlash, setCopiedFlash] = useState(false);
   const [editingWord, setEditingWord] = useState<{
     index: number;
@@ -737,6 +762,55 @@ export function RecordingView({
     }
   }
 
+  async function openFollowUpDialog() {
+    setExportBusy(true);
+    setError(null);
+    try {
+      const draft = await getFollowUpEmail(mediaId);
+      setFollowUpSubject(draft.subject);
+      setFollowUpBody(draft.body);
+      setFollowUpWeak(draft.weak_texts ?? []);
+      setExportOpen(false);
+      setFollowUpOpen(true);
+    } catch {
+      setError(exportFailed);
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
+  async function copyFollowUpFromDialog() {
+    setFollowUpBusy(true);
+    try {
+      const text = `${followUpSubject}\n\n${followUpBody}`;
+      await navigator.clipboard.writeText(text);
+      pushToast(exportFollowUpCopied);
+    } catch {
+      setError(exportFailed);
+    } finally {
+      setFollowUpBusy(false);
+    }
+  }
+
+  async function mailtoFollowUpFromDialog() {
+    setFollowUpBusy(true);
+    try {
+      const subject = followUpSubject;
+      const body = followUpBody;
+      if (body.length > FOLLOW_UP_MAILTO_BODY_MAX) {
+        await navigator.clipboard.writeText(body);
+        window.location.href = `mailto:?subject=${encodeURIComponent(subject)}`;
+        pushToast(exportFollowUpMailtoHint);
+      } else {
+        window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      }
+    } catch {
+      setError(exportFailed);
+    } finally {
+      setFollowUpBusy(false);
+    }
+  }
+
   if (error && !media) {
     return (
       <Alert tone="danger" data-recording="error">
@@ -813,6 +887,16 @@ export function RecordingView({
                 onClick={() => void copyMinutes()}
               >
                 {copiedFlash ? exportMinutesCopied : exportMinutesCopy}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="rec-page__export-item"
+                data-export="follow-up"
+                disabled={exportBusy}
+                onClick={() => void openFollowUpDialog()}
+              >
+                {exportFollowUp}
               </button>
               <div className="rec-page__export-sep" role="separator" />
               <button
@@ -1275,6 +1359,65 @@ export function RecordingView({
           }}
         />
       </section>
+
+      <Dialog
+        open={followUpOpen}
+        title={exportFollowUpTitle}
+        size="lg"
+        onClose={() => setFollowUpOpen(false)}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              disabled={followUpBusy}
+              data-follow-up="copy"
+              onClick={() => void copyFollowUpFromDialog()}
+            >
+              {exportFollowUpCopy}
+            </Button>
+            <Button
+              disabled={followUpBusy}
+              data-follow-up="mailto"
+              onClick={() => void mailtoFollowUpFromDialog()}
+            >
+              {exportFollowUpMail}
+            </Button>
+          </>
+        }
+      >
+        <div className="rec-follow-up" data-recording="follow-up-dialog">
+          {followUpWeak.length > 0 ? (
+            <>
+              <p className="rec-follow-up__note">
+                {exportFollowUpWeak.replace("{count}", String(followUpWeak.length))}
+              </p>
+              <ul className="rec-follow-up__weak">
+                {followUpWeak.map((t) => (
+                  <li key={t}>{t}</li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+          <label className="dy-field">
+            <span className="dy-field__label">{exportFollowUpSubject}</span>
+            <input
+              className="dy-input"
+              value={followUpSubject}
+              onChange={(e) => setFollowUpSubject(e.target.value)}
+              data-follow-up="subject"
+            />
+          </label>
+          <label className="dy-field">
+            <span className="dy-field__label">{exportFollowUpBody}</span>
+            <textarea
+              className="dy-textarea"
+              value={followUpBody}
+              onChange={(e) => setFollowUpBody(e.target.value)}
+              data-follow-up="body"
+            />
+          </label>
+        </div>
+      </Dialog>
 
       <Dialog
         open={renameOpen}

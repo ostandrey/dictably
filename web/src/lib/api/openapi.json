@@ -681,7 +681,99 @@
           "media"
         ],
         "summary": "Upload Media",
+        "description": "Upload one recording, or several as one Zoom-style meeting (T-035b).\n\nForm: `file` and/or `files`; `meeting_bundle=1` (or 2+ files) \u2192 one media, each file a speaker.",
         "operationId": "upload_media_api_media_post",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "dictably_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Session"
+            }
+          },
+          {
+            "name": "dictably_csrf",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_media_api_media_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/media/probe": {
+      "post": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Probe Media Upload",
+        "description": "Probe audio tracks before upload (T-035 S3). Does not store the file.",
+        "operationId": "probe_media_upload_api_media_probe_post",
         "parameters": [
           {
             "name": "X-CSRF-Token",
@@ -737,18 +829,18 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_media_api_media_post"
+                "$ref": "#/components/schemas/Body_probe_media_upload_api_media_probe_post"
               }
             }
           }
         },
         "responses": {
-          "201": {
+          "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MediaOut"
+                  "$ref": "#/components/schemas/MediaProbeOut"
                 }
               }
             }
@@ -801,6 +893,105 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Patch Media",
+        "operationId": "patch_media_api_media__media_id__patch",
+        "parameters": [
+          {
+            "name": "media_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Media Id"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "dictably_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Session"
+            }
+          },
+          {
+            "name": "dictably_csrf",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MediaPatchIn"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1090,6 +1281,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AnalysisRegenerateIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1288,6 +1496,422 @@
         }
       }
     },
+    "/api/media/{media_id}/speakers/merge": {
+      "post": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Merge Speakers",
+        "operationId": "merge_speakers_api_media__media_id__speakers_merge_post",
+        "parameters": [
+          {
+            "name": "media_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Media Id"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "dictably_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Session"
+            }
+          },
+          {
+            "name": "dictably_csrf",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeakersMergeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SpeakerOut"
+                  },
+                  "title": "Response Merge Speakers Api Media  Media Id  Speakers Merge Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/media/{media_id}/segments/{segment_id}/speaker": {
+      "patch": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Patch Segment Speaker",
+        "operationId": "patch_segment_speaker_api_media__media_id__segments__segment_id__speaker_patch",
+        "parameters": [
+          {
+            "name": "media_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Media Id"
+            }
+          },
+          {
+            "name": "segment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Segment Id"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "dictably_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Session"
+            }
+          },
+          {
+            "name": "dictably_csrf",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SegmentSpeakerIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranscriptOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/media/{media_id}/segments/{segment_id}/split-speaker": {
+      "post": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Split Segment Speaker",
+        "operationId": "split_segment_speaker_api_media__media_id__segments__segment_id__split_speaker_post",
+        "parameters": [
+          {
+            "name": "media_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Media Id"
+            }
+          },
+          {
+            "name": "segment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Segment Id"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "dictably_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Session"
+            }
+          },
+          {
+            "name": "dictably_csrf",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranscriptOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/media/{media_id}/words": {
+      "patch": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Patch Word",
+        "operationId": "patch_word_api_media__media_id__words_patch",
+        "parameters": [
+          {
+            "name": "media_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Media Id"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "dictably_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Session"
+            }
+          },
+          {
+            "name": "dictably_csrf",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WordEditIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranscriptOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/media/{media_id}/audio": {
       "get": {
         "tags": [
@@ -1305,6 +1929,146 @@
               "format": "uuid",
               "title": "Media Id"
             }
+          },
+          {
+            "name": "dictably_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/media/{media_id}/follow-up": {
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Follow Up Email",
+        "description": "Draft follow-up email from latest minutes (T-028). No ASR/LLM call.",
+        "operationId": "follow_up_email_api_media__media_id__follow_up_get",
+        "parameters": [
+          {
+            "name": "media_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Media Id"
+            }
+          },
+          {
+            "name": "dictably_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dictably Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowUpEmailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/media/{media_id}/export": {
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Export Media",
+        "description": "Download minutes or transcript export (T-017). Foreign media \u2192 404.",
+        "operationId": "export_media_api_media__media_id__export_get",
+        "parameters": [
+          {
+            "name": "media_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Media Id"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "minutes | transcript",
+              "title": "Kind"
+            },
+            "description": "minutes | transcript"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "docx|pdf|md|txt|srt|vtt",
+              "title": "Format"
+            },
+            "description": "docx|pdf|md|txt|srt|vtt"
           },
           {
             "name": "dictably_session",
@@ -2207,6 +2971,11 @@
             "format": "uuid",
             "title": "Media Id"
           },
+          "template": {
+            "type": "string",
+            "title": "Template",
+            "default": "default"
+          },
           "provider": {
             "type": "string",
             "title": "Provider"
@@ -2246,6 +3015,58 @@
         ],
         "title": "AnalysisOut"
       },
+      "AnalysisRegenerateIn": {
+        "properties": {
+          "template": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template"
+          }
+        },
+        "type": "object",
+        "title": "AnalysisRegenerateIn"
+      },
+      "AudioTrackOut": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "channels": {
+            "type": "integer",
+            "title": "Channels",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "label"
+        ],
+        "title": "AudioTrackOut"
+      },
       "AuthConfigOut": {
         "properties": {
           "google": {
@@ -2264,7 +3085,7 @@
         ],
         "title": "AuthConfigOut"
       },
-      "Body_upload_media_api_media_post": {
+      "Body_probe_media_upload_api_media_probe_post": {
         "properties": {
           "file": {
             "type": "string",
@@ -2276,6 +3097,105 @@
         "required": [
           "file"
         ],
+        "title": "Body_probe_media_upload_api_media_probe_post"
+      },
+      "Body_upload_media_api_media_post": {
+        "properties": {
+          "file": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "files": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "contentMediaType": "application/octet-stream"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "speakers_expected": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speakers Expected"
+          },
+          "vocabulary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vocabulary"
+          },
+          "audio_stream_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Stream Index"
+          },
+          "meeting_bundle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meeting Bundle"
+          },
+          "minutes_template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minutes Template"
+          }
+        },
+        "type": "object",
         "title": "Body_upload_media_api_media_post"
       },
       "ConsentIn": {
@@ -2363,6 +3283,42 @@
         },
         "type": "object",
         "title": "DevLoginIn"
+      },
+      "FollowUpEmailOut": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "weak_skipped": {
+            "type": "integer",
+            "title": "Weak Skipped",
+            "default": 0
+          },
+          "weak_texts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Weak Texts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "body",
+          "language"
+        ],
+        "title": "FollowUpEmailOut",
+        "description": "Draft follow-up email from stored minutes (T-028)."
       },
       "HTTPValidationError": {
         "properties": {
@@ -2469,6 +3425,57 @@
             "type": "integer",
             "title": "Speaker Count",
             "default": 0
+          },
+          "meeting_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meeting Date"
+          },
+          "speakers_expected": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speakers Expected"
+          },
+          "quality_warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Warning"
+          },
+          "vocabulary": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Vocabulary"
+          },
+          "transcript_mode": {
+            "type": "string",
+            "title": "Transcript Mode",
+            "default": "clean"
+          },
+          "minutes_template": {
+            "type": "string",
+            "title": "Minutes Template",
+            "default": "default"
           }
         },
         "type": "object",
@@ -2482,6 +3489,106 @@
           "created_at"
         ],
         "title": "MediaOut"
+      },
+      "MediaPatchIn": {
+        "properties": {
+          "meeting_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meeting Date"
+          },
+          "vocabulary": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vocabulary"
+          },
+          "transcript_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcript Mode"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "speakers_expected": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speakers Expected"
+          },
+          "minutes_template": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minutes Template"
+          }
+        },
+        "type": "object",
+        "title": "MediaPatchIn"
+      },
+      "MediaProbeOut": {
+        "properties": {
+          "audio_tracks": {
+            "items": {
+              "$ref": "#/components/schemas/AudioTrackOut"
+            },
+            "type": "array",
+            "title": "Audio Tracks"
+          },
+          "needs_track_choice": {
+            "type": "boolean",
+            "title": "Needs Track Choice",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "MediaProbeOut"
       },
       "MinutesAgreementOut": {
         "properties": {
@@ -2510,6 +3617,83 @@
               }
             ],
             "title": "Start Ms"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id"
+          },
+          "agenda_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agenda Ref"
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "condition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition"
+          },
+          "verify": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verify"
+          },
+          "verify_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verify Reason"
           }
         },
         "type": "object",
@@ -2518,6 +3702,52 @@
           "text"
         ],
         "title": "MinutesAgreementOut"
+      },
+      "MinutesParticipantOut": {
+        "properties": {
+          "speaker": {
+            "type": "string",
+            "title": "Speaker"
+          },
+          "suggested_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Name"
+          },
+          "suggested_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Role"
+          },
+          "party_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "speaker"
+        ],
+        "title": "MinutesParticipantOut"
       },
       "MinutesPartyOut": {
         "properties": {
@@ -2560,6 +3790,94 @@
               }
             ],
             "title": "Start Ms"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id"
+          },
+          "agenda_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agenda Ref"
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "condition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition"
+          },
+          "importance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importance"
+          },
+          "verify": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verify"
+          },
+          "verify_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verify Reason"
           }
         },
         "type": "object",
@@ -2580,6 +3898,11 @@
             "title": "Title",
             "default": "Minutes"
           },
+          "template": {
+            "type": "string",
+            "title": "Template",
+            "default": "default"
+          },
           "parties": {
             "items": {
               "$ref": "#/components/schemas/MinutesPartyOut"
@@ -2587,12 +3910,33 @@
             "type": "array",
             "title": "Parties"
           },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/MinutesParticipantOut"
+            },
+            "type": "array",
+            "title": "Participants"
+          },
           "summary": {
             "items": {
               "$ref": "#/components/schemas/MinutesPointOut"
             },
             "type": "array",
             "title": "Summary"
+          },
+          "agenda": {
+            "items": {
+              "$ref": "#/components/schemas/MinutesPointOut"
+            },
+            "type": "array",
+            "title": "Agenda"
+          },
+          "heard": {
+            "items": {
+              "$ref": "#/components/schemas/MinutesPointOut"
+            },
+            "type": "array",
+            "title": "Heard"
           },
           "decisions": {
             "items": {
@@ -2672,6 +4016,17 @@
             ],
             "title": "Due Text"
           },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
           "start_ms": {
             "anyOf": [
               {
@@ -2682,6 +4037,88 @@
               }
             ],
             "title": "Start Ms"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id"
+          },
+          "agenda_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agenda Ref"
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "condition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition"
+          },
+          "verify": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verify"
+          },
+          "verify_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verify Reason"
+          },
+          "external": {
+            "type": "boolean",
+            "title": "External",
+            "default": false
           }
         },
         "type": "object",
@@ -2721,6 +4158,20 @@
         },
         "type": "object",
         "title": "OnboardingIn"
+      },
+      "SegmentSpeakerIn": {
+        "properties": {
+          "speaker_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Speaker Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "speaker_id"
+        ],
+        "title": "SegmentSpeakerIn"
       },
       "SpeakerOut": {
         "properties": {
@@ -2797,6 +4248,31 @@
         },
         "type": "object",
         "title": "SpeakerPatchIn"
+      },
+      "SpeakersMergeIn": {
+        "properties": {
+          "keep_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Keep Id"
+          },
+          "merge_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Merge Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "keep_id",
+          "merge_ids"
+        ],
+        "title": "SpeakersMergeIn"
       },
       "TranscriptOut": {
         "properties": {
@@ -3045,6 +4521,11 @@
               }
             ],
             "title": "Onboarding Skipped At"
+          },
+          "preferred_minutes_template": {
+            "type": "string",
+            "title": "Preferred Minutes Template",
+            "default": "default"
           }
         },
         "type": "object",
@@ -3096,6 +4577,27 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WordEditIn": {
+        "properties": {
+          "word_index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Word Index"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "word_index",
+          "text"
+        ],
+        "title": "WordEditIn"
       }
     }
   }

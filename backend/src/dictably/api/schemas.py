@@ -234,6 +234,16 @@ class AnalysisOut(BaseModel):
     result: MinutesResultOut
 
 
+class FollowUpEmailOut(BaseModel):
+    """Draft follow-up email from stored minutes (T-028)."""
+
+    subject: str
+    body: str
+    language: str
+    weak_skipped: int = 0
+    weak_texts: list[str] = Field(default_factory=list)
+
+
 class AdminUserOut(BaseModel):
     id: UUID
     email: str

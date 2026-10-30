@@ -185,8 +185,33 @@ export interface paths {
         /** List Media */
         get: operations["list_media_api_media_get"];
         put?: never;
-        /** Upload Media */
+        /**
+         * Upload Media
+         * @description Upload one recording, or several as one Zoom-style meeting (T-035b).
+         *
+         *     Form: `file` and/or `files`; `meeting_bundle=1` (or 2+ files) → one media, each file a speaker.
+         */
         post: operations["upload_media_api_media_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/probe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Probe Media Upload
+         * @description Probe audio tracks before upload (T-035 S3). Does not store the file.
+         */
+        post: operations["probe_media_upload_api_media_probe_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -208,7 +233,8 @@ export interface paths {
         delete: operations["delete_media_api_media__media_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Patch Media */
+        patch: operations["patch_media_api_media__media_id__patch"];
         trace?: never;
     };
     "/api/media/{media_id}/transcript": {
@@ -280,6 +306,74 @@ export interface paths {
         patch: operations["patch_speaker_api_media__media_id__speakers__speaker_id__patch"];
         trace?: never;
     };
+    "/api/media/{media_id}/speakers/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Merge Speakers */
+        post: operations["merge_speakers_api_media__media_id__speakers_merge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/{media_id}/segments/{segment_id}/speaker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Segment Speaker */
+        patch: operations["patch_segment_speaker_api_media__media_id__segments__segment_id__speaker_patch"];
+        trace?: never;
+    };
+    "/api/media/{media_id}/segments/{segment_id}/split-speaker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Split Segment Speaker */
+        post: operations["split_segment_speaker_api_media__media_id__segments__segment_id__split_speaker_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/{media_id}/words": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Word */
+        patch: operations["patch_word_api_media__media_id__words_patch"];
+        trace?: never;
+    };
     "/api/media/{media_id}/audio": {
         parameters: {
             query?: never;
@@ -289,6 +383,46 @@ export interface paths {
         };
         /** Get Audio */
         get: operations["get_audio_api_media__media_id__audio_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/{media_id}/follow-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Follow Up Email
+         * @description Draft follow-up email from latest minutes (T-028). No ASR/LLM call.
+         */
+        get: operations["follow_up_email_api_media__media_id__follow_up_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/{media_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Media
+         * @description Download minutes or transcript export (T-017). Foreign media → 404.
+         */
+        get: operations["export_media_api_media__media_id__export_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -573,6 +707,11 @@ export interface components {
              * Format: uuid
              */
             media_id: string;
+            /**
+             * Template
+             * @default default
+             */
+            template: string;
             /** Provider */
             provider: string;
             /** Model */
@@ -589,6 +728,25 @@ export interface components {
             regenerations_left: number;
             result: components["schemas"]["MinutesResultOut"];
         };
+        /** AnalysisRegenerateIn */
+        AnalysisRegenerateIn: {
+            /** Template */
+            template?: string | null;
+        };
+        /** AudioTrackOut */
+        AudioTrackOut: {
+            /** Index */
+            index: number;
+            /** Label */
+            label: string;
+            /** Language */
+            language?: string | null;
+            /**
+             * Channels
+             * @default 1
+             */
+            channels: number;
+        };
         /** AuthConfigOut */
         AuthConfigOut: {
             /** Google */
@@ -596,10 +754,29 @@ export interface components {
             /** Dev Login */
             dev_login: boolean;
         };
+        /** Body_probe_media_upload_api_media_probe_post */
+        Body_probe_media_upload_api_media_probe_post: {
+            /** File */
+            file: string;
+        };
         /** Body_upload_media_api_media_post */
         Body_upload_media_api_media_post: {
             /** File */
-            file: string;
+            file?: string | null;
+            /** Files */
+            files?: string[] | null;
+            /** Language */
+            language?: string | null;
+            /** Speakers Expected */
+            speakers_expected?: number | null;
+            /** Vocabulary */
+            vocabulary?: string | null;
+            /** Audio Stream Index */
+            audio_stream_index?: number | null;
+            /** Meeting Bundle */
+            meeting_bundle?: string | null;
+            /** Minutes Template */
+            minutes_template?: string | null;
         };
         /** ConsentIn */
         ConsentIn: {
@@ -632,6 +809,25 @@ export interface components {
              * @default Dev User
              */
             name: string | null;
+        };
+        /**
+         * FollowUpEmailOut
+         * @description Draft follow-up email from stored minutes (T-028).
+         */
+        FollowUpEmailOut: {
+            /** Subject */
+            subject: string;
+            /** Body */
+            body: string;
+            /** Language */
+            language: string;
+            /**
+             * Weak Skipped
+             * @default 0
+             */
+            weak_skipped: number;
+            /** Weak Texts */
+            weak_texts?: string[];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -686,7 +882,37 @@ export interface components {
              * Transcript Mode
              * @default clean
              */
-            transcript_mode?: string;
+            transcript_mode: string;
+            /**
+             * Minutes Template
+             * @default default
+             */
+            minutes_template: string;
+        };
+        /** MediaPatchIn */
+        MediaPatchIn: {
+            /** Meeting Date */
+            meeting_date?: string | null;
+            /** Vocabulary */
+            vocabulary?: string[] | null;
+            /** Transcript Mode */
+            transcript_mode?: string | null;
+            /** Language */
+            language?: string | null;
+            /** Speakers Expected */
+            speakers_expected?: number | null;
+            /** Minutes Template */
+            minutes_template?: string | null;
+        };
+        /** MediaProbeOut */
+        MediaProbeOut: {
+            /** Audio Tracks */
+            audio_tracks?: components["schemas"]["AudioTrackOut"][];
+            /**
+             * Needs Track Choice
+             * @default false
+             */
+            needs_track_choice: boolean;
         };
         /** MinutesAgreementOut */
         MinutesAgreementOut: {
@@ -698,6 +924,31 @@ export interface components {
             segment_ids?: string[];
             /** Start Ms */
             start_ms?: number | null;
+            /** Item Id */
+            item_id?: string | null;
+            /** Agenda Ref */
+            agenda_ref?: string | null;
+            /** Quote */
+            quote?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Condition */
+            condition?: string | null;
+            /** Verify */
+            verify?: string | null;
+            /** Verify Reason */
+            verify_reason?: string | null;
+        };
+        /** MinutesParticipantOut */
+        MinutesParticipantOut: {
+            /** Speaker */
+            speaker: string;
+            /** Suggested Name */
+            suggested_name?: string | null;
+            /** Suggested Role */
+            suggested_role?: string | null;
+            /** Party Id */
+            party_id?: string | null;
         };
         /** MinutesPartyOut */
         MinutesPartyOut: {
@@ -714,6 +965,22 @@ export interface components {
             segment_ids?: string[];
             /** Start Ms */
             start_ms?: number | null;
+            /** Item Id */
+            item_id?: string | null;
+            /** Agenda Ref */
+            agenda_ref?: string | null;
+            /** Quote */
+            quote?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Condition */
+            condition?: string | null;
+            /** Importance */
+            importance?: string | null;
+            /** Verify */
+            verify?: string | null;
+            /** Verify Reason */
+            verify_reason?: string | null;
         };
         /** MinutesResultOut */
         MinutesResultOut: {
@@ -727,10 +994,21 @@ export interface components {
              * @default Minutes
              */
             title: string;
+            /**
+             * Template
+             * @default default
+             */
+            template: string;
             /** Parties */
             parties?: components["schemas"]["MinutesPartyOut"][];
+            /** Participants */
+            participants?: components["schemas"]["MinutesParticipantOut"][];
             /** Summary */
             summary?: components["schemas"]["MinutesPointOut"][];
+            /** Agenda */
+            agenda?: components["schemas"]["MinutesPointOut"][];
+            /** Heard */
+            heard?: components["schemas"]["MinutesPointOut"][];
             /** Decisions */
             decisions?: components["schemas"]["MinutesPointOut"][];
             /** Agreements */
@@ -754,8 +1032,29 @@ export interface components {
             owner_speaker?: string | null;
             /** Due Text */
             due_text?: string | null;
+            /** Due Date */
+            due_date?: string | null;
             /** Start Ms */
             start_ms?: number | null;
+            /** Item Id */
+            item_id?: string | null;
+            /** Agenda Ref */
+            agenda_ref?: string | null;
+            /** Quote */
+            quote?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Condition */
+            condition?: string | null;
+            /** Verify */
+            verify?: string | null;
+            /** Verify Reason */
+            verify_reason?: string | null;
+            /**
+             * External
+             * @default false
+             */
+            external: boolean;
         };
         /** OnboardingIn */
         OnboardingIn: {
@@ -768,6 +1067,14 @@ export interface components {
             use_cases?: string[];
             /** Meeting Locale */
             meeting_locale?: string | null;
+        };
+        /** SegmentSpeakerIn */
+        SegmentSpeakerIn: {
+            /**
+             * Speaker Id
+             * Format: uuid
+             */
+            speaker_id: string;
         };
         /** SpeakerOut */
         SpeakerOut: {
@@ -794,6 +1101,16 @@ export interface components {
             display_name?: string | null;
             /** Party */
             party?: string | null;
+        };
+        /** SpeakersMergeIn */
+        SpeakersMergeIn: {
+            /**
+             * Keep Id
+             * Format: uuid
+             */
+            keep_id: string;
+            /** Merge Ids */
+            merge_ids: string[];
         };
         /** TranscriptOut */
         TranscriptOut: {
@@ -890,7 +1207,7 @@ export interface components {
              * Preferred Minutes Template
              * @default default
              */
-            preferred_minutes_template?: string;
+            preferred_minutes_template: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -904,6 +1221,13 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** WordEditIn */
+        WordEditIn: {
+            /** Word Index */
+            word_index: number;
+            /** Text */
+            text: string;
         };
     };
     responses: never;
@@ -1299,7 +1623,7 @@ export interface operations {
                 dictably_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "multipart/form-data": components["schemas"]["Body_upload_media_api_media_post"];
             };
@@ -1312,6 +1636,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MediaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    probe_media_upload_api_media_probe_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_probe_media_upload_api_media_probe_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaProbeOut"];
                 };
             };
             /** @description Validation Error */
@@ -1380,6 +1742,46 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_media_api_media__media_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaPatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaOut"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -1472,7 +1874,11 @@ export interface operations {
                 dictably_csrf?: string | null;
             };
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AnalysisRegenerateIn"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -1568,9 +1974,238 @@ export interface operations {
             };
         };
     };
+    merge_speakers_api_media__media_id__speakers_merge_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpeakersMergeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpeakerOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_segment_speaker_api_media__media_id__segments__segment_id__speaker_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                media_id: string;
+                segment_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SegmentSpeakerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscriptOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    split_segment_speaker_api_media__media_id__segments__segment_id__split_speaker_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                media_id: string;
+                segment_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscriptOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_word_api_media__media_id__words_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WordEditIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscriptOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_audio_api_media__media_id__audio_get: {
         parameters: {
             query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    follow_up_email_api_media__media_id__follow_up_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowUpEmailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_media_api_media__media_id__export_get: {
+        parameters: {
+            query: {
+                /** @description minutes | transcript */
+                kind: string;
+                /** @description docx|pdf|md|txt|srt|vtt */
+                format: string;
+            };
             header?: never;
             path: {
                 media_id: string;
