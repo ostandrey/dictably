@@ -44,6 +44,56 @@ async def process_media(
     return {"media_id": media_id, "status": "ok"}
 
 
+async def purge_expired_originals(_ctx: dict[str, Any]) -> dict[str, Any]:
+    """T-038: drop originals after retention when playback copy exists."""
+    from dictably.core.config import get_settings
+    from dictably.db.session import get_session_factory
+    from dictably.domain import media as media_domain
+    from dictably.providers.factory import get_storage_provider
+
+    settings = get_settings()
+    factory = get_session_factory(settings)
+    storage = get_storage_provider(settings)
+    async with factory() as session:
+        n = await media_domain.purge_expired_originals(
+            session, storage, retention_days=settings.original_retention_days
+        )
+    return {"purged": n}
+
+
+async def fair_queue_tick(_ctx: dict[str, Any]) -> dict[str, Any]:
+    """T-038 B1: start waiting jobs; fail stale dispatched/running."""
+    from dictably.core.config import get_settings
+    from dictably.db.session import get_session_factory
+
+    settings = get_settings()
+    factory = get_session_factory(settings)
+    async with factory() as session:
+        return await process_domain.fair_queue_maintenance(session, settings=settings)
+
+
+async def ops_alert_tick(_ctx: dict[str, Any]) -> dict[str, Any]:
+    """T-038 B4: check queue / error thresholds every 5 minutes."""
+    from dictably.domain import ops as ops_domain
+
+    return await ops_domain.cron_ops_check()
+
+
+async def abandon_uploads_tick(_ctx: dict[str, Any]) -> dict[str, Any]:
+    """T-038 S1: abort uploading rows older than 24h."""
+    from dictably.core.config import get_settings
+    from dictably.db.session import get_session_factory
+    from dictably.domain import media as media_domain
+    from dictably.providers.factory import get_storage_provider
+
+    settings = get_settings()
+    factory = get_session_factory(settings)
+    storage = get_storage_provider(settings)
+    async with factory() as session:
+        n = await media_domain.abandon_stale_uploads(session, storage)
+    return {"abandoned": n}
+
+
 async def enqueue_ping(redis: ArqRedis, message: str = "pong") -> str:
     job = await redis.enqueue_job("ping", message)
     assert job is not None

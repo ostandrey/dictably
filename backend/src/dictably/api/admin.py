@@ -17,6 +17,7 @@ from dictably.api.schemas import (
     AdminJobOut,
     AdminMediaListOut,
     AdminMediaOut,
+    AdminOpsOut,
     AdminUserListOut,
     AdminUserOut,
 )
@@ -25,6 +26,7 @@ from dictably.db.models import Job, User
 from dictably.db.session import get_db
 from dictably.domain import admin as admin_domain
 from dictably.domain import analytics as analytics_domain
+from dictably.domain import ops as ops_domain
 from dictably.providers.factory import get_storage_provider
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -182,3 +184,13 @@ async def admin_funnel(
     window = 30 if days >= 30 else 7
     data = await analytics_domain.funnel_report(session, days=window)
     return AdminFunnelOut.model_validate(data)
+
+
+@router.get("/ops", response_model=AdminOpsOut)
+async def admin_ops(
+    session: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[User, Depends(require_admin)],
+) -> AdminOpsOut:
+    """Queue / errors / disk monitoring (T-038)."""
+    data = await ops_domain.ops_report(session, settings=get_settings(), send_alerts=False)
+    return AdminOpsOut.model_validate(data)

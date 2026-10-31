@@ -31,8 +31,24 @@ export type AdminFunnel = {
     users: number;
     pct_signups: number;
     pct_prev: number;
+    branch_of?: string | null;
   }[];
   sources: { source: string; users: number }[];
+};
+
+export type AdminOps = {
+  queue_length: number;
+  running: number;
+  media_queued: number;
+  succeeded_24h: number;
+  failed_24h: number;
+  error_rate_pct: number;
+  avg_process_seconds: number | null;
+  disk_free_gb: number | null;
+  disk_total_gb: number | null;
+  storage_provider: string;
+  alert_queue_threshold: number;
+  alert_error_rate_pct: number;
 };
 
 export type {
@@ -430,6 +446,10 @@ export function adminFunnel(days: 7 | 30 = 7): Promise<AdminFunnel> {
   return apiFetch<AdminFunnel>(`/api/admin/funnel?days=${days}`);
 }
 
+export function adminOps(): Promise<AdminOps> {
+  return apiFetch<AdminOps>("/api/admin/ops");
+}
+
 type UploadOptions = {
   onProgress?: (pct: number) => void;
   signal?: AbortSignal;
@@ -445,13 +465,202 @@ export type UploadMediaOptions = UploadOptions & {
   meetingBundle?: boolean;
 };
 
-/** POST /api/media — multipart stream with upload progress (XHR). */
-export function uploadMedia(
+const MULTIPART_CONCURRENCY = 4;
+const PART_RETRIES = 3;
+
+async function abortDirectUpload(mediaId: string): Promise<void> {
+  try {
+    await apiFetch<void>(`/api/media/${mediaId}/upload-abort`, { method: "POST" });
+  } catch {
+    // best-effort
+  }
+}
+
+async function putWithRetry(
+  url: string,
+  body: Blob,
+  signal: AbortSignal | undefined,
+  retries: number,
+): Promise<string> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    try {
+      const put = await fetch(url, { method: "PUT", body, signal });
+      if (!put.ok) {
+        throw new ApiError(`Part upload failed ${put.status}`, put.status);
+      }
+      return put.headers.get("etag") || put.headers.get("ETag") || "";
+    } catch (err) {
+      lastErr = err;
+      if (err instanceof DOMException && err.name === "AbortError") throw err;
+      if (attempt === retries - 1) break;
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new ApiError("Part upload failed", 0);
+}
+
+async function uploadMediaDirect(
+  file: File,
+  options: UploadMediaOptions,
+): Promise<MediaItem> {
+  const intent = await apiFetch<{
+    media_id: string;
+    mode: string;
+    url?: string;
+    headers?: Record<string, string>;
+    upload_id?: string;
+    parts?: { part_number: number; url: string }[];
+    part_size?: number;
+  }>("/api/media/upload-intent", {
+    method: "POST",
+    body: JSON.stringify({
+      filename: file.name,
+      content_type: file.type || null,
+      size_bytes: file.size,
+    }),
+  });
+
+  const onAbort = () => {
+    void abortDirectUpload(intent.media_id);
+  };
+  if (options.signal) {
+    if (options.signal.aborted) {
+      await abortDirectUpload(intent.media_id);
+      throw new DOMException("Aborted", "AbortError");
+    }
+    options.signal.addEventListener("abort", onAbort, { once: true });
+  }
+
+  try {
+    if (intent.mode === "multipart" && intent.parts?.length) {
+      const partSize = intent.part_size ?? 16 * 1024 * 1024;
+      const completed: { part_number: number; etag: string }[] = [];
+      const uploadedBytes = { n: 0 };
+      const queue = [...intent.parts];
+
+      async function worker() {
+        while (queue.length) {
+          if (options.signal?.aborted) {
+            throw new DOMException("Aborted", "AbortError");
+          }
+          const part = queue.shift();
+          if (!part) return;
+          const start = (part.part_number - 1) * partSize;
+          const blob = file.slice(start, start + partSize);
+          const etag = await putWithRetry(
+            part.url,
+            blob,
+            options.signal,
+            PART_RETRIES,
+          );
+          completed.push({ part_number: part.part_number, etag });
+          uploadedBytes.n += blob.size;
+          if (options.onProgress) {
+            options.onProgress(
+              Math.min(99, Math.round((100 * uploadedBytes.n) / file.size)),
+            );
+          }
+        }
+      }
+
+      const workers = Array.from(
+        { length: Math.min(MULTIPART_CONCURRENCY, intent.parts.length) },
+        () => worker(),
+      );
+      await Promise.all(workers);
+      completed.sort((a, b) => a.part_number - b.part_number);
+
+      return apiFetch<MediaItem>(
+        `/api/media/${intent.media_id}/upload-complete`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            upload_id: intent.upload_id,
+            parts: completed,
+            language: options.language,
+            speakers_expected: options.speakersExpected,
+            vocabulary: options.vocabulary,
+            minutes_template: options.minutesTemplate,
+          }),
+        },
+      );
+    }
+
+    if (!intent.url) {
+      throw new ApiError("Missing presigned URL", 500);
+    }
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", intent.url!);
+      const headers = intent.headers ?? {};
+      for (const [k, v] of Object.entries(headers)) {
+        xhr.setRequestHeader(k, v);
+      }
+      xhr.upload.onprogress = (ev) => {
+        if (!ev.lengthComputable || !options.onProgress) return;
+        options.onProgress(
+          Math.min(99, Math.round((ev.loaded / ev.total) * 100)),
+        );
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+          return;
+        }
+        reject(new ApiError(`${xhr.status} ${xhr.statusText}`, xhr.status));
+      };
+      xhr.onerror = () => reject(new ApiError("Network error", 0));
+      xhr.onabort = () => reject(new DOMException("Aborted", "AbortError"));
+      if (options.signal) {
+        options.signal.addEventListener("abort", () => xhr.abort(), {
+          once: true,
+        });
+      }
+      xhr.send(file);
+    });
+
+    return apiFetch<MediaItem>(
+      `/api/media/${intent.media_id}/upload-complete`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          language: options.language,
+          speakers_expected: options.speakersExpected,
+          vocabulary: options.vocabulary,
+          minutes_template: options.minutesTemplate,
+        }),
+      },
+    );
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      await abortDirectUpload(intent.media_id);
+    }
+    throw err;
+  } finally {
+    options.signal?.removeEventListener("abort", onAbort);
+  }
+}
+
+/** POST /api/media — multipart through API, or direct presigned PUT when R2/S3. */
+export async function uploadMedia(
   fileOrFiles: File | File[],
   options: UploadMediaOptions = {},
 ): Promise<MediaItem> {
   const files = Array.isArray(fileOrFiles) ? fileOrFiles : [fileOrFiles];
   const bundle = Boolean(options.meetingBundle) && files.length >= 2;
+
+  if (!bundle && files.length === 1) {
+    try {
+      const cfg = await getAuthConfig();
+      if ((cfg as { direct_upload?: boolean }).direct_upload) {
+        return uploadMediaDirect(files[0]!, options);
+      }
+    } catch {
+      // Fall through to proxy upload.
+    }
+  }
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();

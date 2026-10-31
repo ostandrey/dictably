@@ -10,11 +10,13 @@ import {
   adminListJobs,
   adminListMedia,
   adminListUsers,
+  adminOps,
   adminRetryJob,
   type AdminCosts,
   type AdminFunnel,
   type AdminJob,
   type AdminMedia,
+  type AdminOps,
   type AdminUser,
 } from "@/lib/api";
 
@@ -24,6 +26,16 @@ export type AdminCopy = {
   tabJobs: string;
   tabCosts: string;
   tabFunnel: string;
+  tabOps: string;
+  opsQueue: string;
+  opsRunning: string;
+  opsMediaQueued: string;
+  opsSucceeded: string;
+  opsFailed: string;
+  opsErrorRate: string;
+  opsAvgProcess: string;
+  opsDisk: string;
+  opsStorage: string;
   funnelUsers: string;
   funnelStep: string;
   funnelPctSignups: string;
@@ -67,7 +79,7 @@ export type AdminCopy = {
   actionError: string;
 };
 
-type Tab = "users" | "media" | "jobs" | "costs" | "funnel";
+type Tab = "users" | "media" | "jobs" | "costs" | "funnel" | "ops";
 
 type Props = {
   copy: AdminCopy;
@@ -107,6 +119,7 @@ export function AdminPanel({ copy }: Props) {
   const [jobs, setJobs] = useState<AdminJob[]>([]);
   const [costs, setCosts] = useState<AdminCosts | null>(null);
   const [funnel, setFunnel] = useState<AdminFunnel | null>(null);
+  const [ops, setOps] = useState<AdminOps | null>(null);
   const [failedOnly, setFailedOnly] = useState(true);
   const [costPeriod, setCostPeriod] = useState<"day" | "month">("day");
   const [funnelDays, setFunnelDays] = useState<7 | 30>(7);
@@ -130,6 +143,8 @@ export function AdminPanel({ copy }: Props) {
         setJobs(res.items);
       } else if (tab === "funnel") {
         setFunnel(await adminFunnel(funnelDays));
+      } else if (tab === "ops") {
+        setOps(await adminOps());
       } else {
         setCosts(await adminCosts(costPeriod));
       }
@@ -192,28 +207,32 @@ export function AdminPanel({ copy }: Props) {
 
   return (
     <div className="admin-panel" data-admin="panel">
-      <div className="dy-tabs" role="tablist" aria-label="Admin sections">
-        {(
-          [
-            ["users", copy.tabUsers],
-            ["media", copy.tabRecordings],
-            ["jobs", copy.tabJobs],
-            ["funnel", copy.tabFunnel],
-            ["costs", copy.tabCosts],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            className="dy-tab"
-            aria-selected={tab === id}
-            data-admin={`tab-${id}`}
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
-        ))}
+      {/* S6: scrollport so .dy-tabs min-content cannot widen the page past 375. */}
+      <div className="admin-panel__tabs-scroll">
+        <div className="dy-tabs" role="tablist" aria-label="Admin sections">
+          {(
+            [
+              ["users", copy.tabUsers],
+              ["media", copy.tabRecordings],
+              ["jobs", copy.tabJobs],
+              ["funnel", copy.tabFunnel],
+              ["ops", copy.tabOps],
+              ["costs", copy.tabCosts],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              className="dy-tab"
+              aria-selected={tab === id}
+              data-admin={`tab-${id}`}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {(tab === "media" || tab === "jobs") && (
@@ -238,11 +257,11 @@ export function AdminPanel({ copy }: Props) {
       )}
 
       {tab === "funnel" && (
-        <div className="admin-seg" role="tablist" aria-label={copy.tabFunnel}>
+        <div className="dy-tabs" role="tablist" aria-label={copy.tabFunnel}>
           <button
             type="button"
             role="tab"
-            className="admin-seg__btn"
+            className="dy-tab"
             aria-selected={funnelDays === 7}
             data-admin="funnel-7"
             onClick={() => setFunnelDays(7)}
@@ -252,7 +271,7 @@ export function AdminPanel({ copy }: Props) {
           <button
             type="button"
             role="tab"
-            className="admin-seg__btn"
+            className="dy-tab"
             aria-selected={funnelDays === 30}
             data-admin="funnel-30"
             onClick={() => setFunnelDays(30)}
@@ -464,8 +483,20 @@ export function AdminPanel({ copy }: Props) {
               </thead>
               <tbody>
                 {funnel.steps.map((s) => (
-                  <tr key={s.name}>
-                    <td className="admin-table__primary">
+                  <tr
+                    key={s.name}
+                    className={
+                      s.branch_of ? "admin-funnel__branch" : undefined
+                    }
+                    data-branch={s.branch_of ?? undefined}
+                  >
+                    <td
+                      className={
+                        s.branch_of
+                          ? "admin-table__primary admin-funnel__branch-label"
+                          : "admin-table__primary"
+                      }
+                    >
                       {funnelStepLabel(copy, s.name)}
                     </td>
                     <td className="dy-time">{s.users}</td>
@@ -500,6 +531,55 @@ export function AdminPanel({ copy }: Props) {
             </div>
           )}
         </div>
+      )}
+
+      {!loading && tab === "ops" && ops && (
+        <dl className="admin-costs" data-admin="ops">
+          <div>
+            <dt>{copy.opsQueue}</dt>
+            <dd className="dy-time">{ops.queue_length}</dd>
+          </div>
+          <div>
+            <dt>{copy.opsRunning}</dt>
+            <dd className="dy-time">{ops.running}</dd>
+          </div>
+          <div>
+            <dt>{copy.opsMediaQueued}</dt>
+            <dd className="dy-time">{ops.media_queued}</dd>
+          </div>
+          <div>
+            <dt>{copy.opsSucceeded}</dt>
+            <dd className="dy-time">{ops.succeeded_24h}</dd>
+          </div>
+          <div>
+            <dt>{copy.opsFailed}</dt>
+            <dd className="dy-time">{ops.failed_24h}</dd>
+          </div>
+          <div>
+            <dt>{copy.opsErrorRate}</dt>
+            <dd className="dy-time">{ops.error_rate_pct.toFixed(1)}%</dd>
+          </div>
+          <div>
+            <dt>{copy.opsAvgProcess}</dt>
+            <dd className="dy-time">
+              {ops.avg_process_seconds != null
+                ? `${ops.avg_process_seconds}s`
+                : "—"}
+            </dd>
+          </div>
+          <div>
+            <dt>{copy.opsDisk}</dt>
+            <dd className="dy-time">
+              {ops.disk_free_gb != null
+                ? `${ops.disk_free_gb} / ${ops.disk_total_gb ?? "?"} GB`
+                : "—"}
+            </dd>
+          </div>
+          <div className="admin-costs__total">
+            <dt>{copy.opsStorage}</dt>
+            <dd className="dy-time">{ops.storage_provider}</dd>
+          </div>
+        </dl>
       )}
 
       {!loading && tab === "costs" && costs && (

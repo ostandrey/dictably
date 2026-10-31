@@ -74,6 +74,7 @@ async def auth_config(settings: Annotated[Settings, Depends(get_settings)]) -> A
     return AuthConfigOut(
         google=settings.google_oauth_configured,
         dev_login=settings.dev_login_enabled,
+        direct_upload=settings.storage_provider.lower().strip() in {"r2", "s3"},
     )
 
 

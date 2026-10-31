@@ -182,18 +182,23 @@ async def funnel_report(session: AsyncSession, *, days: int = 7) -> dict[str, An
 
     steps: list[dict[str, Any]] = []
     prev_users = cohort_n
+    uploaded_n = len(reached[EVENT_UPLOADED])
     for name in FUNNEL_EVENTS:
         users_n = len(reached[name])
+        if name == EVENT_SIGNED_UP:
+            pct_prev = 100.0 if cohort_n else 0.0
+        elif name == EVENT_PROCESSING_FAILED:
+            # N2: failed is a branch off uploaded, not off ready.
+            pct_prev = _pct(users_n, uploaded_n)
+        else:
+            pct_prev = _pct(users_n, prev_users)
         steps.append(
             {
                 "name": name,
                 "users": users_n,
                 "pct_signups": _pct(users_n, cohort_n),
-                "pct_prev": _pct(users_n, prev_users)
-                if name != EVENT_SIGNED_UP
-                else 100.0
-                if cohort_n
-                else 0.0,
+                "pct_prev": pct_prev,
+                "branch_of": EVENT_UPLOADED if name == EVENT_PROCESSING_FAILED else None,
             }
         )
         # processing_failed is a side branch — don't become "previous" for minutes_viewed.

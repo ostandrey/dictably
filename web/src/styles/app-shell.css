@@ -233,29 +233,53 @@
 }
 
 @media (max-width: 767px) {
+  /* S6: flex-basis 560px was forcing document wider than 375. */
   .app-frame {
+    flex-wrap: nowrap;
+    flex-direction: column;
+    max-width: 100%;
+    overflow-x: clip;
     padding-bottom: 64px;
   }
   .app-sidebar {
     display: none;
   }
+  .app-main {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding-inline: 16px;
+  }
   .app-bottom-nav {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
     z-index: 40;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     height: 56px;
     padding-bottom: env(safe-area-inset-bottom);
     background: var(--surface-raised);
     border-top: 1px solid var(--line);
   }
+  /* S6: Admin link must stay on one row (4 equal columns). */
+  .app-bottom-nav:has(> :nth-child(4)) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
   .app-bottom-nav a {
     display: grid;
     place-items: center;
-    font: 500 12px/16px var(--font-sans);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 2px;
+    font: 500 11px/14px var(--font-sans);
     color: var(--ink-muted);
     text-decoration: none;
   }
@@ -727,6 +751,45 @@
   flex-direction: column;
   gap: var(--space-4);
   max-width: 960px;
+  width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+/* S6: scrollport = sunken track + 16px inset; never widens the document. */
+.admin-panel__tabs-scroll {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 3px 16px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-sm);
+  scrollbar-width: thin;
+}
+.admin-panel__tabs-scroll .dy-tabs {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  width: max-content;
+  max-width: none;
+  vertical-align: top;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+.admin-panel__tabs-scroll .dy-tab {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 767px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: clip;
+  }
 }
 
 .admin-panel__filters {
@@ -763,6 +826,14 @@
   box-shadow: var(--focus-ring);
   position: relative;
   z-index: 1;
+}
+
+.admin-funnel__branch {
+  color: var(--ink-muted);
+}
+.admin-funnel__branch-label {
+  padding-inline-start: var(--space-5);
+  font-weight: 400;
 }
 
 .admin-funnel__meta {

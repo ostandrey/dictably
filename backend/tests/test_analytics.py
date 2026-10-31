@@ -117,6 +117,10 @@ async def test_cohort_funnel_excludes_admin_and_dev(client: AsyncClient) -> None
     assert by["processing_ready"]["users"] == 1
     assert by["export_downloaded"]["users"] == 1
     assert by["export_downloaded"]["pct_signups"] == pytest.approx(33.3, abs=0.1)
+    # N2: failed branch % is vs uploaded (0 failed here).
+    assert by["processing_failed"]["branch_of"] == "uploaded"
+    assert by["processing_failed"]["users"] == 0
+    assert by["processing_failed"]["pct_prev"] == 0.0
     # Admin/dev not in sources as separate cohort members beyond the 3.
     assert sum(s["users"] for s in data["sources"]) == 3
 

@@ -7,8 +7,8 @@ import { passAccountGates } from "./utils/auth";
 const backendRoot = path.resolve(process.cwd(), "..", "backend");
 const SHOT_ROOT = path.join("e2e", "__screenshots__", "T-034");
 
-function setAdmin(email: string) {
-  execFileSync("uv", ["run", "python", "-m", "dictably.cli", "set-admin", email], {
+function backendCli(args: string[]) {
+  execFileSync("uv", ["run", "python", "-m", "dictably.cli", ...args], {
     cwd: backendRoot,
     stdio: "pipe",
     shell: true,
@@ -19,6 +19,14 @@ function setAdmin(email: string) {
       COOKIE_SECURE: "0",
     },
   });
+}
+
+function setAdmin(email: string) {
+  backendCli(["set-admin", email]);
+}
+
+function seedFunnel() {
+  backendCli(["seed-funnel"]);
 }
 
 test.describe("T-034 product funnel", () => {
@@ -34,6 +42,7 @@ test.describe("T-034 product funnel", () => {
     const me = await page.request.get("/api/me");
     const email = ((await me.json()) as { email: string }).email;
     setAdmin(email);
+    seedFunnel();
     await page.reload();
     await expect(page.locator("[data-admin='panel']")).toBeVisible({
       timeout: 15_000,
@@ -41,9 +50,16 @@ test.describe("T-034 product funnel", () => {
 
     await page.locator("[data-admin='tab-funnel']").click();
     await expect(page.locator("[data-admin='funnel']")).toBeVisible();
+    await expect(page.locator("[data-admin='loading']")).toHaveCount(0, {
+      timeout: 15_000,
+    });
     await expect(page.locator("[data-admin='funnel-meta']")).toBeVisible();
     await expect(page.locator("[data-admin='funnel-steps']")).toContainText(
       /Signed up|Зареєструвались/,
+    );
+    // N1: seeded cohort — not all zeros.
+    await expect(page.locator("[data-admin='funnel-meta']")).not.toContainText(
+      /^0$/,
     );
     await expect(page.locator("[data-admin='funnel-7']")).toHaveAttribute(
       "aria-selected",

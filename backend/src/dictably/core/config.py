@@ -26,6 +26,32 @@ class Settings(BaseSettings):
     llm_provider: str = Field(default="fake", alias="LLM_PROVIDER")
     storage_provider: str = Field(default="local", alias="STORAGE_PROVIDER")
     local_storage_path: str = Field(default="./data/storage", alias="LOCAL_STORAGE_PATH")
+    # R2 / S3-compatible (T-038). When STORAGE_PROVIDER=r2|s3, browser uses presigned PUT.
+    s3_endpoint_url: str = Field(default="", alias="S3_ENDPOINT_URL")
+    # Browser-facing endpoint for presigned URLs (B7). Empty → same as S3_ENDPOINT_URL.
+    # Dev compose: internal http://minio:9000 + S3_PRESIGN_ENDPOINT_URL=http://127.0.0.1:9000
+    s3_presign_endpoint_url: str = Field(default="", alias="S3_PRESIGN_ENDPOINT_URL")
+    s3_access_key_id: str = Field(default="", alias="S3_ACCESS_KEY_ID")
+    s3_secret_access_key: str = Field(default="", alias="S3_SECRET_ACCESS_KEY")
+    s3_bucket: str = Field(default="", alias="S3_BUCKET")
+    s3_region: str = Field(default="auto", alias="S3_REGION")
+    # Originals deleted after N days once playback copy exists (0 = keep forever).
+    original_retention_days: int = Field(default=30, alias="ORIGINAL_RETENTION_DAYS")
+    # Fair queue (T-038): concurrent process_media jobs per user.
+    fair_queue_limit_free: int = Field(default=1, alias="FAIR_QUEUE_LIMIT_FREE")
+    fair_queue_limit_elevated: int = Field(default=2, alias="FAIR_QUEUE_LIMIT_ELEVATED")
+    fair_queue_treat_all_elevated: bool = Field(
+        default=False, alias="FAIR_QUEUE_TREAT_ALL_ELEVATED"
+    )
+    # Ops alerts (T-038): email when queue or error rate crosses thresholds.
+    alert_email: str = Field(default="", alias="ALERT_EMAIL")
+    alert_queue_threshold: int = Field(default=20, alias="ALERT_QUEUE_THRESHOLD")
+    alert_error_rate_pct: float = Field(default=25.0, alias="ALERT_ERROR_RATE_PCT")
+    smtp_host: str = Field(default="", alias="SMTP_HOST")
+    smtp_port: int = Field(default=587, alias="SMTP_PORT")
+    smtp_user: str = Field(default="", alias="SMTP_USER")
+    smtp_password: str = Field(default="", alias="SMTP_PASSWORD")
+    smtp_from: str = Field(default="alerts@dictably.app", alias="SMTP_FROM")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     # Dev login: only honored when ENV is dev or test (never prod).
     dev_login: bool = Field(default=False, alias="DEV_LOGIN")

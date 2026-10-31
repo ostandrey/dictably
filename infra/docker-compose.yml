@@ -40,8 +40,15 @@ services:
       # Docker network overrides host URLs that may be in backend/.env
       DATABASE_URL: postgresql+asyncpg://dictably:dictably@postgres:5432/dictably
       REDIS_URL: redis://redis:6379/0
-      STORAGE_PROVIDER: local
+      # B5: allow .env / shell to select r2|s3 (MinIO profile); default local
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
       LOCAL_STORAGE_PATH: /data/storage
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_PRESIGN_ENDPOINT_URL: ${S3_PRESIGN_ENDPOINT_URL:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-auto}
       ENV: dev
       DEV_LOGIN: "1"
       PUBLIC_APP_URL: http://127.0.0.1:3000
@@ -61,6 +68,9 @@ services:
       sh -c "alembic upgrade head &&
              uvicorn dictably.main:app --host 0.0.0.0 --port 8000"
 
+  # T-038: processing is a separate service from api. Scale workers with:
+  #   just up-workers 2
+  # or: docker compose -f infra/docker-compose.yml up -d --scale worker=2
   worker:
     build:
       context: ../backend
@@ -70,8 +80,14 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://dictably:dictably@postgres:5432/dictably
       REDIS_URL: redis://redis:6379/0
-      STORAGE_PROVIDER: local
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
       LOCAL_STORAGE_PATH: /data/storage
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_PRESIGN_ENDPOINT_URL: ${S3_PRESIGN_ENDPOINT_URL:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-auto}
       ENV: dev
     volumes:
       - dictably_storage:/data/storage
@@ -81,6 +97,46 @@ services:
       redis:
         condition: service_healthy
     command: ["arq", "dictably.worker.settings.WorkerSettings"]
+
+  # T-038 B5/B7: local S3-compatible store. Start with:
+  #   docker compose -f infra/docker-compose.yml --profile s3 up -d minio minio-init
+  #   STORAGE_PROVIDER=s3 S3_ENDPOINT_URL=http://minio:9000 \
+  #     S3_PRESIGN_ENDPOINT_URL=http://127.0.0.1:9000 \
+  #     S3_ACCESS_KEY_ID=dictably S3_SECRET_ACCESS_KEY=dictablydictably \
+  #     S3_BUCKET=dictably S3_REGION=us-east-1
+  # MinIO CE images left Docker Hub/Quay (2025-10); pin community fork Silo + aws-cli for bucket/CORS.
+  minio:
+    profiles: ["s3"]
+    image: pgsty/silo:RELEASE.2026-10-18T00-00-00Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: dictably
+      MINIO_ROOT_PASSWORD: dictablydictably
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - dictably_minio:/data
+  minio-init:
+    profiles: ["s3"]
+    image: amazon/aws-cli:2.22.35
+    depends_on:
+      - minio
+    environment:
+      AWS_ACCESS_KEY_ID: dictably
+      AWS_SECRET_ACCESS_KEY: dictablydictably
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+          aws --endpoint-url http://minio:9000 s3 mb s3://dictably 2>/dev/null && break
+          sleep 2
+        done
+        printf '%s' '{"CORSRules":[{"AllowedOrigins":["http://127.0.0.1:3000","http://localhost:3000"],"AllowedMethods":["GET","PUT","HEAD","POST","DELETE"],"AllowedHeaders":["*"],"ExposeHeaders":["ETag","etag","Content-Length"],"MaxAgeSeconds":3600}]}' > /tmp/cors.json
+        aws --endpoint-url http://minio:9000 s3api put-bucket-cors --bucket dictably --cors-configuration file:///tmp/cors.json || true
+        exit 0
 
   # Static export + nginx /api proxy → api:8000. Host http://127.0.0.1:3000
   web:
@@ -103,3 +159,4 @@ services:
 volumes:
   dictably_pg:
   dictably_storage:
+  dictably_minio:

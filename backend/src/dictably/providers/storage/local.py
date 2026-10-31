@@ -66,3 +66,17 @@ class LocalStorageProvider:
                 path.unlink()
 
         await asyncio.to_thread(_unlink)
+
+    async def exists(self, key: str) -> bool:
+        path = self._path(key)
+        return await asyncio.to_thread(path.is_file)
+
+    async def head_size(self, key: str) -> int | None:
+        path = self._path(key)
+
+        def _size() -> int | None:
+            if not path.is_file():
+                return None
+            return path.stat().st_size
+
+        return await asyncio.to_thread(_size)

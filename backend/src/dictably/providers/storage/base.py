@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 
+@runtime_checkable
 class StorageProvider(Protocol):
     name: str
 
@@ -21,3 +22,20 @@ class StorageProvider(Protocol):
     async def get_path(self, key: str) -> Path: ...
 
     async def delete(self, key: str) -> None: ...
+
+
+@runtime_checkable
+class DirectUploadStorage(Protocol):
+    """Optional: browser uploads via presigned URL (R2/S3)."""
+
+    async def exists(self, key: str) -> bool: ...
+
+    async def head_size(self, key: str) -> int | None: ...
+
+    def presign_put(
+        self,
+        key: str,
+        *,
+        content_type: str | None = None,
+        expires_in: int = 3600,
+    ) -> str: ...

@@ -30,6 +30,8 @@ export default async function UkAppHomePage() {
         badType: t("app.uploadBadType"),
         error: t("app.error"),
         statusUploaded: t("app.statusUploaded"),
+        statusQueued: t("app.statusQueued"),
+        statusQueuedHint: t("app.statusQueuedHint"),
         statusProcessing: t("app.statusProcessing"),
         statusReady: t("app.statusReady"),
         statusFailed: t("app.statusFailed"),

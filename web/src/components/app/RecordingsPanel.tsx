@@ -32,6 +32,8 @@ export type RecordingsCopy = {
   badType: string;
   error: string;
   statusUploaded: string;
+  statusQueued: string;
+  statusQueuedHint: string;
   statusProcessing: string;
   statusReady: string;
   statusFailed: string;
@@ -101,6 +103,8 @@ function statusLabel(status: string, copy: RecordingsCopy): string {
   switch (status) {
     case "uploaded":
       return copy.statusUploaded;
+    case "queued":
+      return copy.statusQueued;
     case "processing":
     case "transcribing":
     case "analyzing":
@@ -119,6 +123,7 @@ function toRowStatus(status: string): RecordingStatus {
   if (status === "ready") return "ready";
   if (status === "failed") return "failed";
   if (status === "uploading") return "uploading";
+  if (status === "queued") return "queued";
   return "processing";
 }
 
@@ -126,7 +131,10 @@ function isDeleteBusy(status: string): boolean {
   return ["processing", "transcribing", "analyzing"].includes(status);
 }
 
-function rowMeta(item: MediaItem): string {
+function rowMeta(item: MediaItem, copy: RecordingsCopy): string {
+  if (item.status === "queued") {
+    return copy.statusQueuedHint;
+  }
   const parts = [
     formatDate(item.created_at),
     formatDuration(item.duration_ms),
@@ -206,7 +214,9 @@ export function RecordingsPanel({
 
   useEffect(() => {
     const pending = items.some((m) =>
-      ["uploaded", "processing", "transcribing", "analyzing"].includes(m.status),
+      ["uploaded", "queued", "processing", "transcribing", "analyzing"].includes(
+        m.status,
+      ),
     );
     if (!pending) return;
     const id = window.setInterval(() => {
@@ -598,7 +608,7 @@ export function RecordingsPanel({
                 >
                   <RecordingRow
                     title={item.filename}
-                    meta={rowMeta(item)}
+                    meta={rowMeta(item, copy)}
                     status={st}
                     statusLabel={statusLabel(item.status, copy)}
                     speakers={item.speaker_count ?? 0}

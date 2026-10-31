@@ -5,11 +5,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import tempfile
-from datetime import date
+import time
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dictably.core.config import Settings, get_settings
@@ -21,6 +22,7 @@ from dictably.db.models import (
     MediaStatus,
     Speaker,
     Transcript,
+    User,
 )
 from dictably.db.session import get_session_factory
 from dictably.domain import analysis as analysis_domain
@@ -44,6 +46,11 @@ logger = logging.getLogger(__name__)
 MAX_PROCESS_ATTEMPTS = 3
 # Backoff between transient retries (S1): after attempt 1 → 5s, after 2 → 30s.
 RETRY_BACKOFF_S = (5.0, 30.0)
+# Slot-holding statuses: enqueued to arq or actively processing (T-038 B1).
+_ACTIVE_JOB_STATUSES = (JobStatus.dispatched, JobStatus.running)
+# B6: stale detection uses dispatch/heartbeat clocks, not Job.created_at.
+STALE_DISPATCHED_HOURS = 1
+STALE_HEARTBEAT_MINUTES = 30
 
 
 class ProcessError(Exception):
@@ -53,10 +60,103 @@ class ProcessError(Exception):
         *,
         human: str | None = None,
         permanent: bool = False,
+        code: str = "process_failed",
     ) -> None:
         self.human = human or message
         self.permanent = permanent
+        # N4: short class for analytics — timeout | asr_failed | bad_media | llm_failed | …
+        self.code = (code or "process_failed")[:64]
         super().__init__(message)
+
+
+def concurrency_limit_for_user(user: User | None, settings: Settings) -> int:
+    """Free users: 1 concurrent process; elevated (paid/admin): up to 2 (T-038)."""
+    if user is not None and user.role == "admin":
+        return max(1, settings.fair_queue_limit_elevated)
+    # Until billing ships, treat everyone as free unless elevated limit is forced.
+    if settings.fair_queue_treat_all_elevated:
+        return max(1, settings.fair_queue_limit_elevated)
+    return max(1, settings.fair_queue_limit_free)
+
+
+async def _lock_user_queue(session: AsyncSession, user_id: UUID) -> None:
+    """Serialize enqueue / maybe_start for one user (T-038 B1)."""
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:uid))"),
+        {"uid": str(user_id)},
+    )
+
+
+async def _active_process_count(session: AsyncSession, *, user_id: UUID) -> int:
+    """Count jobs holding a fair-queue slot (dispatched to arq or running)."""
+    result = await session.execute(
+        select(func.count())
+        .select_from(Job)
+        .join(Media, Media.id == Job.media_id)
+        .where(
+            Media.user_id == user_id,
+            Job.kind == JobKind.process_media,
+            Job.status.in_(_ACTIVE_JOB_STATUSES),
+        )
+    )
+    return int(result.scalar_one() or 0)
+
+
+# Alias kept for older tests / call sites.
+_running_process_count = _active_process_count
+
+
+async def _dispatch_job(
+    *,
+    media_id: UUID,
+    job_id: UUID,
+    settings: Settings,
+) -> None:
+    """Push to arq or run inline. Job row must already be status=dispatched."""
+    if settings.is_test or settings.inline_media_process:
+        await run_process_media(media_id=media_id, job_id=job_id)
+        return
+    from arq import create_pool
+
+    from dictably.worker.settings import redis_settings
+
+    redis = await create_pool(redis_settings())
+    try:
+        await redis.enqueue_job(
+            "process_media",
+            str(media_id),
+            str(job_id),
+            _job_id=f"process_media:{media_id}",
+        )
+    finally:
+        await redis.aclose()
+
+
+async def _mark_dispatched_and_send(
+    session: AsyncSession,
+    *,
+    job: Job,
+    media: Media,
+    settings: Settings,
+) -> Job:
+    now = datetime.now(UTC)
+    job.status = JobStatus.dispatched
+    job.dispatched_at = now
+    job.heartbeat_at = None
+    if media.status == MediaStatus.queued:
+        media.status = MediaStatus.uploaded
+    await session.commit()
+    await session.refresh(job)
+    await _dispatch_job(media_id=job.media_id, job_id=job.id, settings=settings)
+    return job
+
+
+async def _touch_heartbeat(session: AsyncSession, job: Job | None) -> None:
+    """Bump heartbeat_at so fair-queue stale cron does not kill a live worker (B6)."""
+    if job is None:
+        return
+    job.heartbeat_at = datetime.now(UTC)
+    await session.commit()
 
 
 async def enqueue_or_run_process(
@@ -65,8 +165,16 @@ async def enqueue_or_run_process(
     media_id: UUID,
     settings: Settings | None = None,
 ) -> Job:
-    """Create process_media job and run inline (test/inline) or enqueue to arq."""
+    """Create process_media job; dispatch if under per-user fair-queue limit."""
     settings = settings or get_settings()
+    media = await session.get(Media, media_id)
+    if media is None:
+        raise ValueError(f"media {media_id} missing")
+    await _lock_user_queue(session, media.user_id)
+    user = await session.get(User, media.user_id)
+    limit = concurrency_limit_for_user(user, settings)
+    active = await _active_process_count(session, user_id=media.user_id)
+
     job = Job(
         media_id=media_id,
         kind=JobKind.process_media,
@@ -74,35 +182,151 @@ async def enqueue_or_run_process(
         attempts=0,
     )
     session.add(job)
-    await session.commit()
-    await session.refresh(job)
+    if active >= limit:
+        media.status = MediaStatus.queued
+        await session.commit()
+        await session.refresh(job)
+        return job
 
-    if settings.is_test or settings.inline_media_process:
-        await run_process_media(media_id=media_id, job_id=job.id)
-    else:
-        from arq import create_pool
+    await session.flush()
+    return await _mark_dispatched_and_send(session, job=job, media=media, settings=settings)
 
-        from dictably.worker.settings import redis_settings
 
-        redis = await create_pool(redis_settings())
-        try:
-            await redis.enqueue_job(
-                "process_media",
-                str(media_id),
-                str(job.id),
-                _job_id=f"process_media:{media_id}",
+async def maybe_start_next_for_user(
+    session: AsyncSession,
+    *,
+    user_id: UUID,
+    settings: Settings | None = None,
+) -> Job | None:
+    """When a slot frees, dispatch the oldest *undispatched* queued job."""
+    settings = settings or get_settings()
+    await _lock_user_queue(session, user_id)
+    user = await session.get(User, user_id)
+    limit = concurrency_limit_for_user(user, settings)
+    active = await _active_process_count(session, user_id=user_id)
+    if active >= limit:
+        return None
+
+    result = await session.execute(
+        select(Job)
+        .join(Media, Media.id == Job.media_id)
+        .where(
+            Media.user_id == user_id,
+            Job.kind == JobKind.process_media,
+            Job.status == JobStatus.queued,
+        )
+        .order_by(Job.created_at.asc())
+        .limit(1)
+        .with_for_update(skip_locked=True)
+    )
+    job = result.scalar_one_or_none()
+    if job is None:
+        return None
+    media = await session.get(Media, job.media_id)
+    if media is None:
+        return None
+    return await _mark_dispatched_and_send(session, job=job, media=media, settings=settings)
+
+
+async def fair_queue_maintenance(
+    session: AsyncSession,
+    *,
+    settings: Settings | None = None,
+) -> dict[str, int]:
+    """Cron: start waiting jobs; fail stale dispatched/running (B6 clocks)."""
+    settings = settings or get_settings()
+    now = datetime.now(UTC)
+    dispatched_cutoff = now - timedelta(hours=STALE_DISPATCHED_HOURS)
+    heartbeat_cutoff = now - timedelta(minutes=STALE_HEARTBEAT_MINUTES)
+
+    candidates = (
+        (
+            await session.execute(
+                select(Job)
+                .where(
+                    Job.kind == JobKind.process_media,
+                    Job.status.in_(_ACTIVE_JOB_STATUSES),
+                )
+                .limit(200)
             )
-        finally:
-            await redis.aclose()
-    return job
+        )
+        .scalars()
+        .all()
+    )
+    stale: list[Job] = []
+    for job in candidates:
+        if job.status == JobStatus.dispatched:
+            if job.dispatched_at is not None and job.dispatched_at < dispatched_cutoff:
+                stale.append(job)
+            continue
+        # running: heartbeat older than 30m (fallback to dispatched_at if never touched)
+        beat = job.heartbeat_at or job.dispatched_at
+        if beat is not None and beat < heartbeat_cutoff:
+            stale.append(job)
+
+    failed_stale = 0
+    for job in stale:
+        media = await session.get(Media, job.media_id) if job.media_id else None
+        job.status = JobStatus.failed
+        job.last_error = "Processing timed out (worker may have stopped)."
+        if media is not None:
+            media.status = MediaStatus.failed
+            media.error = job.last_error
+            failed_stale += 1
+            await session.commit()
+            await maybe_start_next_for_user(session, user_id=media.user_id, settings=settings)
+        else:
+            await session.commit()
+
+    # Users with queued jobs and a free slot.
+    waiting_users = (
+        (
+            await session.execute(
+                select(Media.user_id)
+                .join(Job, Job.media_id == Media.id)
+                .where(
+                    Job.kind == JobKind.process_media,
+                    Job.status == JobStatus.queued,
+                )
+                .distinct()
+                .limit(100)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    started = 0
+    for uid in waiting_users:
+        while True:
+            job = await maybe_start_next_for_user(session, user_id=uid, settings=settings)
+            if job is None:
+                break
+            started += 1
+    return {"failed_stale": failed_stale, "started": started}
 
 
 async def run_process_media(*, media_id: UUID, job_id: UUID | None = None) -> None:
     """Worker / inline entry: process one media with retries bookkeeping on Job row."""
     settings = get_settings()
     factory = get_session_factory(settings)
-    storage = get_storage_provider(settings)
+    # B3: S3 downloads land in this temp dir and are wiped when the job ends.
+    with tempfile.TemporaryDirectory(prefix="dictably-job-") as work:
+        storage = get_storage_provider(settings)
+        if hasattr(storage, "set_work_dir"):
+            storage.set_work_dir(work)
+        await _run_process_media_body(
+            media_id=media_id, job_id=job_id, settings=settings, factory=factory, storage=storage
+        )
 
+
+async def _run_process_media_body(
+    *,
+    media_id: UUID,
+    job_id: UUID | None,
+    settings: Settings,
+    factory,
+    storage: StorageProvider,
+) -> None:
     async with factory() as session:
         media = await session.get(Media, media_id)
         if media is None:
@@ -132,9 +356,12 @@ async def run_process_media(*, media_id: UUID, job_id: UUID | None = None) -> No
 
         # Internal retries only (arq max_tries=1); permanent errors fail immediately (S1).
         last_error: str | None = None
+        last_code = "process_failed"
+        t0 = time.monotonic()
         for attempt_idx in range(MAX_PROCESS_ATTEMPTS):
             job.attempts = (job.attempts or 0) + 1
             job.status = JobStatus.running
+            job.heartbeat_at = datetime.now(UTC)
             job.last_error = None
             media.status = MediaStatus.processing
             media.error = None
@@ -149,10 +376,15 @@ async def run_process_media(*, media_id: UUID, job_id: UUID | None = None) -> No
                     storage,
                     settings,
                     media=media,
+                    job=job,
                     reserve_ref=reserve_ref,
                     reserved=reserved,
                 )
                 job.status = JobStatus.succeeded
+                job.timings = {
+                    **dict(job.timings or {}),
+                    "elapsed_s": round(time.monotonic() - t0, 1),
+                }
                 media.status = MediaStatus.ready
                 media.error = None
                 if reserved["seconds"]:
@@ -171,11 +403,13 @@ async def run_process_media(*, media_id: UUID, job_id: UUID | None = None) -> No
                     media_id=media.id,
                 )
                 await session.commit()
+                await maybe_start_next_for_user(session, user_id=media.user_id, settings=settings)
                 return
             except ProcessError as exc:
                 permanent = exc.permanent
                 human = exc.human
                 last_error = human[:2000]
+                last_code = exc.code
                 logger.exception(
                     "process_media failed for %s (attempt %s, permanent=%s)",
                     media_id,
@@ -216,15 +450,17 @@ async def run_process_media(*, media_id: UUID, job_id: UUID | None = None) -> No
         media.error = last_error
         from dictably.domain import analytics as analytics_domain
 
-        # S1: final failure only — short code, no human error text in props.
+        # S1/N4: final failure only — error class code, no human text in props.
         await analytics_domain.track(
             session,
             name=analytics_domain.EVENT_PROCESSING_FAILED,
             user_id=media.user_id,
             media_id=media.id,
-            props={"code": "process_failed"},
+            props={"code": last_code},
         )
         await session.commit()
+        # Fair queue: free a slot so another job for this user can start.
+        await maybe_start_next_for_user(session, user_id=media.user_id, settings=settings)
 
 
 async def _pipeline(
@@ -233,6 +469,7 @@ async def _pipeline(
     settings: Settings,
     *,
     media: Media,
+    job: Job | None = None,
     reserve_ref: str,
     reserved: dict[str, int],
 ) -> None:
@@ -243,6 +480,7 @@ async def _pipeline(
             "Missing original file",
             human="Recording file is missing.",
             permanent=True,
+            code="bad_media",
         )
 
     try:
@@ -252,7 +490,9 @@ async def _pipeline(
             "Missing original file",
             human="Recording file is missing.",
             permanent=True,
+            code="bad_media",
         ) from exc
+    await _touch_heartbeat(session, job)
 
     soft = settings.is_test
     probe = await _probe_async(original_path, soft_missing=soft)
@@ -262,11 +502,13 @@ async def _pipeline(
                 "ffprobe missing",
                 human="Processing is unavailable.",
                 permanent=True,
+                code="bad_media",
             )
         raise ProcessError(
             "not media",
             human="This file is not a valid audio or video recording.",
             permanent=True,
+            code="bad_media",
         )
     duration_ms = probe.duration_ms or media.duration_ms
     if duration_ms is not None and duration_ms > MAX_DURATION_MS:
@@ -274,6 +516,7 @@ async def _pipeline(
             "too long",
             human="Recording longer than 3 hours.",
             permanent=True,
+            code="bad_media",
         )
     if duration_ms is not None:
         media.duration_ms = duration_ms
@@ -296,9 +539,11 @@ async def _pipeline(
             "quota",
             human="Not enough transcription time left on your account.",
             permanent=True,
+            code="quota",
         ) from exc
     reserved["seconds"] = seconds
     await session.commit()
+    await _touch_heartbeat(session, job)
 
     if media_is_multi_file(media):
         await _pipeline_multi_file(
@@ -308,6 +553,7 @@ async def _pipeline(
             media=media,
             soft=soft,
         )
+        await _touch_heartbeat(session, job)
         return
 
     stream_idx_raw = (media.asr_meta or {}).get("audio_stream_index")
@@ -341,6 +587,7 @@ async def _pipeline(
                 str(exc),
                 human="Could not convert this recording. Try another file format.",
                 permanent=not timed_out,
+                code="timeout" if timed_out else "bad_media",
             ) from exc
 
         if norm.duration_ms is not None:
@@ -363,6 +610,7 @@ async def _pipeline(
         media.storage_keys = keys
         media.status = MediaStatus.transcribing
         await session.commit()
+        await _touch_heartbeat(session, job)
 
         # ASR prep (16 kHz + highpass + loudnorm). Stereo with 2 live channels → dual.
         dual = len(audio_info.live_channels) >= 2 and audio_info.channels >= 2
@@ -394,6 +642,7 @@ async def _pipeline(
                 str(exc),
                 human="Could not prepare audio for transcription.",
                 permanent=not timed_out,
+                code="timeout" if timed_out else "bad_media",
             ) from exc
 
         asr_path = str(asr_audio.path)
@@ -411,6 +660,7 @@ async def _pipeline(
             word_boost=vocab or None,
             dual_channel=dual,
         )
+        await _touch_heartbeat(session, job)
         transcript = postprocess_transcript(
             transcript,
             duration_ms=media.duration_ms,
@@ -464,6 +714,7 @@ async def _pipeline_multi_file(
             "multi_file incomplete",
             human="Meeting files are incomplete.",
             permanent=True,
+            code="bad_media",
         )
 
     with tempfile.TemporaryDirectory(prefix="dictably-multi-") as tmp:
@@ -476,6 +727,7 @@ async def _pipeline_multi_file(
                     "missing track",
                     human="A meeting track file is missing.",
                     permanent=True,
+                    code="bad_media",
                 )
             try:
                 local_paths.append(await storage.get_path(str(key)))
@@ -484,6 +736,7 @@ async def _pipeline_multi_file(
                     "missing track",
                     human="A meeting track file is missing.",
                     permanent=True,
+                    code="bad_media",
                 ) from exc
 
         try:
@@ -496,6 +749,7 @@ async def _pipeline_multi_file(
                 str(exc),
                 human="Could not mix meeting tracks.",
                 permanent=not timed_out,
+                code="timeout" if timed_out else "bad_media",
             ) from exc
 
         if norm.duration_ms is not None:
@@ -524,6 +778,7 @@ async def _pipeline_multi_file(
                 str(exc),
                 human="Could not analyse the meeting tracks.",
                 permanent=True,
+                code="bad_media",
             ) from exc
 
         mix_src = norm.playback_path
@@ -543,6 +798,7 @@ async def _pipeline_multi_file(
                 str(exc),
                 human="Could not prepare meeting audio for transcription.",
                 permanent=not timed_out,
+                code="timeout" if timed_out else "bad_media",
             ) from exc
         asr_path = str(asr_audio.path)
         if asr_audio.path.stat().st_size == 0:
@@ -629,6 +885,7 @@ async def _transcribe_with_fallback(
             raise ProcessError(
                 str(primary_exc),
                 human="Transcription failed. Please try again.",
+                code="asr_failed",
             ) from primary_exc
         try:
             result = await fallback.transcribe(**kwargs)
@@ -638,6 +895,7 @@ async def _transcribe_with_fallback(
             raise ProcessError(
                 str(fb_exc),
                 human="Transcription failed. Please try again.",
+                code="asr_failed",
             ) from fb_exc
 
 

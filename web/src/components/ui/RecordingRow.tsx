@@ -1,13 +1,19 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { Badge } from "./Badge";
 
-export type RecordingStatus = "ready" | "processing" | "failed" | "uploading";
+export type RecordingStatus =
+  | "ready"
+  | "processing"
+  | "failed"
+  | "uploading"
+  | "queued";
 
 const tone: Record<RecordingStatus, "success" | "accent" | "danger" | "neutral"> = {
   ready: "success",
   processing: "accent",
   failed: "danger",
   uploading: "neutral",
+  queued: "neutral",
 };
 
 export function RecordingRow({

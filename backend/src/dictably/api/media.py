@@ -39,6 +39,9 @@ from dictably.api.schemas import (
     TranscriptOut,
     TranscriptSegmentOut,
     TranscriptWordOut,
+    UploadCompleteIn,
+    UploadIntentIn,
+    UploadIntentOut,
     WordEditIn,
 )
 from dictably.core.config import Settings, get_settings
@@ -135,6 +138,82 @@ async def list_media(
     rows = await media_domain.list_for_user(session, user.id)
     items = [await _media_out(session, r) for r in rows]
     return MediaListOut(items=items)
+
+
+@router.post("/media/upload-intent", response_model=UploadIntentOut)
+async def media_upload_intent(
+    body: UploadIntentIn,
+    user: Annotated[User, Depends(require_user_csrf_consent)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    storage: Annotated[StorageProvider, Depends(get_storage)],
+) -> UploadIntentOut:
+    """Presigned PUT / multipart for direct browser→R2 upload (T-038)."""
+    data = await media_domain.create_upload_intent(
+        session,
+        storage,
+        user=user,
+        filename=body.filename,
+        content_type=body.content_type,
+        size_bytes=body.size_bytes,
+    )
+    return UploadIntentOut.model_validate(data)
+
+
+@router.post("/media/{media_id}/upload-complete", response_model=MediaOut)
+async def media_upload_complete(
+    media_id: UUID,
+    body: UploadCompleteIn,
+    user: Annotated[User, Depends(require_user_csrf_consent)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    storage: Annotated[StorageProvider, Depends(get_storage)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> MediaOut:
+    """HEAD-confirm object in storage; enqueue process (format checked by worker)."""
+    row = await media_domain.complete_direct_upload(
+        session,
+        storage,
+        user=user,
+        media_id=media_id,
+        multipart_parts=body.parts,
+        upload_id=body.upload_id,
+        soft_probe_missing=settings.is_test,
+    )
+    if body.language and body.language.strip():
+        row.language = body.language.strip()[:16]
+    if body.speakers_expected is not None:
+        row.speakers_expected = body.speakers_expected
+    if body.vocabulary and body.vocabulary.strip():
+        terms = [
+            t.strip()
+            for part in body.vocabulary.replace("\n", ",").split(",")
+            for t in [part]
+            if t.strip()
+        ][:200]
+        row.vocabulary = terms
+    preferred = getattr(user, "preferred_minutes_template", None) or "default"
+    tid = account_domain.remember_minutes_template(
+        user, body.minutes_template if body.minutes_template else preferred
+    )
+    row.minutes_template = tid
+    await session.commit()
+    # B8: capture id before expire — expire_all so response sees worker-updated status.
+    media_id_done = row.id
+    await process_domain.enqueue_or_run_process(session, media_id=media_id_done, settings=settings)
+    session.expire_all()
+    refreshed = await session.get(Media, media_id_done)
+    return await _media_out(session, refreshed or row)
+
+
+@router.post("/media/{media_id}/upload-abort", status_code=status.HTTP_204_NO_CONTENT)
+async def media_upload_abort(
+    media_id: UUID,
+    user: Annotated[User, Depends(require_user_csrf_consent)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    storage: Annotated[StorageProvider, Depends(get_storage)],
+) -> Response:
+    """Abort incomplete direct upload (S1/S3)."""
+    await media_domain.abort_direct_upload(session, storage, user=user, media_id=media_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/media/probe", response_model=MediaProbeOut)

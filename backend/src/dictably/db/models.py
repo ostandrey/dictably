@@ -28,6 +28,7 @@ from dictably.db.base import Base, TimestampMixin, new_uuid
 class MediaStatus(StrEnum):
     uploading = "uploading"
     uploaded = "uploaded"
+    queued = "queued"  # waiting for fair-queue slot (T-038)
     processing = "processing"
     transcribing = "transcribing"
     analyzing = "analyzing"
@@ -38,6 +39,7 @@ class MediaStatus(StrEnum):
 
 class JobStatus(StrEnum):
     queued = "queued"
+    dispatched = "dispatched"  # enqueued to arq, not yet running (T-038 B1)
     running = "running"
     succeeded = "succeeded"
     failed = "failed"
@@ -231,6 +233,9 @@ class Job(Base, TimestampMixin):
     timings: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, insert_default=dict, server_default="{}"
     )
+    # T-038 B6: fair-queue stale detection (not Job.created_at).
+    dispatched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     media: Mapped[Media | None] = relationship(back_populates="jobs")
 

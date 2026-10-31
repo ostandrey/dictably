@@ -40,6 +40,10 @@ dev:
 mvp0-up:
     docker compose -f infra/docker-compose.yml up --build -d
 
+# T-038: scale processing workers (API stays one). Example: just up-workers 2
+up-workers n="2":
+    docker compose -f infra/docker-compose.yml up -d --scale worker={{n}} --no-recreate api postgres redis web
+
 mvp0-down:
     docker compose -f infra/docker-compose.yml down
 

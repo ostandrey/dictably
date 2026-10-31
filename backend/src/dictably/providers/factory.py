@@ -8,7 +8,9 @@ from dictably.providers.llm.anthropic import AnthropicLLMProvider
 from dictably.providers.llm.assemblyai_gateway import AssemblyAILLMProvider
 from dictably.providers.llm.base import MinutesProvider
 from dictably.providers.llm.fake import FakeLLMProvider
+from dictably.providers.storage.base import StorageProvider
 from dictably.providers.storage.local import LocalStorageProvider
+from dictably.providers.storage.s3 import S3StorageProvider
 
 
 def _build_asr(name: str, settings: Settings) -> TranscriptionProvider:
@@ -69,10 +71,19 @@ def get_llm_provider(settings: Settings | None = None) -> MinutesProvider:
     )
 
 
-def get_storage_provider(settings: Settings | None = None) -> LocalStorageProvider:
+def get_storage_provider(settings: Settings | None = None) -> StorageProvider:
     settings = settings or get_settings()
-    if settings.storage_provider != "local":
-        raise ValueError(
-            f"Storage {settings.storage_provider!r} not wired; use STORAGE_PROVIDER=local"
+    name = settings.storage_provider.lower().strip()
+    if name == "local":
+        return LocalStorageProvider(settings.local_storage_path)
+    if name in {"r2", "s3"}:
+        return S3StorageProvider(
+            bucket=settings.s3_bucket,
+            access_key_id=settings.s3_access_key_id,
+            secret_access_key=settings.s3_secret_access_key,
+            endpoint_url=settings.s3_endpoint_url or None,
+            presign_endpoint_url=settings.s3_presign_endpoint_url or None,
+            region=settings.s3_region,
+            cache_dir=settings.local_storage_path,
         )
-    return LocalStorageProvider(settings.local_storage_path)
+    raise ValueError(f"Storage {settings.storage_provider!r} not supported; use local, r2, or s3")

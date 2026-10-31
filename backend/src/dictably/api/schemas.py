@@ -89,6 +89,49 @@ class MediaProbeOut(BaseModel):
 class AuthConfigOut(BaseModel):
     google: bool
     dev_login: bool
+    # T-038: browser should use presigned upload when true (r2/s3).
+    direct_upload: bool = False
+
+
+class UploadIntentIn(BaseModel):
+    filename: str
+    content_type: str | None = None
+    size_bytes: int = Field(ge=1, le=500 * 1024 * 1024)
+
+
+class UploadIntentOut(BaseModel):
+    media_id: str
+    key: str
+    mode: str  # put | multipart
+    url: str | None = None
+    headers: dict[str, str] = Field(default_factory=dict)
+    upload_id: str | None = None
+    part_size: int | None = None
+    parts: list[dict] = Field(default_factory=list)
+
+
+class UploadCompleteIn(BaseModel):
+    upload_id: str | None = None
+    parts: list[dict] | None = None  # [{part_number, etag}]
+    language: str | None = None
+    speakers_expected: int | None = None
+    vocabulary: str | None = None
+    minutes_template: str | None = None
+
+
+class AdminOpsOut(BaseModel):
+    queue_length: int = 0
+    running: int = 0
+    media_queued: int = 0
+    succeeded_24h: int = 0
+    failed_24h: int = 0
+    error_rate_pct: float = 0
+    avg_process_seconds: float | None = None
+    disk_free_gb: float | None = None
+    disk_total_gb: float | None = None
+    storage_provider: str = "local"
+    alert_queue_threshold: int = 20
+    alert_error_rate_pct: float = 25.0
 
 
 class DevLoginIn(BaseModel):
@@ -305,6 +348,7 @@ class AdminFunnelStepOut(BaseModel):
     users: int = 0
     pct_signups: float = 0
     pct_prev: float = 0
+    branch_of: str | None = None
 
 
 class AdminFunnelSourceOut(BaseModel):
