@@ -109,6 +109,20 @@ test.describe("T-038 ops + queued", () => {
             .locator("[data-shell='bottom-nav']")
             .boundingBox();
           expect(navBox?.height ?? 99).toBeLessThanOrEqual(64);
+          // N6: active Ops tab fully inside the tabs scrollport (not clipped).
+          const opsTab = page.locator('[data-admin="tab-ops"][aria-selected="true"]');
+          await expect(opsTab).toBeVisible();
+          const fullyVisible = await page.evaluate(() => {
+            const el = document.querySelector(
+              '[data-admin="tab-ops"][aria-selected="true"]',
+            );
+            const scroller = el?.closest(".admin-panel__tabs-scroll");
+            if (!el || !(scroller instanceof HTMLElement)) return false;
+            const er = el.getBoundingClientRect();
+            const sr = scroller.getBoundingClientRect();
+            return er.left >= sr.left - 0.5 && er.right <= sr.right + 0.5;
+          });
+          expect(fullyVisible).toBe(true);
         }
         await page.screenshot({
           path: path.join(SHOT_ROOT, `ops-${width}-${scheme}.png`),

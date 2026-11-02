@@ -14,6 +14,9 @@ const onest = Onest({
 
 const systemThemeBoot = `(function(){try{var m=document.documentElement.getAttribute("data-theme-mode");if(m!=="system")return;var dark=window.matchMedia("(prefers-color-scheme: dark)").matches;if(dark)document.documentElement.setAttribute("data-theme","dark");else document.documentElement.removeAttribute("data-theme");}catch(e){}})();`;
 
+/** S7: 404 locale before paint — path /uk/* or navigator.language uk* → uk, else en. */
+const nfLocaleBoot = `(function(){try{var p=location.pathname||"";var uk=p.indexOf("/uk/")===0||p==="/uk"||((navigator.language||"").toLowerCase().indexOf("uk")===0);document.documentElement.setAttribute("data-nf-lang",uk?"uk":"en");}catch(e){try{document.documentElement.setAttribute("data-nf-lang","en");}catch(_){}}})();`;
+
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   title: {
@@ -47,6 +50,9 @@ export default function RootLayout({
       data-theme-mode={siteThemeMode}
       {...themeAttrs}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: nfLocaleBoot }} />
+      </head>
       <body className="page-body">
         {siteThemeMode === "system" ? (
           <script dangerouslySetInnerHTML={{ __html: systemThemeBoot }} />

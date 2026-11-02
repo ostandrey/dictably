@@ -98,37 +98,130 @@ test.describe("T-036 premium feel", () => {
     expect(ms).toBeLessThan(1);
   });
 
-  test("screenshots people / settings / 404", async ({ page }) => {
+  test("screenshots people / settings / 404", async ({ page, browser }) => {
     fs.mkdirSync(SHOT_ROOT, { recursive: true });
     await page.goto("/app/");
     await ensureSignedIn(page);
 
+    /**
+     * S8: build defaults NEXT_PUBLIC_THEME=light (intentional — Decision 2026-10-28),
+     * so prefers-color-scheme alone does nothing. Force data-theme after hydration
+     * (React can strip attrs set too early) and wait until --canvas actually flips.
+     */
+    async function applyTheme(scheme: "light" | "dark") {
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });
+      await page.evaluate(async (dark) => {
+        const root = document.documentElement;
+        const paint = () =>
+          new Promise<void>((r) => requestAnimationFrame(() => r()));
+        const apply = () => {
+          if (dark) root.setAttribute("data-theme", "dark");
+          else root.removeAttribute("data-theme");
+        };
+        apply();
+        await paint();
+        await paint();
+        apply();
+      }, scheme === "dark");
+      await page.waitForFunction(
+        (dark) => {
+          const c = getComputedStyle(document.documentElement)
+            .getPropertyValue("--canvas")
+            .trim()
+            .toLowerCase();
+          if (dark) return c === "#18191c";
+          return c === "#fff" || c === "#ffffff";
+        },
+        scheme === "dark",
+        { timeout: 5_000 },
+      );
+    }
+
+    const bodyBg: Record<"light" | "dark", string> = { light: "", dark: "" };
     for (const scheme of ["light", "dark"] as const) {
-      await page.emulateMedia({ colorScheme: scheme });
       for (const vp of VIEWPORTS.filter((v) =>
         ["375", "1440"].includes(v.name),
       )) {
         await page.setViewportSize({ width: vp.width, height: vp.height });
         await page.goto("/app/people/");
         await expect(page.locator("[data-placeholder='people']")).toBeVisible();
+        await applyTheme(scheme);
+        if (vp.name === "375") {
+          bodyBg[scheme] = await page.evaluate(
+            () => getComputedStyle(document.body).backgroundColor,
+          );
+        }
         await page.screenshot({
           path: path.join(SHOT_ROOT, `people-${vp.name}-${scheme}.png`),
           fullPage: true,
         });
         await page.goto("/app/settings/");
         await expect(page.locator("[data-settings='panel']")).toBeVisible();
+        await applyTheme(scheme);
         await page.screenshot({
           path: path.join(SHOT_ROOT, `settings-${vp.name}-${scheme}.png`),
           fullPage: true,
         });
       }
     }
+    expect(bodyBg.dark).not.toBe(bodyBg.light);
+    expect(bodyBg.light.length).toBeGreaterThan(0);
 
+    // S7: 404 — one locale, two buttons; EN + UK shots at 375.
+    for (const loc of [
+      {
+        locale: "en-US",
+        file: "404-375-en-light.png",
+        title: "Page not found",
+        home: "Home",
+        app: "My recordings",
+        homeHref: "/",
+        appHref: "/app/",
+      },
+      {
+        locale: "uk-UA",
+        file: "404-375-uk-light.png",
+        title: "Сторінку не знайдено",
+        home: "На головну",
+        app: "Мої записи",
+        homeHref: "/uk/",
+        appHref: "/uk/app/",
+      },
+    ] as const) {
+      const ctx = await browser.newContext({
+        locale: loc.locale,
+        viewport: { width: 375, height: 812 },
+        colorScheme: "light",
+      });
+      const p = await ctx.newPage();
+      await p.goto("/404.html");
+      await expect(p.locator("[data-not-found]")).toBeVisible();
+      await expect(p.locator("html")).toHaveAttribute(
+        "data-nf-lang",
+        loc.locale.startsWith("uk") ? "uk" : "en",
+      );
+      const copy = p.locator(".not-found__copy:visible");
+      await expect(copy.locator('[data-nf="title"]')).toHaveText(loc.title);
+      const actions = copy.locator(".not-found__actions a");
+      await expect(actions).toHaveCount(2);
+      await expect(actions.nth(0)).toHaveText(loc.home);
+      await expect(actions.nth(0)).toHaveAttribute("href", loc.homeHref);
+      await expect(actions.nth(1)).toHaveText(loc.app);
+      await expect(actions.nth(1)).toHaveAttribute("href", loc.appHref);
+      await p.screenshot({
+        path: path.join(SHOT_ROOT, loc.file),
+        fullPage: true,
+      });
+      await ctx.close();
+    }
+
+    // Keep legacy EN desktop + 375 paths for prior review filenames.
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.emulateMedia({ colorScheme: "light" });
     await page.goto("/404.html");
-    await expect(page.locator("[data-not-found]")).toBeVisible();
-    await expect(page.locator(".btn-primary")).toBeVisible();
+    await expect(
+      page.locator('.not-found__copy:visible [data-nf="title"]'),
+    ).toHaveText("Page not found");
     await page.screenshot({
       path: path.join(SHOT_ROOT, "404-1440-light.png"),
       fullPage: true,

@@ -756,7 +756,7 @@
   overflow-x: clip;
 }
 
-/* S6: scrollport = sunken track + 16px inset; never widens the document. */
+/* S6/N6: scrollport = sunken track; page already has 16px (app-main) — match other pages. */
 .admin-panel__tabs-scroll {
   width: 100%;
   max-width: 100%;
@@ -765,7 +765,7 @@
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
-  padding: 3px 16px;
+  padding: 3px;
   background: var(--surface-sunken);
   border-radius: var(--radius-sm);
   scrollbar-width: thin;
@@ -971,6 +971,23 @@
   place-items: center;
   padding: var(--space-8) var(--space-4);
   background: var(--canvas);
+}
+/* S7: both locales in DOM; head boot sets html[data-nf-lang] before paint. */
+.not-found__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+}
+.not-found__copy--uk {
+  display: none;
+}
+html[data-nf-lang="uk"] .not-found__copy--en {
+  display: none;
+}
+html[data-nf-lang="uk"] .not-found__copy--uk {
+  display: flex;
 }
 .not-found__actions {
   display: flex;

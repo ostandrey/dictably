@@ -107,20 +107,45 @@ export function IllFailed(props: IllProps) {
   );
 }
 
-/** 404 — missing document silhouette. */
+/** 404 — dashed document + empty lane + clear "?" (N7: long hook, separate dot). */
 export function IllNotFound(props: IllProps) {
   return (
     <Frame {...props}>
-      <rect x="40" y="16" width="80" height="88" rx="8" fill="var(--surface)" stroke="var(--line)" strokeDasharray="4 3" />
-      <path
-        d="M58 52h44M66 66h28"
-        stroke="var(--ink-subtle)"
-        strokeWidth="4"
-        strokeLinecap="round"
-        opacity="0.45"
+      <rect
+        x="40"
+        y="16"
+        width="80"
+        height="88"
+        rx="8"
+        fill="var(--surface)"
+        stroke="var(--line)"
+        strokeDasharray="4 3"
+      />
+      <rect x="56" y="40" width="48" height="5" rx="2.5" fill="var(--ink-subtle)" opacity="0.25" />
+      <rect x="56" y="52" width="36" height="5" rx="2.5" fill="var(--ink-subtle)" opacity="0.2" />
+      <rect
+        x="56"
+        y="66"
+        width="48"
+        height="6"
+        rx="3"
+        fill="none"
+        stroke="var(--speaker-1)"
+        strokeWidth="1.5"
+        strokeDasharray="3 3"
+        opacity="0.7"
       />
       <circle cx="104" cy="88" r="18" fill="var(--accent-soft)" stroke="var(--accent)" />
-      <path d="M98 88h12M104 82v12" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" />
+      {/* "?" — open bowl + long descending stem; gap; separate dot (reads at ~48px). */}
+      <path
+        d="M97 80.5c0-4.2 3.2-7 7-7s7 2.8 7 7c0 2.6-1.4 4.2-3.6 5.6L104 89.5v3"
+        stroke="var(--accent)"
+        strokeWidth="2.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <circle cx="104" cy="98.5" r="2" fill="var(--accent)" />
     </Frame>
   );
 }

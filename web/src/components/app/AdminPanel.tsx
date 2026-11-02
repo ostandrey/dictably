@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ApiError,
   adminCosts,
@@ -127,6 +127,28 @@ export function AdminPanel({ copy }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [grantHours, setGrantHours] = useState<Record<string, string>>({});
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
+
+  // N6 (T-038): keep the selected tab fully inside the horizontal scrollport (incl. after resize to 375).
+  useEffect(() => {
+    const ensureActiveTabVisible = () => {
+      const scroller = tabsScrollRef.current;
+      const el = scroller?.querySelector<HTMLElement>(
+        `[data-admin="tab-${tab}"][aria-selected="true"]`,
+      );
+      if (!el || !scroller) return;
+      el.scrollIntoView({ inline: "nearest", block: "nearest" });
+    };
+    ensureActiveTabVisible();
+    const scroller = tabsScrollRef.current;
+    const ro = scroller ? new ResizeObserver(ensureActiveTabVisible) : null;
+    if (scroller) ro?.observe(scroller);
+    window.addEventListener("resize", ensureActiveTabVisible);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", ensureActiveTabVisible);
+    };
+  }, [tab]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -208,7 +230,7 @@ export function AdminPanel({ copy }: Props) {
   return (
     <div className="admin-panel" data-admin="panel">
       {/* S6: scrollport so .dy-tabs min-content cannot widen the page past 375. */}
-      <div className="admin-panel__tabs-scroll">
+      <div className="admin-panel__tabs-scroll" ref={tabsScrollRef}>
         <div className="dy-tabs" role="tablist" aria-label="Admin sections">
           {(
             [
