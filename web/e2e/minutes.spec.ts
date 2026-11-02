@@ -1,12 +1,14 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { ensureSignedIn } from "./utils/auth";
+import { ensureSignedIn, uniqueE2eEmail } from "./utils/auth";
+import { recordingRow } from "./utils/recordings";
 import { confirmUploadDetailsIfOpen } from "./utils/upload";
 import fs from "node:fs";
 import path from "node:path";
 
 const SHOT_ROOT = path.join("e2e", "__screenshots__", "T-016");
 const FIXTURE = path.join("e2e", "fixtures", "short.wav");
+const SUITE_EMAIL = uniqueE2eEmail("t016");
 
 test.describe("T-016 minutes + M1/M2", () => {
   test.describe.configure({ mode: "serial" });
@@ -16,7 +18,7 @@ test.describe("T-016 minutes + M1/M2", () => {
   }) => {
     test.setTimeout(90_000);
     await page.goto("/app/");
-    await ensureSignedIn(page);
+    await ensureSignedIn(page, { email: SUITE_EMAIL });
     const name = `t016-${Date.now()}.wav`;
     await page.locator("[data-recordings='file']").setInputFiles({
       name,
@@ -24,7 +26,7 @@ test.describe("T-016 minutes + M1/M2", () => {
       buffer: fs.readFileSync(FIXTURE),
     });
     await confirmUploadDetailsIfOpen(page);
-    const row = page.locator("[data-recordings='row']").filter({ hasText: name });
+    const row = recordingRow(page, name);
     await expect(row).toBeVisible({ timeout: 30_000 });
     await expect(row).toContainText(/Ready|Готово/, { timeout: 30_000 });
     await row.click();
@@ -47,13 +49,14 @@ test.describe("T-016 minutes + M1/M2", () => {
     });
     expect(Math.abs(current - startMs / 1000)).toBeLessThanOrEqual(0.3);
     await expect(page.locator("[data-recording='segment'].is-evidence")).toBeVisible();
-    await expect(page.locator("[data-minutes='regenerate']")).toBeVisible();
+    await page.locator("[data-recording='more']").click();
+    await expect(page.locator("[data-minutes='regenerate-menu']")).toBeVisible();
   });
 
   test("M1 mobile bottom nav; sidebar hidden at 375", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/app/");
-    await ensureSignedIn(page);
+    await ensureSignedIn(page, { email: SUITE_EMAIL });
     await expect(page.locator("[data-shell='bottom-nav']")).toBeVisible();
     await expect(page.locator("[data-shell='sidebar']")).toBeHidden();
     await page.locator("[data-shell='bottom-nav'] a").nth(2).click();
@@ -63,7 +66,7 @@ test.describe("T-016 minutes + M1/M2", () => {
 
   test("axe recording with minutes — no serious/critical", async ({ page }) => {
     await page.goto("/app/");
-    await ensureSignedIn(page);
+    await ensureSignedIn(page, { email: SUITE_EMAIL });
     const row = page.locator("[data-recordings='row']").first();
     await expect(row).toBeVisible({ timeout: 15_000 });
     await row.click();
@@ -81,7 +84,7 @@ test.describe("T-016 minutes + M1/M2", () => {
     test.setTimeout(90_000);
     fs.mkdirSync(SHOT_ROOT, { recursive: true });
     await page.goto("/app/");
-    await ensureSignedIn(page);
+    await ensureSignedIn(page, { email: SUITE_EMAIL });
     const row = page.locator("[data-recordings='row']").first();
     await expect(row).toBeVisible({ timeout: 15_000 });
     await row.click();
@@ -127,7 +130,7 @@ test.describe("T-016a weak badge", () => {
       buffer: fs.readFileSync(FIXTURE),
     });
     await confirmUploadDetailsIfOpen(page);
-    const row = page.locator("[data-recordings='row']").filter({ hasText: name });
+    const row = recordingRow(page, name);
     await expect(row).toBeVisible({ timeout: 30_000 });
     await expect(row).toContainText(/Ready|Готово/, { timeout: 30_000 });
 

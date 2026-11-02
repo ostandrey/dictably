@@ -1,5 +1,6 @@
 export { Alert } from "./Alert";
 export { Badge } from "./Badge";
+export { BottomSheet } from "./BottomSheet";
 export { Button } from "./Button";
 export { Dialog } from "./Dialog";
 export { EmptyState } from "./EmptyState";

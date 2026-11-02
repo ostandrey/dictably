@@ -2,11 +2,13 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
-import { ensureSignedIn } from "./utils/auth";
+import { ensureSignedIn, uniqueE2eEmail } from "./utils/auth";
+import { recordingRow } from "./utils/recordings";
 import { confirmUploadDetailsIfOpen } from "./utils/upload";
 
 const SHOT_ROOT = path.join("e2e", "__screenshots__", "T-028");
 const FIXTURE = path.join("e2e", "fixtures", "short.wav");
+const SUITE_EMAIL = uniqueE2eEmail("t028");
 
 test.describe("T-028 follow-up email", () => {
   test.describe.configure({ mode: "serial" });
@@ -17,7 +19,7 @@ test.describe("T-028 follow-up email", () => {
     fs.mkdirSync(SHOT_ROOT, { recursive: true });
 
     await page.goto("/app/");
-    await ensureSignedIn(page);
+    await ensureSignedIn(page, { email: SUITE_EMAIL });
     const name = `t028-${Date.now()}.wav`;
     await page.locator("[data-recordings='file']").setInputFiles({
       name,
@@ -25,7 +27,7 @@ test.describe("T-028 follow-up email", () => {
       buffer: fs.readFileSync(FIXTURE),
     });
     await confirmUploadDetailsIfOpen(page);
-    const row = page.locator("[data-recordings='row']").filter({ hasText: name });
+    const row = recordingRow(page, name);
     await expect(row).toBeVisible({ timeout: 30_000 });
     await expect(row).toContainText(/Ready|Готово/, { timeout: 90_000 });
     await row.click();
@@ -93,7 +95,7 @@ test.describe("T-028 follow-up email", () => {
 
   test("axe follow-up dialog — no serious/critical", async ({ page }) => {
     await page.goto("/app/");
-    await ensureSignedIn(page);
+    await ensureSignedIn(page, { email: SUITE_EMAIL });
     const row = page.locator("[data-recordings='row']").first();
     await expect(row).toBeVisible({ timeout: 15_000 });
     await row.click();

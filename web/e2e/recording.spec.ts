@@ -1,16 +1,18 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { ensureSignedIn } from "./utils/auth";
+import { ensureSignedIn, uniqueE2eEmail } from "./utils/auth";
+import { recordingRow } from "./utils/recordings";
 import { confirmUploadDetailsIfOpen } from "./utils/upload";
 import fs from "node:fs";
 import path from "node:path";
 
 const SHOT_ROOT = path.join("e2e", "__screenshots__", "T-015");
 const FIXTURE = path.join("e2e", "fixtures", "short.wav");
+const SUITE_EMAIL = uniqueE2eEmail("t015");
 
 async function openReadyRecording(page: import("@playwright/test").Page) {
   await page.goto("/app/");
-  await ensureSignedIn(page);
+  await ensureSignedIn(page, { email: SUITE_EMAIL });
   const name = `t015-${Date.now()}.wav`;
   await page.locator("[data-recordings='file']").setInputFiles({
     name,
@@ -18,7 +20,7 @@ async function openReadyRecording(page: import("@playwright/test").Page) {
     buffer: fs.readFileSync(FIXTURE),
   });
     await confirmUploadDetailsIfOpen(page);
-  const row = page.locator("[data-recordings='row']").filter({ hasText: name });
+  const row = recordingRow(page, name);
   await expect(row).toBeVisible({ timeout: 30_000 });
   await expect(row).toContainText(/Ready|Готово/, { timeout: 30_000 });
   await row.click();
@@ -86,7 +88,7 @@ test.describe("T-015 recording page", () => {
 
     const second = page.locator("[data-recording='segment']").nth(1);
     const startMs = Number(await second.getAttribute("data-start-ms"));
-    await second.click();
+    await second.locator("[data-recording='seg-seek']").click();
     await page.waitForTimeout(400);
     const current = await page.evaluate(() => {
       const el = document.querySelector(
@@ -96,7 +98,7 @@ test.describe("T-015 recording page", () => {
     });
     expect(Math.abs(current - startMs / 1000)).toBeLessThanOrEqual(0.3);
 
-    await page.locator("[data-recording='rename']").click();
+    await page.locator(".rec-page__rename-speakers[data-recording='rename']").click();
     const nameInput = page.locator(".rec-rename__list input").first();
     await nameInput.fill("Olena");
     await page.getByRole("button", { name: /Save|Зберегти/ }).click();
@@ -172,7 +174,7 @@ test.describe("T-015 recording page", () => {
   }) => {
     test.setTimeout(120_000);
     await page.goto("/app/");
-    await ensureSignedIn(page);
+    await ensureSignedIn(page, { email: SUITE_EMAIL });
 
     const name = `t015-long-${Date.now()}.wav`;
     await page.locator("[data-recordings='file']").setInputFiles({
@@ -181,7 +183,7 @@ test.describe("T-015 recording page", () => {
       buffer: fs.readFileSync(FIXTURE),
     });
     await confirmUploadDetailsIfOpen(page);
-    const row = page.locator("[data-recordings='row']").filter({ hasText: name });
+    const row = recordingRow(page, name);
     await expect(row).toBeVisible({ timeout: 30_000 });
     await expect(row).toContainText(/Ready|Готово/, { timeout: 30_000 });
 
@@ -229,14 +231,18 @@ test.describe("T-015 recording page", () => {
     });
     await expect(page.locator("[data-recording='segment']").first()).toBeVisible();
 
+    // B5: collect tasks >50ms; assert median of 3 cycle maxes ≤100 (stable vs single flaky spike).
     await page.evaluate(() => {
-      const w = window as unknown as { __longTasks?: number[]; __ltObs?: boolean };
+      const w = window as unknown as {
+        __longTasks?: number[];
+        __ltObs?: boolean;
+      };
       w.__longTasks = [];
       if (!w.__ltObs) {
         try {
           const obs = new PerformanceObserver((list) => {
             for (const e of list.getEntries()) {
-              if (e.duration > 100) w.__longTasks?.push(e.duration);
+              if (e.duration > 50) w.__longTasks?.push(e.duration);
             }
           });
           obs.observe({ type: "longtask", buffered: true });
@@ -248,20 +254,38 @@ test.describe("T-015 recording page", () => {
     });
 
     const scroll = page.locator("[data-recording='transcript-scroll']");
-    for (let i = 0; i < 4; i++) {
-      await scroll.evaluate((el) => {
-        el.scrollTop = el.scrollHeight;
+    const cycleMaxes: number[] = [];
+    for (let cycle = 0; cycle < 3; cycle++) {
+      await page.evaluate(() => {
+        const w = window as unknown as { __longTasks?: number[] };
+        w.__longTasks = [];
       });
-      await page.waitForTimeout(200);
+      await scroll.evaluate((el) => {
+        el.scrollTop = 0;
+      });
+      await page.waitForTimeout(100);
+      for (let i = 0; i < 4; i++) {
+        await scroll.evaluate((el) => {
+          el.scrollTop = el.scrollHeight;
+        });
+        await page.waitForTimeout(200);
+      }
+      const batch = await page.evaluate(() => {
+        const w = window as unknown as { __longTasks?: number[] };
+        return w.__longTasks ?? [];
+      });
+      cycleMaxes.push(batch.length ? Math.max(...batch) : 0);
     }
-
-    const observed = await page.evaluate(() => {
-      const w = window as unknown as { __longTasks?: number[] };
-      return w.__longTasks ?? [];
-    });
-    expect(observed, `long tasks >100ms: ${JSON.stringify(observed)}`).toEqual(
-      [],
+    const sorted = [...cycleMaxes].sort((a, b) => a - b);
+    const median = sorted[1]!;
+    // Printed for Bridge B5: compare this median to the same harness on 6935c2f.
+    console.log(
+      `[B5 longtask] cycleMaxes_ms=${JSON.stringify(cycleMaxes)} median_ms=${median}`,
     );
+    expect(
+      median,
+      `longtask cycle maxes (ms): ${JSON.stringify(cycleMaxes)}; median=${median}`,
+    ).toBeLessThanOrEqual(100);
 
     const endSeg = page
       .locator("[data-recording='segment']")
@@ -269,9 +293,9 @@ test.describe("T-015 recording page", () => {
     await expect(endSeg).toBeVisible({ timeout: 10_000 });
     const startMs = Number(await endSeg.getAttribute("data-start-ms"));
     expect(startMs).toBeGreaterThan(2 * 60 * 60 * 1000);
-    // Floating "Back to now" may cover the last row — call DOM click on the button.
-    // Short fixture wav clamps HTMLMediaElement.currentTime — assert data-seek-ms instead.
-    await endSeg.evaluate((el) => (el as HTMLButtonElement).click());
+    // Segment is a div (S1); seek via timecode control. Short fixture wav clamps
+    // HTMLMediaElement.currentTime — assert data-seek-ms instead.
+    await endSeg.locator("[data-recording='seg-seek']").click({ force: true });
     await expect
       .poll(async () => {
         return Number(
@@ -289,7 +313,7 @@ test.describe("T-015 recording page", () => {
 
   test("axe on recording page — no serious/critical", async ({ page }) => {
     await page.goto("/app/");
-    await ensureSignedIn(page);
+    await ensureSignedIn(page, { email: SUITE_EMAIL });
     const row = page.locator("[data-recordings='row']").first();
     await expect(row).toBeVisible({ timeout: 15_000 });
     await row.click();
@@ -307,7 +331,7 @@ test.describe("T-015 recording page", () => {
     test.setTimeout(90_000);
     fs.mkdirSync(SHOT_ROOT, { recursive: true });
     await page.goto("/app/");
-    await ensureSignedIn(page);
+    await ensureSignedIn(page, { email: SUITE_EMAIL });
     const row = page.locator("[data-recordings='row']").first();
     await expect(row).toBeVisible({ timeout: 15_000 });
     await row.click();

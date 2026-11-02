@@ -32,6 +32,7 @@ export {
   mediaAudioUrl,
   mediaExportUrl,
   mergeSpeakers,
+  patchMe,
   patchMedia,
   patchSegmentSpeaker,
   patchSpeaker,

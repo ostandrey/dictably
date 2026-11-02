@@ -97,6 +97,7 @@ def _media_out_with_count(row: Media, speaker_count: int) -> MediaOut:
     return MediaOut(
         id=row.id,
         filename=row.filename,
+        title=getattr(row, "title", None),
         mime=row.mime,
         size_bytes=row.size_bytes,
         duration_ms=row.duration_ms,
@@ -343,6 +344,15 @@ async def patch_media(
     if "minutes_template" in fields and body.minutes_template is not None:
         tid = account_domain.remember_minutes_template(user, body.minutes_template)
         row.minutes_template = tid
+    if "title" in fields:
+        raw = (body.title or "").strip()
+        if raw:
+            row.title = raw[:120]
+            row.title_source = "user"
+        else:
+            # Clearing title returns to auto naming on next LLM pass (T-041 B1).
+            row.title = None
+            row.title_source = "llm"
     await session.commit()
     await session.refresh(row)
     return await _media_out(session, row)

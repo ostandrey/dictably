@@ -74,14 +74,14 @@ test.describe("T-004 landing", () => {
     await page.goto("/privacy/");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByText("2026-10-28")).toBeVisible();
+    await expect(page.getByText("2026-10-29")).toBeVisible();
   });
 
   test("privacy UK page", async ({ page }) => {
     await page.goto("/uk/privacy/");
     await expect(page.locator("html")).toHaveAttribute("lang", "uk");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByText("2026-10-28")).toBeVisible();
+    await expect(page.getByText("2026-10-29")).toBeVisible();
   });
 
   test("screenshots 375/768/1440 light (teal)", async ({ page }) => {

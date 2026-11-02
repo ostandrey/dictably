@@ -919,6 +919,8 @@ export interface components {
             id: string;
             /** Filename */
             filename: string;
+            /** Title */
+            title?: string | null;
             /** Mime */
             mime: string | null;
             /** Size Bytes */
@@ -974,6 +976,15 @@ export interface components {
             speakers_expected?: number | null;
             /** Minutes Template */
             minutes_template?: string | null;
+            /** Title */
+            title?: string | null;
+        };
+        /** MePatchIn */
+        MePatchIn: {
+            /** Locale */
+            locale?: string | null;
+            /** Preferred Minutes Template */
+            preferred_minutes_template?: string | null;
         };
         /** MediaProbeOut */
         MediaProbeOut: {

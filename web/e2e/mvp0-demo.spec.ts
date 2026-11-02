@@ -6,14 +6,14 @@ import { expect, test } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { passAccountGates } from "./utils/auth";
+import { passAccountGates, uniqueE2eEmail } from "./utils/auth";
+import { recordingRow } from "./utils/recordings";
 import { confirmUploadDetailsIfOpen } from "./utils/upload";
 
 const SHOT_ROOT = path.join("e2e", "__screenshots__", "MVP0");
 const FIXTURE = path.join("e2e", "fixtures", "short.wav");
 const backendRoot = path.resolve(process.cwd(), "..", "backend");
-/** Default email from web `devLogin()` helper. */
-const ADMIN_EMAIL = "dev@example.com";
+const DEMO_EMAIL = uniqueE2eEmail("mvp0");
 
 test.describe("MVP-0 demo path", () => {
   test.describe.configure({ mode: "serial" });
@@ -38,10 +38,21 @@ test.describe("MVP-0 demo path", () => {
       await page.locator(".hero__cta [data-cta='app']").click();
       await expect(page).toHaveURL(/\/app\/$/);
 
-      // 2. Dev login (same path as other e2e)
-      await page.locator("[data-auth='dev-login']").click();
+      // 2. Dev login with a fresh user (avoid fair-queue backlog on shared emails)
+      await page.evaluate(
+        async ({ em }) => {
+          await fetch("/api/auth/dev-login", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: em, name: "MVP0 Demo" }),
+          });
+        },
+        { em: DEMO_EMAIL },
+      );
+      await page.reload();
       await page.waitForSelector(
-        "[data-consent='accept'], [data-recordings='panel']",
+        "[data-consent='accept'], [data-recordings='panel'], [data-onboarding='skip']",
         { timeout: 15_000 },
       );
       await passAccountGates(page);
@@ -57,9 +68,7 @@ test.describe("MVP-0 demo path", () => {
         buffer: fs.readFileSync(FIXTURE),
       });
     await confirmUploadDetailsIfOpen(page);
-      const row = page
-        .locator("[data-recordings='row']")
-        .filter({ hasText: name });
+      const row = recordingRow(page, name);
       await expect(row).toBeVisible({ timeout: 30_000 });
       await expect(row).toContainText(/Ready|Готово/, { timeout: 60_000 });
 
@@ -92,7 +101,7 @@ test.describe("MVP-0 demo path", () => {
       // 6. Admin after CLI promote
       execFileSync(
         "uv",
-        ["run", "python", "-m", "dictably.cli", "set-admin", ADMIN_EMAIL],
+        ["run", "python", "-m", "dictably.cli", "set-admin", DEMO_EMAIL],
         {
           cwd: backendRoot,
           stdio: "pipe",

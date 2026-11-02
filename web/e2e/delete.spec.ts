@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { ensureSignedIn } from "./utils/auth";
+import { recordingRow } from "./utils/recordings";
 import { confirmUploadDetailsIfOpen } from "./utils/upload";
 import fs from "node:fs";
 import path from "node:path";
@@ -18,7 +19,7 @@ async function ensureReadyRow(
     buffer: fs.readFileSync(FIXTURE),
   });
     await confirmUploadDetailsIfOpen(page);
-  const row = page.locator("[data-recordings='row']").filter({ hasText: name });
+  const row = recordingRow(page, name);
   await expect(row).toBeVisible({ timeout: 30_000 });
   await expect(row).toContainText(/Ready|Готово/, { timeout: 30_000 });
   return row;

@@ -65,6 +65,13 @@ class WordEditIn(BaseModel):
     text: str = Field(min_length=1, max_length=200)
 
 
+class MePatchIn(BaseModel):
+    """Settings defaults (T-041) — locale + preferred minutes template only."""
+
+    locale: str | None = Field(default=None, max_length=16)
+    preferred_minutes_template: str | None = Field(default=None, max_length=64)
+
+
 class MediaPatchIn(BaseModel):
     meeting_date: date | None = None
     vocabulary: list[str] | None = Field(default=None, max_length=200)
@@ -72,6 +79,7 @@ class MediaPatchIn(BaseModel):
     language: str | None = Field(default=None, max_length=16)
     speakers_expected: int | None = Field(default=None, ge=1, le=20)
     minutes_template: str | None = Field(default=None, max_length=64)
+    title: str | None = Field(default=None, max_length=120)
 
 
 class AudioTrackOut(BaseModel):
@@ -142,6 +150,7 @@ class DevLoginIn(BaseModel):
 class MediaOut(BaseModel):
     id: UUID
     filename: str
+    title: str | None = None
     mime: str | None
     size_bytes: int | None
     duration_ms: int | None

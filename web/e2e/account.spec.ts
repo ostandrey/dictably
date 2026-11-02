@@ -30,7 +30,9 @@ test.describe("T-033 account / consent / cookies", () => {
     await expect(page.locator("[data-onboarding='skip']")).toBeVisible({
       timeout: 10_000,
     });
-    await page.locator("[data-onboarding='skip']").click();
+    const skip = page.locator("[data-onboarding='skip']");
+    await skip.click();
+    await expect(skip).toHaveCount(0, { timeout: 10_000 });
     await expect(page.locator("[data-recordings='panel']")).toBeVisible({
       timeout: 15_000,
     });

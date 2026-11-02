@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { ensureSignedIn } from "./utils/auth";
+import { recordingRow } from "./utils/recordings";
 import { confirmUploadDetailsIfOpen } from "./utils/upload";
 import fs from "node:fs";
 import path from "node:path";
@@ -65,7 +66,7 @@ test.describe("T-036 premium feel", () => {
       });
     await confirmUploadDetailsIfOpen(page);
       await expect(
-        page.locator("[data-recordings='row']").filter({ hasText: name }),
+        recordingRow(page, name),
       ).toBeVisible({ timeout: 30_000 });
     }
     await expect(page.locator("[data-recordings='upload']")).toHaveCount(0);

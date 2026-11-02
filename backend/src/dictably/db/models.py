@@ -137,6 +137,12 @@ class Media(Base, TimestampMixin):
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     filename: Mapped[str] = mapped_column(String(512), nullable=False)
+    # T-041: human title from LLM (or user rename); filename stays for storage/meta.
+    title: Mapped[str | None] = mapped_column(String(120))
+    # llm | user — regen must not overwrite a user-set title (T-041 B1).
+    title_source: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="llm", server_default="llm"
+    )
     mime: Mapped[str | None] = mapped_column(String(128))
     size_bytes: Mapped[int | None] = mapped_column(BigInteger)
     duration_ms: Mapped[int | None] = mapped_column(Integer)

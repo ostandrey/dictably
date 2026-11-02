@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 import { ensureSignedIn } from "./utils/auth";
+import { recordingRow } from "./utils/recordings";
 import { confirmUploadDetailsIfOpen } from "./utils/upload";
 
 const FIXTURE = path.join("e2e", "fixtures", "short.wav");
@@ -30,7 +31,7 @@ async function openReadyRecording(page: import("@playwright/test").Page) {
     buffer: fs.readFileSync(FIXTURE),
   });
   await confirmUploadDetailsIfOpen(page);
-  const row = page.locator("[data-recordings='row']").filter({ hasText: name });
+  const row = recordingRow(page, name);
   await expect(row).toBeVisible({ timeout: 30_000 });
   await expect(row).toContainText(/Ready|Готово/, { timeout: 30_000 });
   await row.click();
@@ -50,6 +51,7 @@ test.describe("T-035 transcript quality", () => {
 
     await expect(page.locator("[data-recording='meeting-date']")).toBeVisible();
 
+    await page.setViewportSize({ width: 1440, height: 900 });
     const word = page.locator("[data-recording='word']").first();
     await expect(word).toBeVisible();
     const before = (await word.textContent())?.trim() || "";
@@ -57,7 +59,8 @@ test.describe("T-035 transcript quality", () => {
     const input = page.locator("[data-recording='word-input']");
     await expect(input).toBeVisible();
     await shot(page, "word-edit", 1440);
-    await shot(page, "word-edit", 375);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(input).toBeVisible();
     await input.fill("CorrectedWord");
     await input.press("Enter");
     await expect(page.locator("[data-recording='word']").first()).toContainText(
@@ -65,12 +68,18 @@ test.describe("T-035 transcript quality", () => {
       { timeout: 10_000 },
     );
     expect(before).not.toBe("CorrectedWord");
+    await shot(page, "word-edit", 375);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    if (await page.locator("[data-recording='tab-transcript']").isVisible()) {
+      await page.locator("[data-recording='tab-transcript']").click();
+    }
 
     await page.locator("[data-recording='rename']").click();
     await expect(page.locator("[data-dialog='open']")).toBeVisible();
     await expect(page.locator("[data-recording='merge-speakers']").first()).toBeVisible();
     await shot(page, "merge-dialog", 1440);
     await shot(page, "merge-dialog", 375);
+    await page.setViewportSize({ width: 1440, height: 900 });
     const keep = page.locator("[data-recording='merge-keep']").first();
     const options = keep.locator("option");
     const count = await options.count();

@@ -33,9 +33,17 @@ import {
   type Speaker,
   type Transcript,
 } from "@/lib/api";
+import { useTranslations } from "next-intl";
 import { useToast } from "@/components/app/ToastProvider";
-import { Alert, Button, Dialog } from "@/components/ui";
+import { Alert, BottomSheet, Button, Dialog } from "@/components/ui";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import {
+  joinMeta,
+  mediaDisplayTitle,
+  uiDateLocale,
+} from "@/lib/mediaDisplay";
 import { MinutesPanel } from "./MinutesPanel";
+import { TranscriptSegment } from "./TranscriptSegment";
 
 type Word = {
   text: string;
@@ -110,35 +118,14 @@ function formatClock(seconds: number): string {
   return `${m}:${String(sec).padStart(2, "0")}`;
 }
 
-function formatDateTime(iso: string, locale: "en" | "uk"): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  const parts = new Intl.DateTimeFormat(locale === "uk" ? "uk-UA" : "en-GB", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(d);
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((p) => p.type === type)?.value ?? "";
-  return `${get("day")} ${get("month")}, ${get("hour")}:${get("minute")}`;
-}
-
 function formatMeetingDate(isoDate: string, locale: "en" | "uk"): string {
   const d = new Date(`${isoDate}T12:00:00`);
   if (Number.isNaN(d.getTime())) return isoDate;
-  return new Intl.DateTimeFormat(locale === "uk" ? "uk-UA" : "en-GB", {
+  return new Intl.DateTimeFormat(uiDateLocale(locale), {
     day: "numeric",
     month: "short",
     year: "numeric",
   }).format(d);
-}
-
-function speakerName(speakers: Speaker[], label: string | null | undefined): string {
-  if (!label) return "Speaker";
-  const sp = speakers.find((s) => s.label === label);
-  return sp?.display_name?.trim() || sp?.label || label;
 }
 
 function speakerTone(speakers: Speaker[], label: string | null | undefined): number {
@@ -255,13 +242,18 @@ export function RecordingView({
   meetingDateHint = "Change meeting date",
   dueDatesRecalcToast = "Due dates in minutes recalculated",
 }: Props) {
+  const tApp = useTranslations("app");
+  const isMobile = useIsMobile();
   const { push: pushToast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const pageScrollRef = useRef<HTMLDivElement | null>(null);
   const waveRef = useRef<HTMLDivElement | null>(null);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
+  const moreMenuRef = useRef<HTMLDivElement | null>(null);
   const followRef = useRef(true);
   const ignoreScrollRef = useRef(false);
+  const lastScrollY = useRef(0);
 
   const [media, setMedia] = useState<MediaItem | null>(null);
   const [transcript, setTranscript] = useState<Transcript | null>(null);
@@ -273,8 +265,19 @@ export function RecordingView({
   const [query, setQuery] = useState("");
   const [matchIdx, setMatchIdx] = useState(0);
   const [followPlayback, setFollowPlayback] = useState(true);
-  const [mobileTab, setMobileTab] = useState<"transcript" | "minutes">("transcript");
+  const [mobileTab, setMobileTab] = useState<"transcript" | "minutes">("minutes");
   const [waveWidth, setWaveWidth] = useState(320);
+  const [playerCollapsed, setPlayerCollapsed] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [titleRenameOpen, setTitleRenameOpen] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [titleBusy, setTitleBusy] = useState(false);
+  const [externalRegenOpen, setExternalRegenOpen] = useState(false);
+  const [externalTemplatePick, setExternalTemplatePick] = useState<string | null>(
+    null,
+  );
+  const [regenLeft, setRegenLeft] = useState(0);
   const [renameOpen, setRenameOpen] = useState(false);
   const [draftNames, setDraftNames] = useState<Record<string, string>>({});
   const [draftParty, setDraftParty] = useState<Record<string, string>>({});
@@ -331,6 +334,22 @@ export function RecordingView({
     }, 0);
     return () => window.clearTimeout(t);
   }, [load]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setPlayerCollapsed(false);
+      return;
+    }
+    const onScroll = () => {
+      const y = window.scrollY || document.documentElement.scrollTop;
+      const prev = lastScrollY.current;
+      lastScrollY.current = y;
+      if (y > prev + 8 && y > 64) setPlayerCollapsed(true);
+      else if (y < prev - 8) setPlayerCollapsed(false);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [isMobile]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -465,13 +484,13 @@ export function RecordingView({
     if (index >= 0) scrollToSegIndex(index, "smooth");
   }, [matchIdx, matchIds, scrollToSegIndex, segments]);
 
-  function pauseFollow() {
+  const pauseFollow = useCallback(() => {
     if (ignoreScrollRef.current) return;
     if (followRef.current) {
       followRef.current = false;
       setFollowPlayback(false);
     }
-  }
+  }, []);
 
   function resumeFollow() {
     setFollowPlayback(true);
@@ -479,14 +498,27 @@ export function RecordingView({
     scrollToSegIndex(activeSegIndex, "smooth");
   }
 
-  function seekTo(ms: number) {
+  const seekTo = useCallback((ms: number) => {
     const audio = audioRef.current;
     if (!audio) return;
     audio.dataset.seekMs = String(Math.round(ms));
     audio.currentTime = ms / 1000;
     void audio.play();
     setCurrentSec(ms / 1000);
-  }
+  }, []);
+
+  const onSegSeek = useCallback(
+    (ms: number) => {
+      pauseFollow();
+      setEvidenceSegIds([]);
+      seekTo(ms);
+    },
+    [pauseFollow, seekTo],
+  );
+
+  const onToggleSegMenu = useCallback((segId: string) => {
+    setSegMenuId((cur) => (cur === segId ? null : segId));
+  }, []);
 
   function goMatch(delta: number) {
     if (!matchIds.length) return;
@@ -631,33 +663,39 @@ export function RecordingView({
     }
   }
 
-  async function changeSegSpeaker(segId: string, speakerId: string) {
-    setSegMenuId(null);
-    setSaving(true);
-    setError(null);
-    try {
-      const t = await patchSegmentSpeaker(mediaId, segId, speakerId);
-      setTranscript(t);
-    } catch {
-      setError(errorLabel);
-    } finally {
-      setSaving(false);
-    }
-  }
+  const onChangeSegSpeaker = useCallback(
+    async (segId: string, speakerId: string) => {
+      setSegMenuId(null);
+      setSaving(true);
+      setError(null);
+      try {
+        const t = await patchSegmentSpeaker(mediaId, segId, speakerId);
+        setTranscript(t);
+      } catch {
+        setError(errorLabel);
+      } finally {
+        setSaving(false);
+      }
+    },
+    [errorLabel, mediaId],
+  );
 
-  async function splitSegSpeaker(segId: string) {
-    setSegMenuId(null);
-    setSaving(true);
-    setError(null);
-    try {
-      const t = await splitSegmentSpeaker(mediaId, segId);
-      setTranscript(t);
-    } catch {
-      setError(errorLabel);
-    } finally {
-      setSaving(false);
-    }
-  }
+  const onSplitSegSpeaker = useCallback(
+    async (segId: string) => {
+      setSegMenuId(null);
+      setSaving(true);
+      setError(null);
+      try {
+        const t = await splitSegmentSpeaker(mediaId, segId);
+        setTranscript(t);
+      } catch {
+        setError(errorLabel);
+      } finally {
+        setSaving(false);
+      }
+    },
+    [errorLabel, mediaId],
+  );
 
   function renderSegText(segId: string, text: string): ReactNode {
     const segWords = wordsBySeg.get(segId);
@@ -823,6 +861,12 @@ export function RecordingView({
     return <p className="dy-muted">Loading…</p>;
   }
 
+  const displayTitle = mediaDisplayTitle(
+    media,
+    locale,
+    tApp("provisionalMeeting"),
+  );
+
   const matchLabel = matchIds.length
     ? matchCountLabel
         .replace("{current}", String(matchIdx + 1))
@@ -835,126 +879,261 @@ export function RecordingView({
     seekTo(ratio * durationMs);
   }
 
+  const shareItems = (
+    <>
+      <button
+        type="button"
+        role="menuitem"
+        className="rec-page__export-item"
+        data-export="minutes-pdf"
+        disabled={exportBusy}
+        onClick={() => {
+          setShareOpen(false);
+          setExportOpen(false);
+          void runExport("minutes", "pdf");
+        }}
+      >
+        {exportMinutesPdf}
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        className="rec-page__export-item"
+        data-export="minutes-docx"
+        disabled={exportBusy}
+        onClick={() => {
+          setShareOpen(false);
+          setExportOpen(false);
+          void runExport("minutes", "docx");
+        }}
+      >
+        {exportMinutesDocx}
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        className="rec-page__export-item"
+        data-export="follow-up"
+        disabled={exportBusy}
+        onClick={() => {
+          setShareOpen(false);
+          setExportOpen(false);
+          void openFollowUpDialog();
+        }}
+      >
+        {exportFollowUp}
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        className="rec-page__export-item"
+        data-export="minutes-copy"
+        disabled={exportBusy}
+        onClick={() => {
+          setShareOpen(false);
+          setExportOpen(false);
+          void copyMinutes();
+        }}
+      >
+        {copiedFlash ? exportMinutesCopied : exportMinutesCopy}
+      </button>
+    </>
+  );
+
   return (
-    <div className="rec-page" data-recording="page">
+    <div
+      className={`rec-page${playerCollapsed ? " is-player-collapsed" : ""}`}
+      data-recording="page"
+      ref={pageScrollRef}
+    >
       <header className="rec-page__crumb">
         <div className="rec-page__crumb-path">
           <a href={recordingsHref}>{recordingsLabel}</a>
           <span aria-hidden>/</span>
-          <span>{media.filename}</span>
+          <span>{displayTitle}</span>
         </div>
-        <div className="rec-page__export" ref={exportMenuRef}>
-          <button
-            type="button"
-            className="btn-text"
-            data-recording="export"
-            aria-expanded={exportOpen}
-            aria-haspopup="menu"
-            aria-label={exportMenuLabel}
-            disabled={exportBusy}
-            onClick={() => setExportOpen((v) => !v)}
-          >
-            {exportLabel}
-          </button>
-          {exportOpen ? (
-            <div className="rec-page__export-pop" role="menu" data-recording="export-menu">
+        <div className="rec-page__crumb-actions">
+          {!isMobile ? (
+            <div className="rec-page__export" ref={exportMenuRef}>
               <button
                 type="button"
-                role="menuitem"
-                className="rec-page__export-item"
-                data-export="minutes-docx"
+                className="btn-text"
+                data-recording="export"
+                aria-expanded={exportOpen}
+                aria-haspopup="menu"
+                aria-label={exportMenuLabel}
                 disabled={exportBusy}
-                onClick={() => void runExport("minutes", "docx")}
+                onClick={() => setExportOpen((v) => !v)}
               >
-                {exportMinutesDocx}
+                {exportLabel}
               </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="rec-page__export-item"
-                data-export="minutes-pdf"
-                disabled={exportBusy}
-                onClick={() => void runExport("minutes", "pdf")}
-              >
-                {exportMinutesPdf}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="rec-page__export-item"
-                data-export="minutes-copy"
-                disabled={exportBusy}
-                onClick={() => void copyMinutes()}
-              >
-                {copiedFlash ? exportMinutesCopied : exportMinutesCopy}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="rec-page__export-item"
-                data-export="follow-up"
-                disabled={exportBusy}
-                onClick={() => void openFollowUpDialog()}
-              >
-                {exportFollowUp}
-              </button>
-              <div className="rec-page__export-sep" role="separator" />
-              <button
-                type="button"
-                role="menuitem"
-                className="rec-page__export-item"
-                data-export="transcript-txt"
-                disabled={exportBusy}
-                onClick={() => void runExport("transcript", "txt")}
-              >
-                {exportTranscriptTxt}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="rec-page__export-item"
-                data-export="transcript-docx"
-                disabled={exportBusy}
-                onClick={() => void runExport("transcript", "docx")}
-              >
-                {exportTranscriptDocx}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="rec-page__export-item"
-                data-export="transcript-srt"
-                disabled={exportBusy}
-                onClick={() => void runExport("transcript", "srt")}
-              >
-                {exportTranscriptSrt}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="rec-page__export-item"
-                data-export="transcript-vtt"
-                disabled={exportBusy}
-                onClick={() => void runExport("transcript", "vtt")}
-              >
-                {exportTranscriptVtt}
-              </button>
+              {exportOpen ? (
+                <div className="rec-page__export-pop" role="menu" data-recording="export-menu">
+                  {shareItems}
+                  <div className="rec-page__export-sep" role="separator" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="rec-page__export-item"
+                    data-export="transcript-txt"
+                    disabled={exportBusy}
+                    onClick={() => void runExport("transcript", "txt")}
+                  >
+                    {exportTranscriptTxt}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="rec-page__export-item"
+                    data-export="transcript-docx"
+                    disabled={exportBusy}
+                    onClick={() => void runExport("transcript", "docx")}
+                  >
+                    {exportTranscriptDocx}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="rec-page__export-item"
+                    data-export="transcript-srt"
+                    disabled={exportBusy}
+                    onClick={() => void runExport("transcript", "srt")}
+                  >
+                    {exportTranscriptSrt}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="rec-page__export-item"
+                    data-export="transcript-vtt"
+                    disabled={exportBusy}
+                    onClick={() => void runExport("transcript", "vtt")}
+                  >
+                    {exportTranscriptVtt}
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : null}
+          {isMobile ? (
+            <button
+              type="button"
+              className="rec-page__share-btn"
+              data-recording="share"
+              aria-label={tApp("shareRecording")}
+              onClick={() => setShareOpen(true)}
+            >
+              {tApp("shareRecording")}
+            </button>
+          ) : null}
+          <div className="rec-page__more" ref={moreMenuRef}>
+            <button
+              type="button"
+              className="rec-page__more-btn"
+              data-recording="more"
+              aria-expanded={moreOpen}
+              aria-haspopup="menu"
+              aria-label={tApp("recordingMenu")}
+              onClick={() => setMoreOpen((v) => !v)}
+            >
+              ···
+            </button>
+            {moreOpen ? (
+              <div className="rec-page__export-pop" role="menu" data-recording="more-menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="rec-page__export-item"
+                  data-recording="rename-title"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    setTitleDraft((media.title ?? "").trim() || displayTitle);
+                    setTitleRenameOpen(true);
+                  }}
+                >
+                  {tApp("renameRecording")}
+                </button>
+                {regenLeft > 0 ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="rec-page__export-item"
+                    data-minutes="regenerate-menu"
+                    onClick={() => {
+                      setMoreOpen(false);
+                      setExternalRegenOpen(true);
+                    }}
+                  >
+                    {regenerateLabel}
+                  </button>
+                ) : null}
+                {isMobile ? (
+                  <>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="rec-page__export-item"
+                      data-minutes="template-pick-default"
+                      onClick={() => {
+                        setMoreOpen(false);
+                        setExternalTemplatePick("default");
+                      }}
+                    >
+                      {tApp("minutesTemplateDefault")}
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="rec-page__export-item"
+                      data-minutes="template-pick-official"
+                      onClick={() => {
+                        setMoreOpen(false);
+                        setExternalTemplatePick("official_protocol");
+                      }}
+                    >
+                      {tApp("minutesTemplateOfficial")}
+                    </button>
+                  </>
+                ) : null}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="rec-page__export-item"
+                  data-recording="rename"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    setRenameOpen(true);
+                  }}
+                >
+                  {renameLabel}
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
 
       <section className="rec-page__hero" data-recording="player-band">
         <div className="rec-page__title-row">
           <div>
-            <h1 className="rec-page__title">{media.filename}</h1>
+            <h1 className="rec-page__title">{displayTitle}</h1>
             <p className="rec-page__meta dy-time" data-recording="meta">
-              {[
-                formatDateTime(media.created_at, locale),
-                formatClock(durationSec),
-                media.language || transcript.language || "—",
-              ].join(" · ")}
-              {" · "}
+              {(() => {
+                const langCode = media.language || transcript.language || null;
+                let langLabel: string | null = null;
+                if (langCode) {
+                  try {
+                    langLabel =
+                      new Intl.DisplayNames(uiDateLocale(locale), {
+                        type: "language",
+                      }).of(langCode) || langCode;
+                  } catch {
+                    langLabel = langCode;
+                  }
+                }
+                const bits = joinMeta([formatClock(durationSec), langLabel]);
+                return bits ? <>{bits} · </> : null;
+              })()}
               {editingMeeting ? (
                 <span data-recording="meeting-date-edit">
                   <input
@@ -1004,6 +1183,9 @@ export function RecordingView({
                 </button>
               )}
             </p>
+            <p className="rec-page__filename dy-muted" data-recording="filename">
+              {media.filename}
+            </p>
           </div>
           <div className="rec-page__speakers">
             {speakers.map((sp) => (
@@ -1022,7 +1204,7 @@ export function RecordingView({
             ))}
             <button
               type="button"
-              className="btn-text"
+              className="btn-text rec-page__rename-speakers"
               data-recording="rename"
               onClick={() => setRenameOpen(true)}
             >
@@ -1030,7 +1212,13 @@ export function RecordingView({
             </button>
           </div>
         </div>
-        <div className="dy-player rec-page__player" data-recording="player">
+        <div
+          className={`dy-player rec-page__player${playerCollapsed ? " is-collapsed" : ""}`}
+          data-recording="player"
+          onClick={() => {
+            if (playerCollapsed) setPlayerCollapsed(false);
+          }}
+        >
           <button
             type="button"
             className="dy-play"
@@ -1112,24 +1300,31 @@ export function RecordingView({
         </Alert>
       ) : null}
 
-      <div className="rec-page__tabs dy-tabs" role="tablist" aria-label="Recording">
-        <button
-          type="button"
-          role="tab"
-          className="dy-tab"
-          aria-selected={mobileTab === "transcript"}
-          onClick={() => setMobileTab("transcript")}
-        >
-          {transcriptTab}
-        </button>
+      <div
+        className="rec-page__tabs dy-tabs"
+        role="tablist"
+        aria-label="Recording"
+        data-recording="tabs"
+      >
         <button
           type="button"
           role="tab"
           className="dy-tab"
           aria-selected={mobileTab === "minutes"}
           onClick={() => setMobileTab("minutes")}
+          data-recording="tab-minutes"
         >
           {minutesTab}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className="dy-tab"
+          aria-selected={mobileTab === "transcript"}
+          onClick={() => setMobileTab("transcript")}
+          data-recording="tab-transcript"
+        >
+          {transcriptTab}
         </button>
       </div>
 
@@ -1220,93 +1415,31 @@ export function RecordingView({
               >
                 {virtualizer.getVirtualItems().map((row) => {
                   const seg = segments[row.index]!;
-                  const active = seg.id === activeSegId;
-                  const isMatch = matchIds.includes(seg.id);
-                  const isCurrentMatch =
-                    matchIds[matchIdx] === seg.id && matchIds.length > 0;
-                  const isEvidence = evidenceSegIds.includes(seg.id);
                   return (
-                    <button
+                    <TranscriptSegment
                       key={seg.id}
-                      type="button"
-                      className={`dy-turn${active ? " is-playing" : ""}${isMatch ? " is-match" : ""}${isCurrentMatch ? " is-match-current" : ""}${isEvidence ? " is-evidence" : ""}`}
-                      data-recording="segment"
-                      data-seg-id={seg.id}
-                      data-start-ms={seg.start_ms}
-                      data-index={row.index}
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        transform: `translateY(${row.start}px)`,
-                      }}
-                      ref={virtualizer.measureElement}
-                      onClick={() => {
-                        pauseFollow();
-                        setEvidenceSegIds([]);
-                        seekTo(seg.start_ms);
-                      }}
-                    >
-                      <span className="dy-speaker rec-seg-speaker">
-                        <span
-                          className={`dy-speaker__dot sp-${speakerTone(speakers, seg.speaker_id)}`}
-                          aria-hidden
-                        />
-                        <button
-                          type="button"
-                          className="btn-text"
-                          data-recording="seg-speaker"
-                          aria-haspopup="menu"
-                          aria-expanded={segMenuId === seg.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSegMenuId((cur) => (cur === seg.id ? null : seg.id));
-                          }}
-                        >
-                          {speakerName(speakers, seg.speaker_id)}
-                        </button>
-                        {segMenuId === seg.id ? (
-                          <span
-                            className="rec-seg-menu"
-                            role="menu"
-                            data-recording="seg-speaker-menu"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <span className="rec-seg-menu__label">{changeSpeakerLabel}</span>
-                            {speakers.map((sp) => (
-                              <button
-                                key={sp.id}
-                                type="button"
-                                role="menuitem"
-                                className="rec-seg-menu__item"
-                                onClick={() => void changeSegSpeaker(seg.id, sp.id)}
-                              >
-                                {sp.display_name || sp.label}
-                              </button>
-                            ))}
-                            <button
-                              type="button"
-                              role="menuitem"
-                              className="rec-seg-menu__item"
-                              data-recording="seg-split"
-                              onClick={() => void splitSegSpeaker(seg.id)}
-                            >
-                              {newSpeakerLabel}
-                            </button>
-                          </span>
-                        ) : null}
-                      </span>
-                      <span className={`dy-timecode${active ? " is-active" : ""}`}>
-                        <svg className="dy-icon" viewBox="0 0 12 12" aria-hidden>
-                          <path d="M3 2.5v7l6-3.5z" />
-                        </svg>
-                        <span className="dy-time">
-                          {formatClock(seg.start_ms / 1000)}
-                        </span>
-                      </span>
-                      <p className="dy-turn__text">{renderSegText(seg.id, seg.text)}</p>
-                    </button>
+                      segId={seg.id}
+                      startMs={seg.start_ms}
+                      speakerId={seg.speaker_id}
+                      index={row.index}
+                      rowStart={row.start}
+                      active={seg.id === activeSegId}
+                      isMatch={matchIds.includes(seg.id)}
+                      isCurrentMatch={
+                        matchIds[matchIdx] === seg.id && matchIds.length > 0
+                      }
+                      isEvidence={evidenceSegIds.includes(seg.id)}
+                      menuOpen={segMenuId === seg.id}
+                      speakers={speakers}
+                      changeSpeakerLabel={changeSpeakerLabel ?? "Change speaker"}
+                      newSpeakerLabel={newSpeakerLabel ?? "New speaker"}
+                      textNode={renderSegText(seg.id, seg.text)}
+                      onMeasure={virtualizer.measureElement}
+                      onToggleMenu={onToggleSegMenu}
+                      onSeek={onSegSeek}
+                      onChangeSpeaker={onChangeSegSpeaker}
+                      onSplitSpeaker={onSplitSegSpeaker}
+                    />
                   );
                 })}
               </div>
@@ -1338,6 +1471,12 @@ export function RecordingView({
           regeneratingLabel={regeneratingLabel}
           limitLabel={regenerateLimitLabel}
           errorLabel={errorLabel}
+          hideRegenerate
+          externalRegenOpen={externalRegenOpen}
+          onExternalRegenClose={() => setExternalRegenOpen(false)}
+          externalTemplatePick={externalTemplatePick}
+          onExternalTemplateHandled={() => setExternalTemplatePick(null)}
+          onRegenMeta={(meta) => setRegenLeft(meta.left)}
           speakerMeta={Object.fromEntries(
             speakers.map((sp) => [
               sp.label,
@@ -1359,6 +1498,69 @@ export function RecordingView({
           }}
         />
       </section>
+
+      <BottomSheet
+        open={shareOpen}
+        title={tApp("shareSheetTitle")}
+        onClose={() => setShareOpen(false)}
+      >
+        <div className="dy-sheet__list" role="menu" data-recording="share-sheet">
+          {shareItems}
+        </div>
+      </BottomSheet>
+
+      <Dialog
+        open={titleRenameOpen}
+        title={tApp("renameRecordingTitle")}
+        onClose={() => {
+          if (!titleBusy) setTitleRenameOpen(false);
+        }}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              disabled={titleBusy}
+              onClick={() => setTitleRenameOpen(false)}
+            >
+              {cancelLabel}
+            </Button>
+            <Button
+              loading={titleBusy}
+              data-recording="title-save"
+              onClick={() => {
+                void (async () => {
+                  setTitleBusy(true);
+                  try {
+                    const m = await patchMedia(mediaId, {
+                      title: titleDraft.trim() || null,
+                    });
+                    setMedia(m);
+                    setTitleRenameOpen(false);
+                  } catch {
+                    setError(errorLabel);
+                  } finally {
+                    setTitleBusy(false);
+                  }
+                })();
+              }}
+            >
+              {tApp("renameRecordingSave")}
+            </Button>
+          </>
+        }
+      >
+        <label className="dy-field">
+          <span className="visually-hidden">{tApp("renameRecordingTitle")}</span>
+          <input
+            type="text"
+            value={titleDraft}
+            maxLength={120}
+            data-recording="title-input"
+            onChange={(e) => setTitleDraft(e.target.value)}
+          />
+        </label>
+        <p className="dy-muted">{media.filename}</p>
+      </Dialog>
 
       <Dialog
         open={followUpOpen}

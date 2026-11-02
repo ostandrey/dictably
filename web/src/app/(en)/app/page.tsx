@@ -5,7 +5,7 @@ import { SignInPanel } from "@/components/app/SignInPanel";
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations({ locale: "en" });
   return {
-    title: t("app.title"),
+    title: `${t("app.recordingsH1")} · Dictably`,
     robots: { index: false, follow: false },
   };
 }
@@ -62,6 +62,18 @@ export default async function AppHomePage() {
         uploadTemplateLabel: t("app.uploadTemplateLabel"),
         minutesTemplateDefault: t("app.minutesTemplateDefault"),
         minutesTemplateOfficial: t("app.minutesTemplateOfficial"),
+        provisionalMeeting: t("app.provisionalMeeting"),
+        renameLabel: t("app.renameRecording"),
+        renameTitle: t("app.renameRecordingTitle"),
+        renameSave: t("app.renameRecordingSave"),
+        downloadLabel: t("app.downloadRecording"),
+        statusUploadedHint: t("app.statusUploadedHint"),
+        statusUploadedStale: t("app.statusUploadedStale"),
+        statusQueuedNext: t("app.statusQueuedNext"),
+        statusProcessingHint: t("app.statusProcessingHint"),
+        statusReadyHint: t("app.statusReadyHint"),
+        statusFailedHint: t("app.statusFailedHint"),
+        refreshStatus: t("app.refreshStatus"),
       }}
     />
   );

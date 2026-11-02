@@ -17,7 +17,7 @@ export default async function PeoplePage() {
     <PlaceholderPanel
       illustration={<IllPeople />}
       title={t("app.peopleTitle")}
-      body={t("app.peopleBody")}
+      body={`${t("app.peopleBody")} ${t("app.peopleHint")}`}
       actionHref="/app/"
       actionLabel={t("app.uploadCta")}
       data-testid="people"

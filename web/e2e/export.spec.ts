@@ -1,11 +1,13 @@
 import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
-import { ensureSignedIn } from "./utils/auth";
+import { ensureSignedIn, uniqueE2eEmail } from "./utils/auth";
+import { recordingRow } from "./utils/recordings";
 import { confirmUploadDetailsIfOpen } from "./utils/upload";
 
 const SHOT_ROOT = path.join("e2e", "__screenshots__", "T-017");
 const FIXTURE = path.join("e2e", "fixtures", "short.wav");
+const SUITE_EMAIL = uniqueE2eEmail("t017");
 
 test.describe("T-017 exports", () => {
   test.describe.configure({ mode: "serial" });
@@ -13,7 +15,7 @@ test.describe("T-017 exports", () => {
   test("download minutes DOCX + PDF", async ({ page, request }) => {
     test.setTimeout(120_000);
     await page.goto("/app/");
-    await ensureSignedIn(page);
+    await ensureSignedIn(page, { email: SUITE_EMAIL });
     const name = `t017-${Date.now()}.wav`;
     await page.locator("[data-recordings='file']").setInputFiles({
       name,
@@ -21,7 +23,7 @@ test.describe("T-017 exports", () => {
       buffer: fs.readFileSync(FIXTURE),
     });
     await confirmUploadDetailsIfOpen(page);
-    const row = page.locator("[data-recordings='row']").filter({ hasText: name });
+    const row = recordingRow(page, name);
     await expect(row).toBeVisible({ timeout: 30_000 });
     await expect(row).toContainText(/Ready|Готово/, { timeout: 30_000 });
     await row.click();
@@ -69,8 +71,9 @@ test.describe("T-017 exports", () => {
         /\/(?:uk\/)?app\/r\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i,
       )?.[1];
     expect(mediaId).toBeTruthy();
+    // Anonymous probe via static host proxy (API process may not expose :8000 to request fixture).
     const anon = await request.get(
-      `http://127.0.0.1:8000/api/media/${mediaId}/export?kind=minutes&format=docx`,
+      `/api/media/${mediaId}/export?kind=minutes&format=docx`,
     );
     expect([401, 403]).toContain(anon.status());
   });
@@ -79,13 +82,11 @@ test.describe("T-017 exports", () => {
     test.setTimeout(90_000);
     fs.mkdirSync(SHOT_ROOT, { recursive: true });
     await page.goto("/app/");
-    await ensureSignedIn(page);
+    await ensureSignedIn(page, { email: SUITE_EMAIL });
     const row = page.locator("[data-recordings='row']").first();
     await expect(row).toBeVisible({ timeout: 15_000 });
     await row.click();
-    await expect(page.locator("[data-recording='export']")).toBeVisible();
-    await page.locator("[data-recording='export']").click();
-    await expect(page.locator("[data-recording='export-menu']")).toBeVisible();
+    await expect(page.locator("[data-recording='page']")).toBeVisible();
 
     for (const scheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });
@@ -103,14 +104,22 @@ test.describe("T-017 exports", () => {
             document.documentElement.removeAttribute("data-theme");
           });
         }
-        if (!(await page.locator("[data-recording='export-menu']").isVisible())) {
-          await page.locator("[data-recording='export']").click();
-          await expect(page.locator("[data-recording='export-menu']")).toBeVisible();
+        if (vp.width <= 400) {
+          await page.locator("[data-recording='share']").click();
+          await expect(page.locator("[data-recording='share-sheet']")).toBeVisible();
+        } else {
+          if (!(await page.locator("[data-recording='export-menu']").isVisible())) {
+            await page.locator("[data-recording='export']").click();
+            await expect(page.locator("[data-recording='export-menu']")).toBeVisible();
+          }
         }
         await page.screenshot({
           path: path.join(SHOT_ROOT, `export-menu-${vp.name}-${scheme}.png`),
           fullPage: true,
         });
+        if (vp.width <= 400) {
+          await page.locator("[data-sheet='close']").click();
+        }
       }
     }
   });

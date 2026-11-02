@@ -49,6 +49,7 @@ test.describe("T-035b multi-file Zoom meeting", () => {
     ).toBeVisible();
     await shot(page, "upload-bundle", 1440);
     await shot(page, "upload-bundle", 375);
+    await page.setViewportSize({ width: 1440, height: 900 });
     await confirmUploadDetailsIfOpen(page);
 
     const row = page.locator("[data-recordings='row']").filter({
@@ -67,6 +68,7 @@ test.describe("T-035b multi-file Zoom meeting", () => {
     await expect(page.getByText("Andriy", { exact: true }).first()).toBeVisible();
     await shot(page, "two-speakers", 1440);
     await shot(page, "two-speakers", 375);
+    await page.setViewportSize({ width: 1440, height: 900 });
 
     await page.locator("[data-recording='rename']").click();
     await expect(page.locator("[data-dialog='open']")).toBeVisible();

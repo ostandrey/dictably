@@ -8,6 +8,8 @@ import {
   regenerateAnalysis,
   type Analysis,
 } from "@/lib/api";
+import { Dialog } from "@/components/ui/Dialog";
+import { Button } from "@/components/ui/Button";
 
 type Point = {
   text: string;
@@ -43,6 +45,16 @@ type Props = {
     { name: string; colorIdx: number; party: string | null }
   >;
   onSeek: (startMs: number, segmentIds: string[]) => void;
+  /** Hide the regenerate control — parent ⋯ menu owns it (T-041). */
+  hideRegenerate?: boolean;
+  /** Notify parent of regen budget for the recording menu. */
+  onRegenMeta?: (meta: { left: number; busy: boolean }) => void;
+  /** External regenerate confirm open (from recording ⋯). */
+  externalRegenOpen?: boolean;
+  onExternalRegenClose?: () => void;
+  /** External request to change template (mobile ⋯). */
+  externalTemplatePick?: string | null;
+  onExternalTemplateHandled?: () => void;
 };
 
 function formatClock(ms: number): string {
@@ -84,6 +96,12 @@ export function MinutesPanel({
   className,
   speakerMeta = {},
   onSeek,
+  hideRegenerate = false,
+  onRegenMeta,
+  externalRegenOpen = false,
+  onExternalRegenClose,
+  externalTemplatePick = null,
+  onExternalTemplateHandled,
 }: Props) {
   const t = useTranslations("app");
   const verifyLabel = t("minutesVerify");
@@ -91,6 +109,8 @@ export function MinutesPanel({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [templateConfirm, setTemplateConfirm] = useState<string | null>(null);
+  const [regenConfirm, setRegenConfirm] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -115,15 +135,20 @@ export function MinutesPanel({
     return () => window.clearTimeout(t);
   }, [load]);
 
-  const [pickedTemplate, setPickedTemplate] = useState<string | null>(null);
+  const result = analysis?.result;
+  const serverTemplate =
+    (analysis as { template?: string } | null)?.template ||
+    (result as { template?: string } | undefined)?.template ||
+    "default";
 
-  async function onRegenerate() {
+  async function runRegenerate(nextTemplate: string) {
     setBusy(true);
     setError(null);
     try {
-      const a = await regenerateAnalysis(mediaId, { template });
+      const a = await regenerateAnalysis(mediaId, { template: nextTemplate });
       setAnalysis(a);
-      setPickedTemplate(null);
+      setTemplateConfirm(null);
+      closeRegenConfirm();
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
         setError(limitLabel);
@@ -135,12 +160,30 @@ export function MinutesPanel({
     }
   }
 
-  const result = analysis?.result;
-  const serverTemplate =
-    (analysis as { template?: string } | null)?.template ||
-    (result as { template?: string } | undefined)?.template ||
-    "default";
-  const template = pickedTemplate ?? serverTemplate;
+  useEffect(() => {
+    onRegenMeta?.({
+      left: analysis?.regenerations_left ?? 0,
+      busy,
+    });
+  }, [analysis?.regenerations_left, busy, onRegenMeta]);
+
+  const showRegenConfirm = regenConfirm || externalRegenOpen;
+
+  function closeRegenConfirm() {
+    setRegenConfirm(false);
+    onExternalRegenClose?.();
+  }
+
+  useEffect(() => {
+    if (!externalTemplatePick) return;
+    const next = externalTemplatePick;
+    const id = window.setTimeout(() => {
+      if (next !== serverTemplate) setTemplateConfirm(next);
+      onExternalTemplateHandled?.();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [externalTemplatePick, onExternalTemplateHandled, serverTemplate]);
+
   // Body layout follows last generated analysis, not the pending select value.
   const isOfficial = serverTemplate === "official_protocol";
   const agendaLabel = t("minutesAgenda");
@@ -355,6 +398,10 @@ export function MinutesPanel({
       result.open_questions?.length
     );
 
+  const left = analysis?.regenerations_left ?? 0;
+  const pendingTemplateLabel =
+    templateConfirm === "official_protocol" ? templateOfficial : templateMinutes;
+
   return (
     <aside className={className} data-recording="minutes">
       <div className="rec-page__minutes-head">
@@ -362,31 +409,100 @@ export function MinutesPanel({
         <label className="rec-page__minutes-template">
           <span className="visually-hidden">{templateLabel}</span>
           <select
-            value={template}
+            value={serverTemplate}
             data-minutes="template"
-            disabled={busy}
-            onChange={(e) => setPickedTemplate(e.target.value)}
+            disabled={busy || left <= 0}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (next === serverTemplate) return;
+              // Reset select to server value until confirm (T-041: no silent regen).
+              e.target.value = serverTemplate;
+              setTemplateConfirm(next);
+            }}
           >
             <option value="default">{templateMinutes}</option>
             <option value="official_protocol">{templateOfficial}</option>
           </select>
         </label>
-        {(analysis?.regenerations_left ?? 0) > 0 ? (
+        {!hideRegenerate && left > 0 ? (
           <button
             type="button"
             className="btn-secondary"
             disabled={busy}
-            onClick={() => void onRegenerate()}
+            onClick={() => setRegenConfirm(true)}
             data-minutes="regenerate"
           >
             {busy ? regeneratingLabel : regenerateLabel}
           </button>
-        ) : analysis ? (
+        ) : !hideRegenerate && analysis ? (
           <span className="dy-muted" data-minutes="limit">
             {limitLabel}
           </span>
         ) : null}
       </div>
+      <Dialog
+        open={templateConfirm != null}
+        title={t("templateConfirmTitle")}
+        onClose={() => setTemplateConfirm(null)}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              disabled={busy}
+              onClick={() => setTemplateConfirm(null)}
+              data-minutes="template-cancel"
+            >
+              {t("cancel")}
+            </Button>
+            <Button
+              loading={busy}
+              onClick={() => {
+                if (templateConfirm) void runRegenerate(templateConfirm);
+              }}
+              data-minutes="template-confirm"
+            >
+              {t("templateConfirmAction")}
+            </Button>
+          </>
+        }
+      >
+        <p>
+          {t("templateConfirmBody", {
+            template: pendingTemplateLabel,
+            left: String(Math.max(0, left)),
+          })}
+        </p>
+      </Dialog>
+      <Dialog
+        open={showRegenConfirm}
+        title={t("regenConfirmTitle")}
+        onClose={closeRegenConfirm}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              disabled={busy}
+              onClick={closeRegenConfirm}
+              data-minutes="regen-cancel"
+            >
+              {t("cancel")}
+            </Button>
+            <Button
+              loading={busy}
+              onClick={() => void runRegenerate(serverTemplate)}
+              data-minutes="regenerate"
+            >
+              {t("regenConfirmAction")}
+            </Button>
+          </>
+        }
+      >
+        <p>
+          {t("regenConfirmBody", {
+            left: String(Math.max(0, left - 1)),
+          })}
+        </p>
+      </Dialog>
       {error ? (
         <p className="sign-in__error" role="alert" data-minutes="error">
           {error}
@@ -399,7 +515,7 @@ export function MinutesPanel({
           {emptyLabel}
         </p>
       ) : (
-        <div className="dy-minutes" data-minutes="body" data-template={template}>
+        <div className="dy-minutes" data-minutes="body" data-template={serverTemplate}>
           {isOfficial ? (
             <>
               {attendeeNames.length ? (

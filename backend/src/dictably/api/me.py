@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dictably.api.cookies import clear_session_cookies
 from dictably.api.deps import client_ip, require_user, require_user_csrf
-from dictably.api.schemas import ConsentIn, OnboardingIn, UserOut
+from dictably.api.schemas import ConsentIn, MePatchIn, OnboardingIn, UserOut
 from dictably.core.config import Settings, get_settings
 from dictably.db.models import User
 from dictably.db.session import get_db
@@ -43,6 +43,26 @@ async def me(
     user: Annotated[User, Depends(require_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> UserOut:
+    balance = await ledger_domain.balance_seconds(session, user.id)
+    return user_out(user, balance_seconds=balance)
+
+
+@router.patch("/me", response_model=UserOut)
+async def patch_me(
+    body: MePatchIn,
+    user: Annotated[User, Depends(require_user_csrf)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> UserOut:
+    """Update Settings defaults: UI locale + preferred minutes template (T-041)."""
+    fields = body.model_fields_set
+    if "locale" in fields and body.locale is not None:
+        loc = account_domain.sanitize_locale(body.locale)
+        if loc:
+            user.locale = loc
+    if "preferred_minutes_template" in fields and body.preferred_minutes_template is not None:
+        account_domain.remember_minutes_template(user, body.preferred_minutes_template)
+    await session.commit()
+    await session.refresh(user)
     balance = await ledger_domain.balance_seconds(session, user.id)
     return user_out(user, balance_seconds=balance)
 

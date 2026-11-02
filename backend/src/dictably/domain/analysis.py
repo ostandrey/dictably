@@ -111,8 +111,35 @@ async def run_and_store(
         cost_usd=data.get("cost_usd"),
     )
     session.add(row)
+    # T-041 B1/S3: LLM may fill title only when the user has not set one;
+    # skip empty / generic labels; clamp to 60 chars (spec).
+    _apply_llm_title(media, (cleaned.title or "").strip())
     await session.flush()
     return row
+
+
+_GENERIC_TITLES = frozenset(
+    {
+        "",
+        "minutes",
+        "підсумки",
+        "протокол",
+        "meeting",
+        "нарада",
+        "meeting minutes",
+        "fake meeting minutes",
+    }
+)
+
+
+def _apply_llm_title(media: Media, llm_title: str) -> None:
+    if getattr(media, "title_source", None) == "user":
+        return
+    cleaned = " ".join(llm_title.split()).strip()
+    if not cleaned or cleaned.casefold() in _GENERIC_TITLES:
+        return
+    media.title = cleaned[:60]
+    media.title_source = "llm"
 
 
 async def regenerate_for_user(

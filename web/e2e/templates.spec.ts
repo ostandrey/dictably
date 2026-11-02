@@ -2,10 +2,12 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
-import { ensureSignedIn } from "./utils/auth";
+import { ensureSignedIn, uniqueE2eEmail } from "./utils/auth";
+import { recordingRow } from "./utils/recordings";
 
 const SHOT_ROOT = path.join("e2e", "__screenshots__", "T-027");
 const FIXTURE = path.join("e2e", "fixtures", "short.wav");
+const SUITE_EMAIL = uniqueE2eEmail("t027");
 
 test.describe("T-027 minutes templates + N1 sign-in", () => {
   test.describe.configure({ mode: "serial" });
@@ -15,7 +17,7 @@ test.describe("T-027 minutes templates + N1 sign-in", () => {
   }) => {
     test.setTimeout(120_000);
     await page.goto("/app/");
-    await ensureSignedIn(page);
+    await ensureSignedIn(page, { email: SUITE_EMAIL });
     const name = `t027-up-${Date.now()}.wav`;
     await page.locator("[data-recordings='file']").setInputFiles({
       name,
@@ -29,9 +31,7 @@ test.describe("T-027 minutes templates + N1 sign-in", () => {
       .locator("[data-recordings='upload-template']")
       .selectOption("official_protocol");
     await page.locator("[data-recordings='upload-details-continue']").click();
-    const row = page
-      .locator("[data-recordings='row']")
-      .filter({ hasText: name });
+    const row = recordingRow(page, name);
     await expect(row).toBeVisible({ timeout: 30_000 });
     await expect(row).toContainText(/Ready|Готово/, { timeout: 30_000 });
     await row.click();
@@ -75,7 +75,7 @@ test.describe("T-027 minutes templates + N1 sign-in", () => {
 
   test("axe minutes with template — no serious/critical", async ({ page }) => {
     await page.goto("/app/");
-    await ensureSignedIn(page);
+    await ensureSignedIn(page, { email: SUITE_EMAIL });
     const row = page.locator("[data-recordings='row']").first();
     await expect(row).toBeVisible({ timeout: 15_000 });
     await row.click();
@@ -97,22 +97,15 @@ test.describe("T-027 minutes templates + N1 sign-in", () => {
     fs.mkdirSync(SHOT_ROOT, { recursive: true });
 
     await page.goto("/app/");
-    await ensureSignedIn(page);
+    await ensureSignedIn(page, { email: SUITE_EMAIL });
     const row = page.locator("[data-recordings='row']").first();
     await expect(row).toBeVisible({ timeout: 15_000 });
     await row.click();
     await expect(page.locator("[data-minutes='template']")).toBeVisible();
-    const tpl = page.locator("[data-minutes='template']");
-    if ((await tpl.inputValue()) !== "official_protocol") {
-      await tpl.selectOption("official_protocol");
-      const regen = page.locator("[data-minutes='regenerate']");
-      if (await regen.isVisible()) {
-        await regen.click();
-        await expect(page.locator("[data-minutes='agenda']")).toBeVisible({
-          timeout: 30_000,
-        });
-      }
-    }
+    // Suite upload already used Official; confirm agenda is present for shots.
+    await expect(
+      page.locator("[data-minutes='agenda'], [data-minutes='body']").first(),
+    ).toBeVisible({ timeout: 15_000 });
 
     const mediaId = await page.evaluate(() => {
       const m = location.search.match(/[?&]id=([^&]+)/);

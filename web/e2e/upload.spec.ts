@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { ensureSignedIn } from "./utils/auth";
+import { recordingRow } from "./utils/recordings";
 import { confirmUploadDetailsIfOpen } from "./utils/upload";
 import fs from "node:fs";
 import path from "node:path";
@@ -34,9 +35,7 @@ test.describe("T-012 upload + my recordings", () => {
     const file = uniqueFixture();
     await page.locator("[data-recordings='file']").setInputFiles(file);
     await confirmUploadDetailsIfOpen(page);
-    const row = page
-      .locator("[data-recordings='row']")
-      .filter({ hasText: file.name });
+    const row = recordingRow(page, file.name);
     await expect(row).toBeVisible({ timeout: 30_000 });
     // T-013/14: fake path reaches ready (inline process in ENV=test).
     await expect(row).toContainText(/Ready|Готово/, { timeout: 30_000 });

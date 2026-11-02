@@ -146,14 +146,6 @@ export function AppShell({
         <span>Minutes</span>
         <span className="dy-time dy-muted">{formatBalance(balance)}</span>
       </div>
-      <div className="dy-progress" aria-hidden>
-        <div
-          className="dy-progress__fill"
-          style={{
-            width: `${Math.min(100, Math.round((balance / (20 * 3600)) * 100))}%`,
-          }}
-        />
-      </div>
     </div>
   ) : null;
 
@@ -222,7 +214,7 @@ export function AppShell({
         ) : null}
         {showAccountInMain ? (
           <div className="app-settings-mobile" data-shell="settings-main">
-            {quotaBlock}
+            {/* S6: minutes live in SettingsPanel billing — no duplicate quota here */}
             {accountBlock}
           </div>
         ) : null}

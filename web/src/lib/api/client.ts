@@ -169,6 +169,16 @@ export function deleteAccount(): Promise<void> {
   return apiFetch<void>("/api/me", { method: "DELETE" });
 }
 
+export function patchMe(body: {
+  locale?: string | null;
+  preferred_minutes_template?: string | null;
+}): Promise<User> {
+  return apiFetch<User>("/api/me", {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export function devLogin(
   email = "dev@example.com",
   name = "Dev User",
@@ -326,6 +336,8 @@ export function patchMedia(
     transcript_mode?: string;
     language?: string | null;
     speakers_expected?: number | null;
+    minutes_template?: string | null;
+    title?: string | null;
   },
 ): Promise<MediaItem> {
   return apiFetch<MediaItem>(`/api/media/${mediaId}`, {

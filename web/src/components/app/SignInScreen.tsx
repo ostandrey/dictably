@@ -223,6 +223,16 @@ export function SignInScreen({ locale, nextPath, homeFallback, copy }: Props) {
     { text: copy.point3, kind: "lock" as const },
   ];
 
+  useEffect(() => {
+    const prev = document.title;
+    document.title = copy.title.includes("Dictably")
+      ? copy.title
+      : `${copy.title} · Dictably`;
+    return () => {
+      document.title = prev;
+    };
+  }, [copy.title]);
+
   return (
     <div className="auth-screen" data-auth="screen" data-locale={locale}>
       <aside className="auth-screen__aside">
@@ -253,8 +263,13 @@ export function SignInScreen({ locale, nextPath, homeFallback, copy }: Props) {
       </aside>
 
       <div className="auth-screen__main">
-        <div className="auth-screen__mobile-ill" aria-hidden>
-          <IllEmptyRecordings />
+        <div className="auth-screen__mobile-brand" data-auth="mobile-brand">
+          <span className="auth-screen__mark" aria-hidden>
+            <span className="sp-1" />
+            <span className="sp-2" />
+            <span className="sp-3" />
+          </span>
+          {copy.brandName}
         </div>
         <div className="auth-screen__card" data-auth="card">
           <h1 className="auth-screen__title">{copy.title}</h1>

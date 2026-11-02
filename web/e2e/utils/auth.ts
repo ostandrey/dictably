@@ -19,8 +19,19 @@ export async function passAccountGates(page: Page) {
   }
 }
 
-/** Dev-login (or reuse session) and clear first-login gates. */
-export async function ensureSignedIn(page: Page) {
+/** Unique email so parallel / reused DB runs do not collide (T-041 B4). */
+export function uniqueE2eEmail(prefix = "e2e"): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
+}
+
+/**
+ * Dev-login (or reuse session) and clear first-login gates.
+ * Prefer a unique email unless `email` is passed (serial suites that share uploads).
+ */
+export async function ensureSignedIn(
+  page: Page,
+  opts?: { email?: string; name?: string },
+) {
   await page.waitForSelector(
     "[data-auth='dev-login'], [data-recordings='panel'], [data-consent='accept']",
   );
@@ -37,7 +48,20 @@ export async function ensureSignedIn(page: Page) {
     return;
   }
 
-  await page.locator("[data-auth='dev-login']").click();
+  const email = opts?.email ?? uniqueE2eEmail();
+  const name = opts?.name ?? "E2E User";
+  await page.evaluate(
+    async ({ em, nm }) => {
+      await fetch("/api/auth/dev-login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: em, name: nm }),
+      });
+    },
+    { em: email, nm: name },
+  );
+  await page.reload();
   await page.waitForSelector(
     "[data-consent='accept'], [data-recordings='panel'], [data-onboarding='skip']",
     { timeout: 15_000 },

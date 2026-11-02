@@ -216,9 +216,18 @@ async def list_page_for_user(
     )
     needle = (q or "").strip()
     if needle:
-        # Escape LIKE metacharacters; pg_trgm gin supports ILIKE.
+        # Escape LIKE metacharacters; pg_trgm gin supports ILIKE on filename.
+        # Title uses the same ILIKE (MVP; no separate gin — T-041 N3).
+        from sqlalchemy import or_
+
         safe = needle.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        stmt = stmt.where(Media.filename.ilike(f"%{safe}%", escape="\\"))
+        pattern = f"%{safe}%"
+        stmt = stmt.where(
+            or_(
+                Media.filename.ilike(pattern, escape="\\"),
+                Media.title.ilike(pattern, escape="\\"),
+            )
+        )
     if cursor:
         c = decode_time_id_cursor(cursor)
         stmt = stmt.where(

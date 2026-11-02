@@ -21,26 +21,36 @@ export function RecordingRow({
   meta,
   status,
   statusLabel,
+  statusHint,
   speakers = 0,
   action,
   href,
+  muted = false,
   ...rest
 }: {
   title: string;
   meta: string;
   status: RecordingStatus;
   statusLabel: string;
+  /** Optional what/next line under the badge (T-041). */
+  statusHint?: string | null;
   speakers?: number;
   action?: ReactNode;
   href?: string;
+  /** N2: dim while search is refreshing. */
+  muted?: boolean;
 } & HTMLAttributes<HTMLElement>) {
   const dots = Array.from({ length: Math.min(6, Math.max(0, speakers)) }, (_, i) => (
     <span key={i} className={`sp-${(i % 6) + 1}`} />
   ));
 
   return (
-    <div className="dy-rec" {...rest}>
-      <div>
+    <div
+      className={`dy-rec${muted ? " is-muted" : ""}`}
+      data-rec-layout="stacked"
+      {...rest}
+    >
+      <div className="dy-rec__main">
         {href ? (
           <a className="dy-rec__title" href={href}>
             {title}
@@ -48,15 +58,20 @@ export function RecordingRow({
         ) : (
           <p className="dy-rec__title">{title}</p>
         )}
-        <p className="dy-rec__meta">{meta}</p>
+        {meta ? <p className="dy-rec__meta">{meta}</p> : null}
+        <div className="dy-rec__status">
+          <Badge tone={tone[status]} dot>
+            {statusLabel}
+          </Badge>
+          {statusHint ? (
+            <span className="dy-rec__status-hint">{statusHint}</span>
+          ) : null}
+        </div>
       </div>
       <div className="dy-rec__speakers" aria-hidden>
         {dots}
       </div>
-      <Badge tone={tone[status]} dot>
-        {statusLabel}
-      </Badge>
-      {action ?? <span />}
+      {action ?? <span className="dy-rec__action-spacer" />}
     </div>
   );
 }

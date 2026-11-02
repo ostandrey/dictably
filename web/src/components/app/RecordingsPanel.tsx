@@ -10,11 +10,14 @@ import {
 } from "react";
 import { useToast } from "@/components/app/ToastProvider";
 import { IllEmptyRecordings, IllProcessing } from "@/components/illustrations";
+import { useLocale, useTranslations } from "next-intl";
 import {
   ApiError,
   deleteMedia,
   listMedia,
   listMediaStatus,
+  mediaAudioUrl,
+  patchMedia,
   probeMediaUpload,
   uploadMedia,
   type MediaItem,
@@ -29,8 +32,22 @@ import {
   subscribeRecordingsListCache,
 } from "@/lib/recordingsListCache";
 import { mergeFirstPage } from "@/lib/recordingsListMerge";
+import {
+  formatDurationMs,
+  formatMeetingDay,
+  joinMeta,
+  mediaDisplayTitle,
+} from "@/lib/mediaDisplay";
 import { ACCEPT, isAcceptedUpload, MAX_UPLOAD_BYTES } from "@/lib/uploadAccept";
-import { Alert, Button, Dialog, EmptyState, RecordingRow } from "@/components/ui";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import {
+  Alert,
+  BottomSheet,
+  Button,
+  Dialog,
+  EmptyState,
+  RecordingRow,
+} from "@/components/ui";
 import type { RecordingStatus } from "@/components/ui";
 
 const PAGE_SIZE = 20;
@@ -88,6 +105,18 @@ export type RecordingsCopy = {
   uploadTemplateLabel?: string;
   minutesTemplateDefault?: string;
   minutesTemplateOfficial?: string;
+  provisionalMeeting?: string;
+  renameLabel?: string;
+  renameTitle?: string;
+  renameSave?: string;
+  downloadLabel?: string;
+  statusUploadedHint?: string;
+  statusUploadedStale?: string;
+  statusQueuedNext?: string;
+  statusProcessingHint?: string;
+  statusReadyHint?: string;
+  statusFailedHint?: string;
+  refreshStatus?: string;
 };
 
 type Props = {
@@ -96,31 +125,15 @@ type Props = {
   deletedToast: string;
 };
 
-function formatDuration(ms: number | null | undefined): string {
-  if (ms == null || ms <= 0) return "—";
-  const total = Math.round(ms / 1000);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  if (h > 0) {
-    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-  });
-}
-
-function languageLabel(code: string | null | undefined): string {
-  if (!code) return "—";
+function languageLabel(
+  code: string | null | undefined,
+  uiLocale: string,
+): string | null {
+  if (!code) return null;
   try {
-    const dn = new Intl.DisplayNames(undefined, { type: "language" });
+    const dn = new Intl.DisplayNames(uiLocale === "uk" ? "uk-UA" : "en-GB", {
+      type: "language",
+    });
     return dn.of(code) || code;
   } catch {
     return code;
@@ -147,6 +160,34 @@ function statusLabel(status: string, copy: RecordingsCopy): string {
   }
 }
 
+function statusHintFor(
+  item: MediaItem,
+  copy: RecordingsCopy,
+): string | null {
+  switch (item.status) {
+    case "uploaded": {
+      const ageMs = Date.now() - new Date(item.created_at).getTime();
+      if (ageMs > 2 * 60 * 1000) {
+        return copy.statusUploadedStale ?? copy.statusUploadedHint ?? null;
+      }
+      return copy.statusUploadedHint ?? null;
+    }
+    case "queued":
+      return copy.statusQueuedNext ?? copy.statusQueuedHint;
+    case "processing":
+    case "transcribing":
+    case "analyzing":
+    case "uploading":
+      return copy.statusProcessingHint ?? null;
+    case "ready":
+      return null; // T-041 S8: ready hint clutters the list
+    case "failed":
+      return item.error?.trim() || copy.statusFailedHint || null;
+    default:
+      return null;
+  }
+}
+
 function toRowStatus(status: string): RecordingStatus {
   if (status === "ready") return "ready";
   if (status === "failed") return "failed";
@@ -159,16 +200,35 @@ function isDeleteBusy(status: string): boolean {
   return ["processing", "transcribing", "analyzing"].includes(status);
 }
 
-function rowMeta(item: MediaItem, copy: RecordingsCopy): string {
+function truncateFilename(name: string, max = 28): string {
+  if (name.length <= max) return name;
+  const dot = name.lastIndexOf(".");
+  const ext = dot > 0 ? name.slice(dot) : "";
+  const stem = name.slice(0, Math.max(0, max - ext.length - 1));
+  return `${stem}…${ext}`;
+}
+
+function rowMeta(
+  item: MediaItem,
+  copy: RecordingsCopy,
+  uiLocale: string,
+): string {
   if (item.status === "queued") {
     return copy.statusQueuedHint;
   }
-  const parts = [
-    formatDate(item.created_at),
-    formatDuration(item.duration_ms),
-    languageLabel(item.language),
-  ];
-  return parts.join(" · ");
+  // S2: while processing / failed without a human title, show filename so rows differ.
+  const needFile =
+    !(item.title ?? "").trim() &&
+    (item.status === "failed" ||
+      ["uploaded", "processing", "transcribing", "analyzing", "uploading"].includes(
+        item.status,
+      ));
+  return joinMeta([
+    formatMeetingDay(item.meeting_date, uiLocale),
+    formatDurationMs(item.duration_ms),
+    languageLabel(item.language, uiLocale),
+    needFile ? truncateFilename(item.filename) : null,
+  ]);
 }
 
 export function RecordingsPanel({
@@ -176,6 +236,9 @@ export function RecordingsPanel({
   recordingBaseHref,
   deletedToast,
 }: Props) {
+  const tApp = useTranslations("app");
+  const uiLocale = useLocale();
+  const isMobile = useIsMobile();
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const queueRef = useRef<File[]>([]);
@@ -195,6 +258,10 @@ export function RecordingsPanel({
     user?.preferred_minutes_template === "official_protocol"
       ? "official_protocol"
       : "default";
+  const provisional = copy.provisionalMeeting ?? tApp("provisionalMeeting");
+  const [renameTarget, setRenameTarget] = useState<MediaItem | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [renameBusy, setRenameBusy] = useState(false);
 
   const rawSeed = useSyncExternalStore(
     subscribeRecordingsListCache,
@@ -731,37 +798,229 @@ export function RecordingsPanel({
 
   const uploading = uploadName != null;
   const showBusy = busy && resolvedItems.length === 0;
+  const searchDim = busy && resolvedItems.length > 0;
   const showDropzone =
     (resolvedItems.length > 0 && resolvedItems.length <= 3) || uploading;
+  const showSearch =
+    resolvedItems.length >= 5 || Boolean(resolvedDebouncedQ.trim());
   const showAllLabel =
     !resolvedCursor && resolvedItems.length > PAGE_SIZE
       ? copy.allRecordings.replace("{n}", String(resolvedItems.length))
       : null;
+  const menuItem =
+    menuId != null
+      ? resolvedItems.find((m) => m.id === menuId) ?? null
+      : null;
+
+  async function saveRename() {
+    if (!renameTarget) return;
+    setRenameBusy(true);
+    try {
+      const updated = await patchMedia(renameTarget.id, {
+        title: renameDraft.trim() || null,
+      });
+      setItems((prev) => {
+        const base = prev ?? itemsRef.current;
+        const next = base.map((m) => (m.id === updated.id ? { ...m, ...updated } : m));
+        itemsRef.current = next;
+        return next;
+      });
+      setRenameTarget(null);
+    } catch {
+      setError(copy.error);
+    } finally {
+      setRenameBusy(false);
+    }
+  }
+
+  function openRename(item: MediaItem) {
+    setMenuId(null);
+    setRenameDraft(
+      (item.title ?? "").trim() ||
+        mediaDisplayTitle(item, uiLocale, provisional),
+    );
+    setRenameTarget(item);
+  }
+
+  const uploadDetailsBody = details ? (
+    <div className="rec-upload-details" data-recordings="upload-details">
+      <p className="dy-muted">
+        {details.files.map((f) => f.name).join(", ")}
+      </p>
+      {details.files.length >= 2 ? (
+        <label className="rec-upload-details__check" data-recordings="upload-meeting-bundle">
+          <input
+            type="checkbox"
+            checked={details.meetingBundle}
+            onChange={(e) => {
+              const on = e.target.checked;
+              setDetails({
+                ...details,
+                meetingBundle: on,
+                probing: !on && details.tracks.length === 0,
+              });
+              if (!on && details.tracks.length === 0) {
+                const first = details.files[0]!;
+                void probeMediaUpload(first)
+                  .then((probe) => {
+                    setDetails((cur) =>
+                      cur
+                        ? {
+                            ...cur,
+                            tracks: probe.audio_tracks,
+                            audioStreamIndex: "0",
+                            probing: false,
+                          }
+                        : cur,
+                    );
+                  })
+                  .catch(() => {
+                    setDetails((cur) =>
+                      cur ? { ...cur, probing: false, tracks: [] } : cur,
+                    );
+                  });
+              }
+            }}
+          />
+          <span>
+            {copy.uploadMeetingBundle ??
+              "One meeting — each file is a speaker"}
+          </span>
+        </label>
+      ) : null}
+      {details.meetingBundle && details.files.length >= 2 ? (
+        <p className="dy-muted" data-recordings="upload-meeting-hint">
+          {copy.uploadMeetingBundleHint ??
+            "Names from filenames (e.g. audioOlena.m4a)."}
+        </p>
+      ) : null}
+      <label>
+        <span>{copy.uploadLanguageLabel ?? "Language"}</span>
+        <select
+          value={details.language}
+          data-recordings="upload-language"
+          onChange={(e) =>
+            setDetails({ ...details, language: e.target.value })
+          }
+        >
+          <option value="">{copy.uploadLanguageAuto ?? "Auto"}</option>
+          <option value="en">English</option>
+          <option value="uk">Ukrainian</option>
+          <option value="ru">Russian</option>
+          <option value="pl">Polish</option>
+          <option value="de">German</option>
+          <option value="es">Spanish</option>
+        </select>
+      </label>
+      <label>
+        <span>{copy.uploadSpeakersLabel ?? "How many participants?"}</span>
+        <select
+          value={details.speakersExpected}
+          data-recordings="upload-speakers"
+          onChange={(e) =>
+            setDetails({ ...details, speakersExpected: e.target.value })
+          }
+        >
+          <option value="">{copy.uploadSpeakersAuto ?? "Auto"}</option>
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+            <option key={n} value={String(n)}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>{copy.uploadTemplateLabel ?? "Minutes template"}</span>
+        <select
+          value={details.minutesTemplate}
+          data-recordings="upload-template"
+          onChange={(e) =>
+            setDetails({ ...details, minutesTemplate: e.target.value })
+          }
+        >
+          <option value="default">
+            {copy.minutesTemplateDefault ?? "Minutes"}
+          </option>
+          <option value="official_protocol">
+            {copy.minutesTemplateOfficial ?? "Official protocol"}
+          </option>
+        </select>
+      </label>
+      <label>
+        <span>{copy.uploadVocabLabel ?? "Names & terms"}</span>
+        <input
+          type="text"
+          value={details.vocabulary}
+          data-recordings="upload-vocab"
+          placeholder={copy.uploadVocabHint ?? "Comma-separated"}
+          onChange={(e) =>
+            setDetails({ ...details, vocabulary: e.target.value })
+          }
+        />
+      </label>
+      {!details.meetingBundle && details.tracks.length > 1 ? (
+        <label>
+          <span>{copy.uploadTrackLabel ?? "Audio track"}</span>
+          <select
+            value={details.audioStreamIndex}
+            data-recordings="upload-track"
+            onChange={(e) =>
+              setDetails({ ...details, audioStreamIndex: e.target.value })
+            }
+          >
+            {details.tracks.map((tr) => (
+              <option key={tr.index} value={String(tr.index)}>
+                {tr.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {details.probing ? <p className="dy-muted">…</p> : null}
+    </div>
+  ) : null;
+
+  const uploadDetailsActions = (
+    <>
+      <Button variant="secondary" onClick={() => setDetails(null)}>
+        {copy.cancel}
+      </Button>
+      <Button
+        onClick={confirmDetails}
+        disabled={details?.probing}
+        data-recordings="upload-details-continue"
+      >
+        {copy.uploadDetailsContinue ?? copy.uploadCta}
+      </Button>
+    </>
+  );
 
   return (
     <section className="recordings" data-recordings="panel">
-      <div className="app-main__toolbar">
+      <div className={`app-main__toolbar${isMobile ? " is-mobile-stack" : ""}`}>
         <h1 className="dy-type-title" style={{ margin: 0 }}>
           Recordings
         </h1>
         <span className="app-main__toolbar-spacer" />
-        <label className="app-search">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
-            <circle cx="11" cy="11" r="6.5" />
-            <path d="M16 16l4 4" />
-          </svg>
-          <input
-            type="search"
-            value={resolvedQuery}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={copy.searchPlaceholder}
-            aria-label={copy.searchPlaceholder}
-            data-recordings="search"
-          />
-        </label>
+        {showSearch ? (
+          <label className="app-search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+              <circle cx="11" cy="11" r="6.5" />
+              <path d="M16 16l4 4" />
+            </svg>
+            <input
+              type="search"
+              value={resolvedQuery}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={copy.searchPlaceholder}
+              aria-label={copy.searchPlaceholder}
+              data-recordings="search"
+            />
+          </label>
+        ) : null}
         <button
           type="button"
-          className="btn-primary"
+          className={`btn-primary${isMobile ? " recordings__upload-full" : ""}`}
           data-recordings="choose"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
@@ -884,7 +1143,7 @@ export function RecordingsPanel({
           </div>
         ) : (
           <>
-            <div className="dy-list">
+            <div className={`dy-list${searchDim ? " is-searching" : ""}`}>
               {resolvedItems.map((item) => {
                 const st = toRowStatus(item.status);
                 const delBusy = isDeleteBusy(item.status);
@@ -893,19 +1152,30 @@ export function RecordingsPanel({
                     ? `${recordingBaseHref}?id=${encodeURIComponent(item.id)}`
                     : undefined;
                 const enter = enterIds.has(item.id);
+                const displayTitle = mediaDisplayTitle(
+                  item,
+                  uiLocale,
+                  provisional,
+                );
                 return (
                   <div
                     key={item.id}
                     className={enter ? "dy-list__enter" : undefined}
                   >
                     <RecordingRow
-                      title={item.filename}
-                      meta={rowMeta(item, copy)}
+                      title={displayTitle}
+                      meta={rowMeta(item, copy, uiLocale)}
                       status={st}
                       statusLabel={statusLabel(item.status, copy)}
+                      statusHint={statusHintFor(item, copy)}
                       speakers={item.speaker_count ?? 0}
                       href={href}
-                      {...{ "data-recordings": "row" }}
+                      muted={searchDim}
+                      {...{
+                        "data-recordings": "row",
+                        "data-filename": item.filename,
+                        "data-media-id": item.id,
+                      }}
                       action={
                         <div
                           className="dy-rec__menu"
@@ -927,8 +1197,33 @@ export function RecordingsPanel({
                           >
                             ···
                           </button>
-                          {menuId === item.id ? (
+                          {!isMobile && menuId === item.id ? (
                             <div className="dy-rec__menu-pop" role="menu">
+                              <button
+                                type="button"
+                                className="dy-rec__menu-item"
+                                role="menuitem"
+                                data-recordings="rename"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  openRename(item);
+                                }}
+                              >
+                                {copy.renameLabel ?? tApp("renameRecording")}
+                              </button>
+                              {item.status === "ready" ? (
+                                <a
+                                  className="dy-rec__menu-item"
+                                  role="menuitem"
+                                  data-recordings="download"
+                                  href={mediaAudioUrl(item.id)}
+                                  download={item.filename}
+                                  onClick={() => setMenuId(null)}
+                                >
+                                  {copy.downloadLabel ?? tApp("downloadRecording")}
+                                </a>
+                              ) : null}
                               <button
                                 type="button"
                                 className="dy-rec__menu-item dy-rec__menu-item--danger"
@@ -1006,167 +1301,129 @@ export function RecordingsPanel({
         <p>
           {copy.deleteConfirmBody.replace(
             "{name}",
-            pendingDelete?.filename ?? "",
+            pendingDelete
+              ? mediaDisplayTitle(pendingDelete, uiLocale, provisional)
+              : "",
           )}
         </p>
       </Dialog>
 
       <Dialog
-        open={details != null}
-        title={copy.uploadDetailsTitle ?? "Upload details"}
-        onClose={() => setDetails(null)}
+        open={renameTarget != null}
+        title={copy.renameTitle ?? tApp("renameRecordingTitle")}
+        onClose={() => {
+          if (!renameBusy) setRenameTarget(null);
+        }}
         actions={
           <>
-            <Button variant="secondary" onClick={() => setDetails(null)}>
+            <Button
+              variant="secondary"
+              disabled={renameBusy}
+              onClick={() => setRenameTarget(null)}
+            >
               {copy.cancel}
             </Button>
             <Button
-              onClick={confirmDetails}
-              disabled={details?.probing}
-              data-recordings="upload-details-continue"
+              loading={renameBusy}
+              onClick={() => void saveRename()}
+              data-recordings="rename-save"
             >
-              {copy.uploadDetailsContinue ?? copy.uploadCta}
+              {copy.renameSave ?? tApp("renameRecordingSave")}
             </Button>
           </>
         }
       >
-        {details ? (
-          <div className="rec-upload-details" data-recordings="upload-details">
-            <p className="dy-muted">
-              {details.files.map((f) => f.name).join(", ")}
-            </p>
-            {details.files.length >= 2 ? (
-              <label className="rec-upload-details__check" data-recordings="upload-meeting-bundle">
-                <input
-                  type="checkbox"
-                  checked={details.meetingBundle}
-                  onChange={(e) => {
-                    const on = e.target.checked;
-                    setDetails({
-                      ...details,
-                      meetingBundle: on,
-                      probing: !on && details.tracks.length === 0,
-                    });
-                    if (!on && details.tracks.length === 0) {
-                      const first = details.files[0]!;
-                      void probeMediaUpload(first)
-                        .then((probe) => {
-                          setDetails((cur) =>
-                            cur
-                              ? {
-                                  ...cur,
-                                  tracks: probe.audio_tracks,
-                                  audioStreamIndex: "0",
-                                  probing: false,
-                                }
-                              : cur,
-                          );
-                        })
-                        .catch(() => {
-                          setDetails((cur) =>
-                            cur ? { ...cur, probing: false, tracks: [] } : cur,
-                          );
-                        });
-                    }
-                  }}
-                />
-                <span>
-                  {copy.uploadMeetingBundle ??
-                    "One meeting — each file is a speaker"}
-                </span>
-              </label>
-            ) : null}
-            {details.meetingBundle && details.files.length >= 2 ? (
-              <p className="dy-muted" data-recordings="upload-meeting-hint">
-                {copy.uploadMeetingBundleHint ??
-                  "Names from filenames (e.g. audioOlena.m4a)."}
-              </p>
-            ) : null}
-            <label>
-              <span>{copy.uploadLanguageLabel ?? "Language"}</span>
-              <select
-                value={details.language}
-                data-recordings="upload-language"
-                onChange={(e) =>
-                  setDetails({ ...details, language: e.target.value })
-                }
-              >
-                <option value="">{copy.uploadLanguageAuto ?? "Auto"}</option>
-                <option value="en">English</option>
-                <option value="uk">Ukrainian</option>
-                <option value="ru">Russian</option>
-                <option value="pl">Polish</option>
-                <option value="de">German</option>
-              </select>
-            </label>
-            <label>
-              <span>{copy.uploadTemplateLabel ?? "Minutes template"}</span>
-              <select
-                value={details.minutesTemplate}
-                data-recordings="upload-template"
-                onChange={(e) =>
-                  setDetails({ ...details, minutesTemplate: e.target.value })
-                }
-              >
-                <option value="default">
-                  {copy.minutesTemplateDefault ?? "Minutes"}
-                </option>
-                <option value="official_protocol">
-                  {copy.minutesTemplateOfficial ?? "Official protocol"}
-                </option>
-              </select>
-            </label>
-            {!details.meetingBundle ? (
-              <label>
-                <span>{copy.uploadSpeakersLabel ?? "Participants"}</span>
-                <select
-                  value={details.speakersExpected}
-                  data-recordings="upload-speakers"
-                  onChange={(e) =>
-                    setDetails({ ...details, speakersExpected: e.target.value })
-                  }
-                >
-                  <option value="">{copy.uploadSpeakersAuto ?? "Auto"}</option>
-                  {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                    <option key={n} value={String(n)}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            <label>
-              <span>{copy.uploadVocabLabel ?? "Names & terms"}</span>
-              <input
-                type="text"
-                value={details.vocabulary}
-                data-recordings="upload-vocab"
-                placeholder={copy.uploadVocabHint ?? "Comma-separated"}
-                onChange={(e) =>
-                  setDetails({ ...details, vocabulary: e.target.value })
-                }
-              />
-            </label>
-            {!details.meetingBundle && details.tracks.length > 1 ? (
-              <label data-recordings="upload-track">
-                <span>{copy.uploadTrackLabel ?? "Audio track"}</span>
-                <select
-                  value={details.audioStreamIndex}
-                  onChange={(e) =>
-                    setDetails({ ...details, audioStreamIndex: e.target.value })
-                  }
-                >
-                  {details.tracks.map((t) => (
-                    <option key={t.index} value={String(t.index)}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-          </div>
+        <label className="dy-field">
+          <span className="visually-hidden">
+            {copy.renameTitle ?? tApp("renameRecordingTitle")}
+          </span>
+          <input
+            type="text"
+            value={renameDraft}
+            maxLength={120}
+            data-recordings="rename-input"
+            onChange={(e) => setRenameDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void saveRename();
+            }}
+          />
+        </label>
+        {renameTarget ? (
+          <p className="dy-muted" data-recordings="rename-filename">
+            {renameTarget.filename}
+          </p>
         ) : null}
       </Dialog>
+
+      {isMobile ? (
+        <BottomSheet
+          open={details != null}
+          title={copy.uploadDetailsTitle ?? "Upload details"}
+          onClose={() => setDetails(null)}
+          actions={uploadDetailsActions}
+        >
+          {uploadDetailsBody}
+        </BottomSheet>
+      ) : (
+        <Dialog
+          open={details != null}
+          title={copy.uploadDetailsTitle ?? "Upload details"}
+          onClose={() => setDetails(null)}
+          actions={uploadDetailsActions}
+        >
+          {uploadDetailsBody}
+        </Dialog>
+      )}
+
+      {isMobile ? (
+        <BottomSheet
+          open={menuItem != null}
+          title={
+            menuItem
+              ? mediaDisplayTitle(menuItem, uiLocale, provisional)
+              : copy.menuLabel
+          }
+          onClose={() => setMenuId(null)}
+        >
+          {menuItem ? (
+            <div className="dy-sheet__list" role="menu" data-recordings="row-sheet">
+              <button
+                type="button"
+                role="menuitem"
+                data-recordings="rename"
+                onClick={() => openRename(menuItem)}
+              >
+                {copy.renameLabel ?? tApp("renameRecording")}
+              </button>
+              {menuItem.status === "ready" ? (
+                <a
+                  role="menuitem"
+                  data-recordings="download"
+                  href={mediaAudioUrl(menuItem.id)}
+                  download={menuItem.filename}
+                  onClick={() => setMenuId(null)}
+                >
+                  {copy.downloadLabel ?? tApp("downloadRecording")}
+                </a>
+              ) : null}
+              <button
+                type="button"
+                role="menuitem"
+                className="is-danger"
+                data-recordings="delete"
+                disabled={isDeleteBusy(menuItem.status)}
+                onClick={() => {
+                  if (isDeleteBusy(menuItem.status)) return;
+                  setMenuId(null);
+                  setPendingDelete(menuItem);
+                }}
+              >
+                {copy.deleteLabel}
+              </button>
+            </div>
+          ) : null}
+        </BottomSheet>
+      ) : null}
     </section>
   );
 }
