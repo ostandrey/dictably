@@ -189,7 +189,67 @@ async def list_for_user(session: AsyncSession, user_id: UUID) -> list[Media]:
     result = await session.execute(
         select(Media)
         .where(Media.user_id == user_id, Media.status != MediaStatus.deleted)
-        .order_by(Media.created_at.desc())
+        .order_by(Media.created_at.desc(), Media.id.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def list_page_for_user(
+    session: AsyncSession,
+    user_id: UUID,
+    *,
+    limit: int,
+    cursor: str | None = None,
+    q: str | None = None,
+) -> tuple[list[Media], str | None]:
+    """Cursor page of recordings (created_at desc, id desc). T-039."""
+    from dictably.domain.cursor_page import (
+        clamp_limit,
+        decode_time_id_cursor,
+        encode_time_id_cursor,
+    )
+
+    page_size = clamp_limit(limit, default=20, maximum=50)
+    stmt = select(Media).where(
+        Media.user_id == user_id,
+        Media.status != MediaStatus.deleted,
+    )
+    needle = (q or "").strip()
+    if needle:
+        # Escape LIKE metacharacters; pg_trgm gin supports ILIKE.
+        safe = needle.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        stmt = stmt.where(Media.filename.ilike(f"%{safe}%", escape="\\"))
+    if cursor:
+        c = decode_time_id_cursor(cursor)
+        stmt = stmt.where(
+            (Media.created_at < c.created_at)
+            | ((Media.created_at == c.created_at) & (Media.id < c.id))
+        )
+    stmt = stmt.order_by(Media.created_at.desc(), Media.id.desc()).limit(page_size + 1)
+    rows = list((await session.execute(stmt)).scalars().all())
+    next_cursor: str | None = None
+    if len(rows) > page_size:
+        rows = rows[:page_size]
+        last = rows[-1]
+        next_cursor = encode_time_id_cursor(last.created_at, last.id)
+    return rows, next_cursor
+
+
+async def status_for_user_ids(
+    session: AsyncSession,
+    user_id: UUID,
+    media_ids: list[UUID],
+) -> list[Media]:
+    """Owned media rows for status polling (T-039). Max 20 ids."""
+    if not media_ids:
+        return []
+    ids = media_ids[:20]
+    result = await session.execute(
+        select(Media).where(
+            Media.user_id == user_id,
+            Media.id.in_(ids),
+            Media.status != MediaStatus.deleted,
+        )
     )
     return list(result.scalars().all())
 

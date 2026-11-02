@@ -174,7 +174,7 @@ async def test_admin_media_jobs_retry_delete(client: AsyncClient) -> None:
 async def test_admin_indexes_exist(settings) -> None:  # noqa: ANN001 — fixture
     expected = {
         "ix_sessions_user_id",
-        "ix_media_user_id_created_at",
+        "ix_media_user_id_created_at_id",
         "ix_analyses_media_id_created_at",
         "ix_jobs_status_created_at",
     }

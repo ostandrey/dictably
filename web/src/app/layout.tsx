@@ -48,6 +48,7 @@ export default function RootLayout({
       lang="en"
       className={onest.variable}
       data-theme-mode={siteThemeMode}
+      suppressHydrationWarning
       {...themeAttrs}
     >
       <head>

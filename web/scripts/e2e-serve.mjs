@@ -72,6 +72,14 @@ const server = http.createServer((req, res) => {
   }
   const file = resolveFile(req.url);
   if (!file) {
+    // SPA/static-export unknown paths → styled 404.html (T-036/T-039 N9).
+    const notFound = path.join(root, "404.html");
+    if (fs.existsSync(notFound)) {
+      send(res, 404, fs.readFileSync(notFound), {
+        "Content-Type": MIME[".html"],
+      });
+      return;
+    }
     send(res, 404, "Not found");
     return;
   }

@@ -1,12 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useToast } from "@/components/app/ToastProvider";
 import { IllEmptyRecordings, IllProcessing } from "@/components/illustrations";
 import {
   ApiError,
   deleteMedia,
   listMedia,
+  listMediaStatus,
   probeMediaUpload,
   uploadMedia,
   type MediaItem,
@@ -14,9 +22,25 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/components/app/AuthProvider";
 import { takeStashedFiles } from "@/lib/fileQueue";
+import {
+  clearRecordingsListCache,
+  peekRecordingsListCache,
+  saveRecordingsListCache,
+  subscribeRecordingsListCache,
+} from "@/lib/recordingsListCache";
+import { mergeFirstPage } from "@/lib/recordingsListMerge";
 import { ACCEPT, isAcceptedUpload, MAX_UPLOAD_BYTES } from "@/lib/uploadAccept";
 import { Alert, Button, Dialog, EmptyState, RecordingRow } from "@/components/ui";
 import type { RecordingStatus } from "@/components/ui";
+
+const PAGE_SIZE = 20;
+const ACTIVE = new Set([
+  "uploaded",
+  "queued",
+  "processing",
+  "transcribing",
+  "analyzing",
+]);
 
 export type RecordingsCopy = {
   title: string;
@@ -26,7 +50,11 @@ export type RecordingsCopy = {
   uploading: string;
   cancel: string;
   empty: string;
+  searchEmpty: string;
+  clearSearch: string;
   searchPlaceholder: string;
+  showMore: string;
+  allRecordings: string;
   uploadCta: string;
   tooLarge: string;
   badType: string;
@@ -162,22 +190,52 @@ export function RecordingsPanel({
   }>({});
   const { push: pushToast } = useToast();
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const preferredTemplate =
     user?.preferred_minutes_template === "official_protocol"
       ? "official_protocol"
       : "default";
 
-  const [items, setItems] = useState<MediaItem[]>([]);
-  const [busy, setBusy] = useState(true);
+  const rawSeed = useSyncExternalStore(
+    subscribeRecordingsListCache,
+    peekRecordingsListCache,
+    () => null,
+  );
+  // Only reuse cache after /api/me and only for this user (B4).
+  const seed = userId && rawSeed?.userId === userId ? rawSeed : null;
+  // null = still following seed (back-nav); non-null = local edits / fetches.
+  const [items, setItems] = useState<MediaItem[] | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null | undefined>(
+    undefined,
+  );
+  const [busy, setBusy] = useState(() => !(seed?.items.length));
+  const [loadingMore, setLoadingMore] = useState(false);
   const [drag, setDrag] = useState(false);
   const [uploadName, setUploadName] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState<string | null>(null);
+  const [debouncedQ, setDebouncedQ] = useState<string | null>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<MediaItem | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [enterIds, setEnterIds] = useState<Set<string>>(new Set());
+  const listAbortRef = useRef<AbortController | null>(null);
+  const resolvedQuery = query ?? seed?.query ?? "";
+  const resolvedDebouncedQ = debouncedQ ?? seed?.query ?? "";
+  const resolvedItems = useMemo(
+    () => items ?? seed?.items ?? [],
+    [items, seed?.items],
+  );
+  const resolvedCursor =
+    nextCursor === undefined ? (seed?.nextCursor ?? null) : nextCursor;
+  const debouncedQRef = useRef(resolvedDebouncedQ);
+  const nextCursorRef = useRef(resolvedCursor);
+  const itemsRef = useRef(resolvedItems);
+  const restoreScrollRef = useRef(0);
+  const lastFetchedQRef = useRef<string | null>(null);
+  const didRestoreScrollRef = useRef(false);
+  const scrollRestorationSet = useRef(false);
   const [details, setDetails] = useState<{
     files: File[];
     language: string;
@@ -190,40 +248,241 @@ export function RecordingsPanel({
     minutesTemplate: string;
   } | null>(null);
 
-  const refresh = useCallback(async () => {
-    const list = await listMedia();
-    setItems(list.items);
-  }, []);
+  const persistCache = useCallback(
+    (nextItems: MediaItem[], cursor: string | null, q: string) => {
+      if (!userId) return;
+      saveRecordingsListCache({
+        userId,
+        items: nextItems,
+        nextCursor: cursor,
+        query: q,
+        scrollY: typeof window !== "undefined" ? window.scrollY : 0,
+      });
+    },
+    [userId],
+  );
+
+  const loadFirstPage = useCallback(
+    async (q: string, opts?: { soft?: boolean }) => {
+      listAbortRef.current?.abort();
+      setLoadingMore(false);
+      const ac = new AbortController();
+      listAbortRef.current = ac;
+      const soft = Boolean(opts?.soft);
+      if (!soft) setBusy(true);
+      setError(null);
+      try {
+        const list = await listMedia({
+          limit: PAGE_SIZE,
+          q: q || undefined,
+          signal: ac.signal,
+        });
+        if (ac.signal.aborted || debouncedQRef.current !== q) return;
+        const prev = itemsRef.current;
+        const merged =
+          soft && prev.length > 0
+            ? mergeFirstPage(prev, list.items, list.next_cursor)
+            : list.items;
+        const keepOlder =
+          soft && Boolean(list.next_cursor) && merged.length > list.items.length;
+        const cursor = keepOlder ? nextCursorRef.current : list.next_cursor;
+        itemsRef.current = merged;
+        setItems(merged);
+        if (!keepOlder) {
+          setNextCursor(list.next_cursor);
+          nextCursorRef.current = list.next_cursor;
+        }
+        if (soft && restoreScrollRef.current > 0) {
+          window.scrollTo(0, restoreScrollRef.current);
+        }
+        persistCache(merged, cursor, q);
+        if (soft && restoreScrollRef.current > 0) {
+          const y = restoreScrollRef.current;
+          requestAnimationFrame(() => window.scrollTo(0, y));
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(copy.error);
+      } finally {
+        if (!ac.signal.aborted && !soft) setBusy(false);
+      }
+    },
+    [copy.error, persistCache],
+  );
 
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        await refresh();
-      } catch {
-        if (!cancelled) setError(copy.error);
-      } finally {
-        if (!cancelled) setBusy(false);
+    itemsRef.current = resolvedItems;
+  }, [resolvedItems]);
+
+  useEffect(() => {
+    nextCursorRef.current = resolvedCursor;
+  }, [resolvedCursor]);
+
+  useEffect(() => {
+    debouncedQRef.current = resolvedDebouncedQ;
+  }, [resolvedDebouncedQ]);
+
+  useEffect(() => {
+    if (userId && rawSeed && rawSeed.userId !== userId) {
+      clearRecordingsListCache();
+    }
+  }, [userId, rawSeed]);
+
+  useEffect(() => {
+    if (scrollRestorationSet.current) return;
+    scrollRestorationSet.current = true;
+    if ("scrollRestoration" in history) {
+      history.scrollRestoration = "manual";
+    }
+    if (seed?.scrollY) {
+      restoreScrollRef.current = seed.scrollY;
+    }
+    return () => {
+      if ("scrollRestoration" in history) {
+        history.scrollRestoration = "auto";
       }
-    })();
+    };
+  }, [seed?.scrollY]);
+
+  useEffect(() => {
+    const t = window.setTimeout(
+      () => setDebouncedQ(resolvedQuery.trim()),
+      250,
+    );
+    return () => window.clearTimeout(t);
+  }, [resolvedQuery]);
+
+  useEffect(() => {
+    const q = resolvedDebouncedQ;
+    const qChanged =
+      lastFetchedQRef.current !== null && lastFetchedQRef.current !== q;
+    // Soft when we already have rows for this query (back-nav / Strict remount).
+    const soft = !qChanged && itemsRef.current.length > 0;
+    lastFetchedQRef.current = q;
+    if (soft && !didRestoreScrollRef.current) {
+      didRestoreScrollRef.current = true;
+      const y = restoreScrollRef.current;
+      if (y > 0) {
+        requestAnimationFrame(() => window.scrollTo(0, y));
+      }
+    }
+    void loadFirstPage(q, { soft });
+    return () => {
+      listAbortRef.current?.abort();
+    };
+  }, [resolvedDebouncedQ, loadFirstPage]);
+
+  // Persist only on unmount — dependency cleanups would rewrite stale page-1 snapshots.
+  useEffect(() => {
+    return () => {
+      if (!userId) return;
+      saveRecordingsListCache({
+        userId,
+        items: itemsRef.current,
+        nextCursor: nextCursorRef.current,
+        query: debouncedQRef.current,
+        scrollY: window.scrollY,
+      });
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    const activeIds = resolvedItems
+      .filter((m) => ACTIVE.has(m.status))
+      .map((m) => m.id);
+    if (!activeIds.length) return;
+
+    let cancelled = false;
+    const tick = async () => {
+      if (document.visibilityState === "hidden") return;
+      try {
+        const statuses = await listMediaStatus(activeIds.slice(0, 20));
+        if (cancelled || !statuses.length) return;
+        setItems((prev) => {
+          const base = prev ?? itemsRef.current;
+          const map = new Map(statuses.map((s) => [s.id, s]));
+          let changed = false;
+          const next = base.map((item) => {
+            const s = map.get(item.id);
+            if (!s) return item;
+            const nextCount = s.speaker_count ?? item.speaker_count ?? 0;
+            if (
+              s.status === item.status &&
+              (s.error ?? null) === (item.error ?? null) &&
+              (s.duration_ms ?? null) === (item.duration_ms ?? null) &&
+              nextCount === (item.speaker_count ?? 0)
+            ) {
+              return item;
+            }
+            changed = true;
+            return {
+              ...item,
+              status: s.status,
+              error: s.error ?? null,
+              duration_ms: s.duration_ms ?? item.duration_ms,
+              quality_warning: s.quality_warning ?? item.quality_warning,
+              speaker_count: nextCount,
+            };
+          });
+          if (changed) {
+            itemsRef.current = next;
+            persistCache(next, nextCursorRef.current, debouncedQRef.current);
+          }
+          return changed ? next : base;
+        });
+      } catch {
+        /* ignore poll errors */
+      }
+    };
+
+    const id = window.setInterval(() => {
+      void tick();
+    }, 4000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") void tick();
+    };
+    document.addEventListener("visibilitychange", onVis);
     return () => {
       cancelled = true;
-      abortRef.current?.abort();
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
     };
-  }, [copy.error, refresh]);
+  }, [resolvedItems, persistCache]);
 
-  useEffect(() => {
-    const pending = items.some((m) =>
-      ["uploaded", "queued", "processing", "transcribing", "analyzing"].includes(
-        m.status,
-      ),
-    );
-    if (!pending) return;
-    const id = window.setInterval(() => {
-      void refresh().catch(() => undefined);
-    }, 3000);
-    return () => window.clearInterval(id);
-  }, [items, refresh]);
+  const loadMore = useCallback(async () => {
+    const cursor = nextCursorRef.current;
+    if (!cursor || loadingMore) return;
+    const qAtStart = debouncedQRef.current;
+    listAbortRef.current?.abort();
+    const ac = new AbortController();
+    listAbortRef.current = ac;
+    setLoadingMore(true);
+    try {
+      const list = await listMedia({
+        limit: PAGE_SIZE,
+        cursor,
+        q: qAtStart || undefined,
+        signal: ac.signal,
+      });
+      if (ac.signal.aborted || debouncedQRef.current !== qAtStart) return;
+      setItems((prev) => {
+        const base = prev ?? itemsRef.current;
+        const seen = new Set(base.map((m) => m.id));
+        const merged = [...base, ...list.items.filter((m) => !seen.has(m.id))];
+        itemsRef.current = merged;
+        persistCache(merged, list.next_cursor, qAtStart);
+        return merged;
+      });
+      setNextCursor(list.next_cursor);
+      nextCursorRef.current = list.next_cursor;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setError(copy.error);
+    } finally {
+      // Always clear — aborted loadMore must not leave the button stuck (S6).
+      setLoadingMore(false);
+    }
+  }, [loadingMore, copy.error, persistCache]);
 
   useEffect(() => {
     if (!menuId) return;
@@ -273,7 +532,12 @@ export function RecordingsPanel({
           audioStreamIndex: opts.audioStreamIndex,
           minutesTemplate: opts.minutesTemplate,
         });
-        setItems((prev) => [created, ...prev.filter((m) => m.id !== created.id)]);
+        setItems((prev) => {
+          const base = prev ?? itemsRef.current;
+          const next = [created, ...base.filter((m) => m.id !== created.id)];
+          itemsRef.current = next;
+          return next;
+        });
         markEnter(created.id);
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
@@ -312,7 +576,12 @@ export function RecordingsPanel({
           vocabulary: opts.vocabulary,
           minutesTemplate: opts.minutesTemplate,
         });
-        setItems((prev) => [created, ...prev.filter((m) => m.id !== created.id)]);
+        setItems((prev) => {
+          const base = prev ?? itemsRef.current;
+          const next = [created, ...base.filter((m) => m.id !== created.id)];
+          itemsRef.current = next;
+          return next;
+        });
         markEnter(created.id);
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
@@ -444,7 +713,13 @@ export function RecordingsPanel({
     setError(null);
     try {
       await deleteMedia(pendingDelete.id);
-      setItems((prev) => prev.filter((m) => m.id !== pendingDelete.id));
+      setItems((prev) => {
+        const next = (prev ?? itemsRef.current).filter(
+          (m) => m.id !== pendingDelete.id,
+        );
+        itemsRef.current = next;
+        return next;
+      });
       setPendingDelete(null);
       pushToast(deletedToast);
     } catch {
@@ -455,13 +730,13 @@ export function RecordingsPanel({
   }
 
   const uploading = uploadName != null;
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((item) => item.filename.toLowerCase().includes(q));
-  }, [items, query]);
-
-  const showDropzone = (items.length > 0 && items.length <= 3) || uploading;
+  const showBusy = busy && resolvedItems.length === 0;
+  const showDropzone =
+    (resolvedItems.length > 0 && resolvedItems.length <= 3) || uploading;
+  const showAllLabel =
+    !resolvedCursor && resolvedItems.length > PAGE_SIZE
+      ? copy.allRecordings.replace("{n}", String(resolvedItems.length))
+      : null;
 
   return (
     <section className="recordings" data-recordings="panel">
@@ -477,7 +752,7 @@ export function RecordingsPanel({
           </svg>
           <input
             type="search"
-            value={query}
+            value={resolvedQuery}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={copy.searchPlaceholder}
             aria-label={copy.searchPlaceholder}
@@ -567,103 +842,137 @@ export function RecordingsPanel({
       ) : null}
 
       <div className="recordings__list" data-recordings="list">
-        {busy ? (
+        {showBusy ? (
           <div className="app-skel-list" aria-busy="true">
             <div className="app-skel app-skel--row" />
             <div className="app-skel app-skel--row" />
             <div className="app-skel app-skel--row" />
           </div>
-        ) : filtered.length === 0 ? (
+        ) : resolvedItems.length === 0 ? (
           <div data-recordings="empty">
-            <EmptyState
-              title={copy.empty}
-              illustration={<IllEmptyRecordings />}
-              action={
-                <Button
-                  onClick={() => inputRef.current?.click()}
-                  disabled={uploading}
-                  data-recordings="empty-upload"
-                >
-                  {copy.uploadCta}
-                </Button>
-              }
-            >
-              {copy.emptyBody}
-            </EmptyState>
+            {resolvedDebouncedQ ? (
+              <EmptyState
+                title={copy.searchEmpty.replace("{q}", resolvedDebouncedQ)}
+                illustration={<IllEmptyRecordings />}
+                action={
+                  <Button
+                    variant="secondary"
+                    onClick={() => setQuery("")}
+                    data-recordings="clear-search"
+                  >
+                    {copy.clearSearch}
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                title={copy.empty}
+                illustration={<IllEmptyRecordings />}
+                action={
+                  <Button
+                    onClick={() => inputRef.current?.click()}
+                    disabled={uploading}
+                    data-recordings="empty-upload"
+                  >
+                    {copy.uploadCta}
+                  </Button>
+                }
+              >
+                {copy.emptyBody}
+              </EmptyState>
+            )}
           </div>
         ) : (
-          <div className="dy-list">
-            {filtered.map((item) => {
-              const st = toRowStatus(item.status);
-              const delBusy = isDeleteBusy(item.status);
-              const href =
-                item.status === "ready"
-                  ? `${recordingBaseHref}?id=${encodeURIComponent(item.id)}`
-                  : undefined;
-              const enter = enterIds.has(item.id);
-              return (
-                <div
-                  key={item.id}
-                  className={enter ? "dy-list__enter" : undefined}
-                >
-                  <RecordingRow
-                    title={item.filename}
-                    meta={rowMeta(item, copy)}
-                    status={st}
-                    statusLabel={statusLabel(item.status, copy)}
-                    speakers={item.speaker_count ?? 0}
-                    href={href}
-                    {...{ "data-recordings": "row" }}
-                    action={
-                      <div
-                        className="dy-rec__menu"
-                        data-recordings-menu={item.id}
-                      >
-                        <button
-                          type="button"
-                          className="dy-rec__menu-btn"
-                          aria-label={copy.menuLabel}
-                          aria-expanded={menuId === item.id}
-                          data-recordings="menu"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setMenuId((cur) =>
-                              cur === item.id ? null : item.id,
-                            );
-                          }}
+          <>
+            <div className="dy-list">
+              {resolvedItems.map((item) => {
+                const st = toRowStatus(item.status);
+                const delBusy = isDeleteBusy(item.status);
+                const href =
+                  item.status === "ready"
+                    ? `${recordingBaseHref}?id=${encodeURIComponent(item.id)}`
+                    : undefined;
+                const enter = enterIds.has(item.id);
+                return (
+                  <div
+                    key={item.id}
+                    className={enter ? "dy-list__enter" : undefined}
+                  >
+                    <RecordingRow
+                      title={item.filename}
+                      meta={rowMeta(item, copy)}
+                      status={st}
+                      statusLabel={statusLabel(item.status, copy)}
+                      speakers={item.speaker_count ?? 0}
+                      href={href}
+                      {...{ "data-recordings": "row" }}
+                      action={
+                        <div
+                          className="dy-rec__menu"
+                          data-recordings-menu={item.id}
                         >
-                          ···
-                        </button>
-                        {menuId === item.id ? (
-                          <div className="dy-rec__menu-pop" role="menu">
-                            <button
-                              type="button"
-                              className="dy-rec__menu-item dy-rec__menu-item--danger"
-                              role="menuitem"
-                              data-recordings="delete"
-                              disabled={delBusy}
-                              title={delBusy ? copy.deleteBusyHint : undefined}
-                              aria-disabled={delBusy || undefined}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (delBusy) return;
-                                setMenuId(null);
-                                setPendingDelete(item);
-                              }}
-                            >
-                              {copy.deleteLabel}
-                            </button>
-                          </div>
-                        ) : null}
-                      </div>
-                    }
-                  />
-                </div>
-              );
-            })}
-          </div>
+                          <button
+                            type="button"
+                            className="dy-rec__menu-btn"
+                            aria-label={copy.menuLabel}
+                            aria-expanded={menuId === item.id}
+                            data-recordings="menu"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setMenuId((cur) =>
+                                cur === item.id ? null : item.id,
+                              );
+                            }}
+                          >
+                            ···
+                          </button>
+                          {menuId === item.id ? (
+                            <div className="dy-rec__menu-pop" role="menu">
+                              <button
+                                type="button"
+                                className="dy-rec__menu-item dy-rec__menu-item--danger"
+                                role="menuitem"
+                                data-recordings="delete"
+                                disabled={delBusy}
+                                title={delBusy ? copy.deleteBusyHint : undefined}
+                                aria-disabled={delBusy || undefined}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (delBusy) return;
+                                  setMenuId(null);
+                                  setPendingDelete(item);
+                                }}
+                              >
+                                {copy.deleteLabel}
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                      }
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            {resolvedCursor ? (
+              <div className="recordings__more">
+                <Button
+                  variant="secondary"
+                  loading={loadingMore}
+                  onClick={() => void loadMore()}
+                  data-recordings="show-more"
+                >
+                  {copy.showMore}
+                </Button>
+              </div>
+            ) : showAllLabel ? (
+              <p className="recordings__all" data-recordings="all-done">
+                {showAllLabel}
+              </p>
+            ) : null}
+          </>
         )}
       </div>
 

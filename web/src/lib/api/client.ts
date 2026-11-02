@@ -12,7 +12,7 @@ type AuthConfig =
 type User =
   paths["/api/me"]["get"]["responses"]["200"]["content"]["application/json"];
 type MediaItem = components["schemas"]["MediaOut"];
-type MediaList = { items: MediaItem[] };
+type MediaList = { items: MediaItem[]; next_cursor: string | null };
 type Transcript = components["schemas"]["TranscriptOut"];
 type Speaker = components["schemas"]["SpeakerOut"];
 type Analysis = components["schemas"]["AnalysisOut"];
@@ -183,9 +183,44 @@ export function logout(): Promise<void> {
   return apiFetch<void>("/api/auth/logout", { method: "POST" });
 }
 
-export async function listMedia(): Promise<MediaList> {
-  const data = await apiFetch<{ items?: MediaItem[] }>("/api/media");
-  return { items: data.items ?? [] };
+export async function listMedia(opts?: {
+  limit?: number;
+  cursor?: string | null;
+  q?: string;
+  signal?: AbortSignal;
+}): Promise<MediaList> {
+  const params = new URLSearchParams();
+  params.set("limit", String(opts?.limit ?? 20));
+  if (opts?.cursor) params.set("cursor", opts.cursor);
+  if (opts?.q?.trim()) params.set("q", opts.q.trim());
+  const data = await apiFetch<{ items?: MediaItem[]; next_cursor?: string | null }>(
+    `/api/media?${params}`,
+    { signal: opts?.signal },
+  );
+  return { items: data.items ?? [], next_cursor: data.next_cursor ?? null };
+}
+
+export type MediaStatusItem = {
+  id: string;
+  status: string;
+  error?: string | null;
+  duration_ms?: number | null;
+  quality_warning?: string | null;
+  speaker_count?: number;
+};
+
+export async function listMediaStatus(
+  ids: string[],
+  opts?: { signal?: AbortSignal },
+): Promise<MediaStatusItem[]> {
+  if (!ids.length) return [];
+  const params = new URLSearchParams();
+  params.set("ids", ids.slice(0, 20).join(","));
+  const data = await apiFetch<{ items?: MediaStatusItem[] }>(
+    `/api/media/status?${params}`,
+    { signal: opts?.signal },
+  );
+  return data.items ?? [];
 }
 
 export function getMedia(id: string): Promise<MediaItem> {
@@ -397,25 +432,87 @@ export function getFollowUpEmail(id: string): Promise<FollowUpEmail> {
   return apiFetch<FollowUpEmail>(`/api/media/${id}/follow-up`);
 }
 
-export async function adminListUsers(): Promise<{ items: AdminUser[] }> {
-  const data = await apiFetch<{ items?: AdminUser[] }>("/api/admin/users");
-  return { items: data.items ?? [] };
+export type AdminPage<T> = {
+  items: T[];
+  next_cursor: string | null;
+  total: number | null;
+};
+
+export async function adminListUsers(opts?: {
+  limit?: number;
+  cursor?: string | null;
+  q?: string;
+  includeTotal?: boolean;
+}): Promise<AdminPage<AdminUser>> {
+  const params = new URLSearchParams();
+  params.set("limit", String(opts?.limit ?? 50));
+  if (opts?.cursor) params.set("cursor", opts.cursor);
+  if (opts?.q?.trim()) params.set("q", opts.q.trim());
+  if (opts?.includeTotal === false) params.set("include_total", "false");
+  const data = await apiFetch<{
+    items?: AdminUser[];
+    next_cursor?: string | null;
+    total?: number | null;
+  }>(`/api/admin/users?${params}`);
+  return {
+    items: data.items ?? [],
+    next_cursor: data.next_cursor ?? null,
+    total: data.total ?? null,
+  };
 }
 
 export async function adminListMedia(
   status?: string,
-): Promise<{ items: AdminMedia[] }> {
-  const q = status ? `?status=${encodeURIComponent(status)}` : "";
-  const data = await apiFetch<{ items?: AdminMedia[] }>(`/api/admin/media${q}`);
-  return { items: data.items ?? [] };
+  opts?: {
+    limit?: number;
+    cursor?: string | null;
+    q?: string;
+    includeTotal?: boolean;
+  },
+): Promise<AdminPage<AdminMedia>> {
+  const params = new URLSearchParams();
+  params.set("limit", String(opts?.limit ?? 50));
+  if (status) params.set("status", status);
+  if (opts?.cursor) params.set("cursor", opts.cursor);
+  if (opts?.q?.trim()) params.set("q", opts.q.trim());
+  if (opts?.includeTotal === false) params.set("include_total", "false");
+  const data = await apiFetch<{
+    items?: AdminMedia[];
+    next_cursor?: string | null;
+    total?: number | null;
+  }>(`/api/admin/media?${params}`);
+  return {
+    items: data.items ?? [],
+    next_cursor: data.next_cursor ?? null,
+    total: data.total ?? null,
+  };
 }
 
 export async function adminListJobs(
   status?: string,
-): Promise<{ items: AdminJob[] }> {
-  const q = status ? `?status=${encodeURIComponent(status)}` : "";
-  const data = await apiFetch<{ items?: AdminJob[] }>(`/api/admin/jobs${q}`);
-  return { items: data.items ?? [] };
+  opts?: {
+    limit?: number;
+    cursor?: string | null;
+    q?: string;
+    includeTotal?: boolean;
+  },
+): Promise<AdminPage<AdminJob>> {
+  const params = new URLSearchParams();
+  params.set("limit", String(opts?.limit ?? 50));
+  if (status) params.set("status", status);
+  if (opts?.cursor) params.set("cursor", opts.cursor);
+  if (opts?.q?.trim()) params.set("q", opts.q.trim());
+  if (opts?.includeTotal === false) params.set("include_total", "false");
+  const data = await apiFetch<{
+    items?: AdminJob[];
+    next_cursor?: string | null;
+    total?: number | null;
+  }>(`/api/admin/jobs?${params}`);
+  return {
+    items: data.items ?? [],
+    next_cursor: data.next_cursor ?? null,
+    total: data.total ?? null,
+  };
 }
 
 export function adminRetryJob(jobId: string): Promise<AdminJob> {

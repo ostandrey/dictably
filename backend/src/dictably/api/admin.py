@@ -48,8 +48,13 @@ def _job_out(job: Job) -> AdminJobOut:
 async def admin_list_users(
     session: Annotated[AsyncSession, Depends(get_db)],
     _: Annotated[User, Depends(require_admin)],
+    limit: Annotated[int, Query(ge=1, le=50)] = 50,
+    cursor: Annotated[str | None, Query()] = None,
+    q: Annotated[str | None, Query(max_length=200)] = None,
+    include_total: Annotated[bool, Query()] = True,
 ) -> AdminUserListOut:
-    rows = await admin_domain.list_users(session)
+    rows, next_cursor = await admin_domain.list_users_page(session, limit=limit, cursor=cursor, q=q)
+    total = await admin_domain.count_users(session, q=q) if include_total else None
     return AdminUserListOut(
         items=[
             AdminUserOut(
@@ -62,7 +67,9 @@ async def admin_list_users(
                 balance_seconds=bal,
             )
             for u, bal in rows
-        ]
+        ],
+        next_cursor=next_cursor,
+        total=total,
     )
 
 
@@ -71,8 +78,23 @@ async def admin_list_media(
     session: Annotated[AsyncSession, Depends(get_db)],
     _: Annotated[User, Depends(require_admin)],
     status_filter: Annotated[str | None, Query(alias="status")] = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 50,
+    cursor: Annotated[str | None, Query()] = None,
+    q: Annotated[str | None, Query(max_length=200)] = None,
+    include_total: Annotated[bool, Query()] = True,
 ) -> AdminMediaListOut:
-    rows = await admin_domain.list_media(session, status_filter=status_filter)
+    rows, next_cursor = await admin_domain.list_media_page(
+        session,
+        status_filter=status_filter,
+        limit=limit,
+        cursor=cursor,
+        q=q,
+    )
+    total = (
+        await admin_domain.count_media(session, status_filter=status_filter, q=q)
+        if include_total
+        else None
+    )
     return AdminMediaListOut(
         items=[
             AdminMediaOut(
@@ -86,7 +108,9 @@ async def admin_list_media(
                 created_at=m.created_at,
             )
             for m, email in rows
-        ]
+        ],
+        next_cursor=next_cursor,
+        total=total,
     )
 
 
@@ -95,9 +119,28 @@ async def admin_list_jobs(
     session: Annotated[AsyncSession, Depends(get_db)],
     _: Annotated[User, Depends(require_admin)],
     status_filter: Annotated[str | None, Query(alias="status")] = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 50,
+    cursor: Annotated[str | None, Query()] = None,
+    q: Annotated[str | None, Query(max_length=200)] = None,
+    include_total: Annotated[bool, Query()] = True,
 ) -> AdminJobListOut:
-    jobs = await admin_domain.list_jobs(session, status_filter=status_filter)
-    return AdminJobListOut(items=[_job_out(j) for j in jobs])
+    jobs, next_cursor = await admin_domain.list_jobs_page(
+        session,
+        status_filter=status_filter,
+        limit=limit,
+        cursor=cursor,
+        q=q,
+    )
+    total = (
+        await admin_domain.count_jobs(session, status_filter=status_filter, q=q)
+        if include_total
+        else None
+    )
+    return AdminJobListOut(
+        items=[_job_out(j) for j in jobs],
+        next_cursor=next_cursor,
+        total=total,
+    )
 
 
 @router.post("/jobs/{job_id}/retry", response_model=AdminJobOut)

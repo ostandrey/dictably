@@ -117,7 +117,20 @@ class Session(Base, TimestampMixin):
 
 class Media(Base, TimestampMixin):
     __tablename__ = "media"
-    __table_args__ = (Index("ix_media_user_id_created_at", "user_id", text("created_at DESC")),)
+    __table_args__ = (
+        Index(
+            "ix_media_user_id_created_at_id",
+            "user_id",
+            text("created_at DESC"),
+            text("id DESC"),
+        ),
+        Index(
+            "ix_media_filename_trgm",
+            "filename",
+            postgresql_using="gin",
+            postgresql_ops={"filename": "gin_trgm_ops"},
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=new_uuid)
     user_id: Mapped[UUID] = mapped_column(

@@ -160,6 +160,20 @@ class MediaOut(BaseModel):
 
 class MediaListOut(BaseModel):
     items: list[MediaOut] = Field(default_factory=list)
+    next_cursor: str | None = None
+
+
+class MediaStatusItemOut(BaseModel):
+    id: UUID
+    status: str
+    error: str | None = None
+    duration_ms: int | None = None
+    quality_warning: str | None = None
+    speaker_count: int = 0
+
+
+class MediaStatusOut(BaseModel):
+    items: list[MediaStatusItemOut] = Field(default_factory=list)
 
 
 class AnalysisRegenerateIn(BaseModel):
@@ -299,6 +313,8 @@ class AdminUserOut(BaseModel):
 
 class AdminUserListOut(BaseModel):
     items: list[AdminUserOut] = Field(default_factory=list)
+    next_cursor: str | None = None
+    total: int | None = None
 
 
 class AdminMediaOut(BaseModel):
@@ -314,6 +330,8 @@ class AdminMediaOut(BaseModel):
 
 class AdminMediaListOut(BaseModel):
     items: list[AdminMediaOut] = Field(default_factory=list)
+    next_cursor: str | None = None
+    total: int | None = None
 
 
 class AdminJobOut(BaseModel):
@@ -328,6 +346,8 @@ class AdminJobOut(BaseModel):
 
 class AdminJobListOut(BaseModel):
     items: list[AdminJobOut] = Field(default_factory=list)
+    next_cursor: str | None = None
+    total: int | None = None
 
 
 class AdminGrantIn(BaseModel):

@@ -32,6 +32,8 @@ from dictably.api.schemas import (
     MediaOut,
     MediaPatchIn,
     MediaProbeOut,
+    MediaStatusItemOut,
+    MediaStatusOut,
     SegmentSpeakerIn,
     SpeakerOut,
     SpeakerPatchIn,
@@ -90,8 +92,7 @@ def _speaker_out(row: Speaker) -> SpeakerOut:
     )
 
 
-async def _media_out(session: AsyncSession, row: Media) -> MediaOut:
-    count = await speakers_domain.count_for_media(session, row.id)
+def _media_out_with_count(row: Media, speaker_count: int) -> MediaOut:
     vocab = [str(v) for v in (row.vocabulary or [])]
     return MediaOut(
         id=row.id,
@@ -103,7 +104,7 @@ async def _media_out(session: AsyncSession, row: Media) -> MediaOut:
         created_at=row.created_at,
         error=row.error,
         language=row.language,
-        speaker_count=count,
+        speaker_count=speaker_count,
         meeting_date=row.meeting_date,
         speakers_expected=row.speakers_expected,
         quality_warning=row.quality_warning,
@@ -111,6 +112,11 @@ async def _media_out(session: AsyncSession, row: Media) -> MediaOut:
         transcript_mode=row.transcript_mode or "clean",
         minutes_template=getattr(row, "minutes_template", None) or "default",
     )
+
+
+async def _media_out(session: AsyncSession, row: Media) -> MediaOut:
+    count = await speakers_domain.count_for_media(session, row.id)
+    return _media_out_with_count(row, count)
 
 
 async def _file_chunks(upload: UploadFile) -> AsyncIterator[bytes]:
@@ -134,10 +140,52 @@ def _peaks_key(media: Media) -> str | None:
 async def list_media(
     user: Annotated[User, Depends(require_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    cursor: Annotated[str | None, Query()] = None,
+    q: Annotated[str | None, Query(max_length=200)] = None,
 ) -> MediaListOut:
-    rows = await media_domain.list_for_user(session, user.id)
-    items = [await _media_out(session, r) for r in rows]
-    return MediaListOut(items=items)
+    rows, next_cursor = await media_domain.list_page_for_user(
+        session, user.id, limit=limit, cursor=cursor, q=q
+    )
+    counts = await speakers_domain.counts_for_media_ids(session, [r.id for r in rows])
+    items = [_media_out_with_count(r, counts.get(r.id, 0)) for r in rows]
+    return MediaListOut(items=items, next_cursor=next_cursor)
+
+
+@router.get("/media/status", response_model=MediaStatusOut)
+async def media_status(
+    user: Annotated[User, Depends(require_user)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    ids: Annotated[str, Query(description="Comma-separated media ids (max 20)")],
+) -> MediaStatusOut:
+    raw_ids: list[UUID] = []
+    for part in ids.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            raw_ids.append(UUID(part))
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid id"
+            ) from exc
+        if len(raw_ids) > 20:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Too many ids")
+    rows = await media_domain.status_for_user_ids(session, user.id, raw_ids)
+    counts = await speakers_domain.counts_for_media_ids(session, [r.id for r in rows])
+    return MediaStatusOut(
+        items=[
+            MediaStatusItemOut(
+                id=r.id,
+                status=r.status,
+                error=r.error,
+                duration_ms=r.duration_ms,
+                quality_warning=r.quality_warning,
+                speaker_count=counts.get(r.id, 0),
+            )
+            for r in rows
+        ]
+    )
 
 
 @router.post("/media/upload-intent", response_model=UploadIntentOut)

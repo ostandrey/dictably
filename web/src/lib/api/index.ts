@@ -26,6 +26,7 @@ export {
   getPeaks,
   getTranscript,
   listMedia,
+  listMediaStatus,
   listSpeakers,
   logout,
   mediaAudioUrl,
@@ -42,7 +43,7 @@ export {
   splitSegmentSpeaker,
   uploadMedia,
 } from "./client";
-export type { MediaProbe } from "./client";
+export type { MediaProbe, MediaStatusItem, AdminPage } from "./client";
 export type {
   AccountExport,
   AdminCosts,

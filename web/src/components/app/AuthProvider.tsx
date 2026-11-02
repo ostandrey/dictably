@@ -16,6 +16,7 @@ import {
   type AuthConfig,
   type User,
 } from "@/lib/api";
+import { clearRecordingsListCache } from "@/lib/recordingsListCache";
 
 export type AuthStatus = "loading" | "authenticated" | "anonymous";
 
@@ -39,6 +40,7 @@ let cached: {
 
 /** Drop cached session after logout (keep auth config for Sign-in buttons). */
 export function clearAuthSession() {
+  clearRecordingsListCache();
   cached = {
     user: null,
     config: cached?.config ?? null,
@@ -70,6 +72,7 @@ export function AuthProvider({
       setConfig(cfg);
       setUser(me);
       const next = me ? "authenticated" : "anonymous";
+      if (next === "anonymous") clearRecordingsListCache();
       setStatus(next);
       cached = { user: me, config: cfg, status: next };
       setError(null);
@@ -77,6 +80,7 @@ export function AuthProvider({
       setError(errorLabel);
       setUser(null);
       setStatus("anonymous");
+      clearRecordingsListCache();
       cached = { user: null, config: null, status: "anonymous" };
     }
   }, [errorLabel]);
@@ -96,6 +100,7 @@ export function AuthProvider({
         setConfig(cfg);
         setUser(me);
         const next = me ? "authenticated" : "anonymous";
+        if (next === "anonymous") clearRecordingsListCache();
         setStatus(next);
         cached = { user: me, config: cfg, status: next };
       } catch {
@@ -103,6 +108,7 @@ export function AuthProvider({
           setError(errorLabel);
           setUser(null);
           setStatus("anonymous");
+          clearRecordingsListCache();
           cached = { user: null, config: null, status: "anonymous" };
         }
       }
@@ -117,6 +123,10 @@ export function AuthProvider({
     };
   }, [errorLabel, refresh]);
 
+  useEffect(() => {
+    if (status === "anonymous") clearRecordingsListCache();
+  }, [status]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       status,
@@ -126,6 +136,7 @@ export function AuthProvider({
       setUser: (next) => {
         setUser(next);
         const st = next ? "authenticated" : "anonymous";
+        if (st === "anonymous") clearRecordingsListCache();
         setStatus(st);
         cached = {
           user: next,

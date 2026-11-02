@@ -96,6 +96,10 @@ export default async function AdminPage() {
           empty: t("app.adminEmpty"),
           loading: t("app.loading"),
           actionError: t("app.error"),
+          searchEmail: t("app.adminSearchEmail"),
+          prevPage: t("app.adminPrevPage"),
+          nextPage: t("app.adminNextPage"),
+          totalLabel: t("app.adminTotal"),
         }}
       />
     </AppShell>

@@ -39,7 +39,7 @@ async def test_dev_login_me_logout_media(client: AsyncClient) -> None:
 
     media = await client.get("/api/media")
     assert media.status_code == 200
-    assert media.json() == {"items": []}
+    assert media.json() == {"items": [], "next_cursor": None}
 
     bad = await client.post("/api/auth/logout")
     assert bad.status_code == 403

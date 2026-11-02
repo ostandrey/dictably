@@ -77,6 +77,10 @@ export type AdminCopy = {
   empty: string;
   loading: string;
   actionError: string;
+  searchEmail?: string;
+  prevPage?: string;
+  nextPage?: string;
+  totalLabel?: string;
 };
 
 type Tab = "users" | "media" | "jobs" | "costs" | "funnel" | "ops";
@@ -127,7 +131,24 @@ export function AdminPanel({ copy }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [grantHours, setGrantHours] = useState<Record<string, string>>({});
+  const [emailQ, setEmailQ] = useState("");
+  const [debouncedEmail, setDebouncedEmail] = useState("");
+  const [pageCursor, setPageCursor] = useState<string | null>(null);
+  const [cursorStack, setCursorStack] = useState<(string | null)[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [total, setTotal] = useState<number | null>(null);
   const tabsScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const next = emailQ.trim();
+      setDebouncedEmail(next);
+      setPageCursor(null);
+      setCursorStack([]);
+      setNextCursor(null);
+    }, 250);
+    return () => window.clearTimeout(t);
+  }, [emailQ]);
 
   // N6 (T-038): keep the selected tab fully inside the horizontal scrollport (incl. after resize to 375).
   useEffect(() => {
@@ -155,14 +176,32 @@ export function AdminPanel({ copy }: Props) {
     setError(null);
     try {
       if (tab === "users") {
-        const res = await adminListUsers();
+        const res = await adminListUsers({
+          limit: 50,
+          cursor: pageCursor,
+          q: debouncedEmail || undefined,
+        });
         setUsers(res.items);
+        setNextCursor(res.next_cursor);
+        setTotal(res.total);
       } else if (tab === "media") {
-        const res = await adminListMedia(failedOnly ? "failed" : undefined);
+        const res = await adminListMedia(failedOnly ? "failed" : undefined, {
+          limit: 50,
+          cursor: pageCursor,
+          q: debouncedEmail || undefined,
+        });
         setMedia(res.items);
+        setNextCursor(res.next_cursor);
+        setTotal(res.total);
       } else if (tab === "jobs") {
-        const res = await adminListJobs(failedOnly ? "failed" : undefined);
+        const res = await adminListJobs(failedOnly ? "failed" : undefined, {
+          limit: 50,
+          cursor: pageCursor,
+          q: debouncedEmail || undefined,
+        });
         setJobs(res.items);
+        setNextCursor(res.next_cursor);
+        setTotal(res.total);
       } else if (tab === "funnel") {
         setFunnel(await adminFunnel(funnelDays));
       } else if (tab === "ops") {
@@ -175,7 +214,15 @@ export function AdminPanel({ copy }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [tab, failedOnly, costPeriod, funnelDays, copy.actionError]);
+  }, [
+    tab,
+    failedOnly,
+    costPeriod,
+    funnelDays,
+    pageCursor,
+    debouncedEmail,
+    copy.actionError,
+  ]);
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -249,7 +296,12 @@ export function AdminPanel({ copy }: Props) {
               className="dy-tab"
               aria-selected={tab === id}
               data-admin={`tab-${id}`}
-              onClick={() => setTab(id)}
+              onClick={() => {
+                setTab(id);
+                setPageCursor(null);
+                setCursorStack([]);
+                setNextCursor(null);
+              }}
             >
               {label}
             </button>
@@ -257,23 +309,77 @@ export function AdminPanel({ copy }: Props) {
         </div>
       </div>
 
-      {(tab === "media" || tab === "jobs") && (
+      {(tab === "users" || tab === "media" || tab === "jobs") && (
         <div className="admin-panel__filters">
+          {(tab === "media" || tab === "jobs") && (
+            <>
+              <button
+                type="button"
+                className={`dy-btn dy-btn--sm ${failedOnly ? "dy-btn--primary" : "dy-btn--ghost"}`}
+                data-admin="filter-failed"
+                onClick={() => {
+                  setFailedOnly(true);
+                  setPageCursor(null);
+                  setCursorStack([]);
+                  setNextCursor(null);
+                }}
+              >
+                {copy.filterFailed}
+              </button>
+              <button
+                type="button"
+                className={`dy-btn dy-btn--sm ${!failedOnly ? "dy-btn--primary" : "dy-btn--ghost"}`}
+                data-admin="filter-all"
+                onClick={() => {
+                  setFailedOnly(false);
+                  setPageCursor(null);
+                  setCursorStack([]);
+                  setNextCursor(null);
+                }}
+              >
+                {copy.filterAll}
+              </button>
+            </>
+          )}
+          <label className="app-search">
+            <input
+              type="search"
+              value={emailQ}
+              onChange={(e) => setEmailQ(e.target.value)}
+              placeholder={copy.searchEmail ?? "Search email"}
+              aria-label={copy.searchEmail ?? "Search email"}
+              data-admin="search-email"
+            />
+          </label>
+          {total != null ? (
+            <span className="admin-panel__total" data-admin="total">
+              {(copy.totalLabel ?? "{n}").replace("{n}", String(total))}
+            </span>
+          ) : null}
           <button
             type="button"
-            className={`dy-btn dy-btn--sm ${failedOnly ? "dy-btn--primary" : "dy-btn--ghost"}`}
-            data-admin="filter-failed"
-            onClick={() => setFailedOnly(true)}
+            className="dy-btn dy-btn--sm dy-btn--ghost"
+            data-admin="page-prev"
+            disabled={cursorStack.length === 0 || loading}
+            onClick={() => {
+              const prev = cursorStack[cursorStack.length - 1] ?? null;
+              setCursorStack((s) => s.slice(0, -1));
+              setPageCursor(prev);
+            }}
           >
-            {copy.filterFailed}
+            {copy.prevPage ?? "Back"}
           </button>
           <button
             type="button"
-            className={`dy-btn dy-btn--sm ${!failedOnly ? "dy-btn--primary" : "dy-btn--ghost"}`}
-            data-admin="filter-all"
-            onClick={() => setFailedOnly(false)}
+            className="dy-btn dy-btn--sm dy-btn--ghost"
+            data-admin="page-next"
+            disabled={!nextCursor || loading}
+            onClick={() => {
+              setCursorStack((s) => [...s, pageCursor]);
+              setPageCursor(nextCursor);
+            }}
           >
-            {copy.filterAll}
+            {copy.nextPage ?? "Next"}
           </button>
         </div>
       )}

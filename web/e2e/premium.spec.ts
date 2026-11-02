@@ -231,6 +231,20 @@ test.describe("T-036 premium feel", () => {
       path: path.join(SHOT_ROOT, "404-375-light.png"),
       fullPage: true,
     });
+
+    // N9: path /uk/* forces UK even when browser locale is en-US.
+    const pathCtx = await browser.newContext({
+      locale: "en-US",
+      viewport: { width: 375, height: 812 },
+      colorScheme: "light",
+    });
+    const pathPage = await pathCtx.newPage();
+    await pathPage.goto("/uk/nope/");
+    await expect(pathPage.locator("html")).toHaveAttribute("data-nf-lang", "uk");
+    await expect(
+      pathPage.locator('.not-found__copy:visible [data-nf="title"]'),
+    ).toHaveText("Сторінку не знайдено");
+    await pathCtx.close();
   });
 
   test("nav motion video 1440 + 375", async ({ browser }) => {

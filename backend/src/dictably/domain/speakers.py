@@ -29,6 +29,18 @@ async def count_for_media(session: AsyncSession, media_id: UUID) -> int:
     return int(result.scalar_one())
 
 
+async def counts_for_media_ids(session: AsyncSession, media_ids: list[UUID]) -> dict[UUID, int]:
+    """Speaker counts for a page of media — one GROUP BY (T-039, no N+1)."""
+    if not media_ids:
+        return {}
+    result = await session.execute(
+        select(Speaker.media_id, func.count())
+        .where(Speaker.media_id.in_(media_ids))
+        .group_by(Speaker.media_id)
+    )
+    return {row[0]: int(row[1]) for row in result.all()}
+
+
 async def get_for_media(session: AsyncSession, *, media_id: UUID, speaker_id: UUID) -> Speaker:
     row = await session.get(Speaker, speaker_id)
     if row is None or row.media_id != media_id:
