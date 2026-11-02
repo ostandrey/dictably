@@ -36,6 +36,9 @@ export function SettingsPanel() {
       ? "official_protocol"
       : "default",
   );
+  const [notifyReady, setNotifyReady] = useState(
+    user?.notify_ready_email !== false,
+  );
 
   const balance = user?.balance_seconds ?? 0;
 
@@ -67,6 +70,7 @@ export function SettingsPanel() {
       const next = await patchMe({
         locale: uiLocale,
         preferred_minutes_template: template,
+        notify_ready_email: notifyReady,
       });
       setUser(next);
       if (uiLocale !== locale) {
@@ -140,9 +144,17 @@ export function SettingsPanel() {
               <option value="official_protocol">{t("minutesTemplateOfficial")}</option>
             </select>
           </label>
+          <label className="dy-settings__check" data-settings="notify-ready">
+            <input
+              type="checkbox"
+              checked={notifyReady}
+              onChange={(e) => setNotifyReady(e.target.checked)}
+            />
+            <span>{t("notifyReadyEmail")}</span>
+          </label>
           <button
             type="button"
-            className="dy-btn dy-btn--secondary"
+            className="dy-btn dy-btn--secondary dy-settings__save"
             disabled={saveBusy}
             data-settings="save-defaults"
             onClick={() => void onSaveDefaults()}

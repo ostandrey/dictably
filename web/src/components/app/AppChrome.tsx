@@ -5,6 +5,8 @@ import { useTranslations } from "next-intl";
 import { type ReactNode } from "react";
 import { AppDropOverlay } from "@/components/app/AppDropOverlay";
 import { AppShell } from "@/components/app/AppShell";
+import { OfflineBanner } from "@/components/app/OfflineBanner";
+import { ReadyNotify } from "@/components/app/ReadyNotify";
 import { RequireAuth } from "@/components/app/RequireAuth";
 import { localePath } from "@/i18n/locales";
 
@@ -40,6 +42,8 @@ export function AppChrome({
   return (
     <div data-app-inert-root>
       <RequireAuth locale={locale}>
+        <OfflineBanner />
+        <ReadyNotify />
         <AppShell
           backHref={localePath(locale)}
           backLabel={t("back")}

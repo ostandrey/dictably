@@ -18,7 +18,7 @@ async function ensureReadyRow(
     mimeType: "audio/wav",
     buffer: fs.readFileSync(FIXTURE),
   });
-    await confirmUploadDetailsIfOpen(page);
+  await confirmUploadDetailsIfOpen(page);
   const row = recordingRow(page, name);
   await expect(row).toBeVisible({ timeout: 30_000 });
   await expect(row).toContainText(/Ready|Готово/, { timeout: 30_000 });
@@ -42,8 +42,8 @@ async function setTheme(
 test.describe("T-018-lite delete + C1–C2", () => {
   test.describe.configure({ mode: "serial" });
 
-  test("delete recording → gone from list; audio 404", async ({ page }) => {
-    test.setTimeout(90_000);
+  test("delete → Undo restores; commit after toast → audio 404", async ({ page }) => {
+    test.setTimeout(120_000);
     await page.goto("/app/");
     await ensureSignedIn(page);
     const name = `t018-${Date.now()}.wav`;
@@ -54,12 +54,21 @@ test.describe("T-018-lite delete + C1–C2", () => {
     const id = new URL(href!, "http://127.0.0.1").searchParams.get("id");
     expect(id).toBeTruthy();
 
+    // T-040: delete hides row + Undo toast (no confirm dialog).
     await row.locator("[data-recordings='menu']").click();
     await page.locator("[data-recordings='delete']").click();
-    await expect(page.locator(".dy-dialog")).toBeVisible();
-    await page.locator("[data-recordings='delete-confirm']").click();
     await expect(row).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.locator("[data-toast='action']")).toBeVisible();
 
+    await page.locator("[data-toast='action']").click();
+    await expect(recordingRow(page, name)).toBeVisible({ timeout: 5_000 });
+
+    const row2 = recordingRow(page, name);
+    await row2.locator("[data-recordings='menu']").click();
+    await page.locator("[data-recordings='delete']").click();
+    await expect(row2).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.locator("[data-toast='action']")).toBeVisible();
+    // Soft-delete hides audio immediately (restore window ~30s; no client timer).
     const audioRes = await page.request.get(`/api/media/${id}/audio`);
     expect(audioRes.status()).toBe(404);
   });
@@ -70,7 +79,6 @@ test.describe("T-018-lite delete + C1–C2", () => {
     await ensureSignedIn(page);
     const name = `t018-row-${Date.now()}.wav`;
     const row = await ensureReadyRow(page, name);
-    // Whole row is clickable via title::after stretch link (same as minutes.spec).
     await row.click();
     await expect(page.locator("[data-recording='page']")).toBeVisible({
       timeout: 15_000,
@@ -90,7 +98,7 @@ test.describe("T-018-lite delete + C1–C2", () => {
     expect(bad, JSON.stringify(bad, null, 2)).toEqual([]);
   });
 
-  test("screenshots: list+menu+dialog+dark+minutes (B2)", async ({ page }) => {
+  test("screenshots: list+menu+toast+dark+minutes (B2)", async ({ page }) => {
     test.setTimeout(120_000);
     fs.mkdirSync(SHOT_ROOT, { recursive: true });
     await page.goto("/app/");
@@ -98,7 +106,6 @@ test.describe("T-018-lite delete + C1–C2", () => {
     const name = `t018-shot-${Date.now()}.wav`;
     const row = await ensureReadyRow(page, name);
 
-    // 1440 light — menu open
     await page.setViewportSize({ width: 1440, height: 900 });
     await setTheme(page, "light");
     await row.locator("[data-recordings='menu']").click();
@@ -108,20 +115,20 @@ test.describe("T-018-lite delete + C1–C2", () => {
       fullPage: true,
     });
 
-    // dialog
+    // Soft-delete toast (replaces confirm dialog — T-040)
     await page.locator("[data-recordings='delete']").click();
-    await expect(page.locator(".dy-dialog")).toBeVisible();
+    await expect(page.locator("[data-toast='action']")).toBeVisible();
     await page.screenshot({
       path: path.join(SHOT_ROOT, "dialog-1440-light.png"),
       fullPage: true,
     });
-    await page.locator("[data-recordings='delete-keep']").click();
-    await expect(page.locator(".dy-dialog")).toHaveCount(0);
+    await page.locator("[data-toast='action']").click();
+    await expect(recordingRow(page, name)).toBeVisible();
 
-    // 375 light — menu
     await page.setViewportSize({ width: 375, height: 812 });
     await setTheme(page, "light");
-    await row.locator("[data-recordings='menu']").click();
+    const rowM = recordingRow(page, name);
+    await rowM.locator("[data-recordings='menu']").click();
     await expect(page.locator("[data-recordings='delete']")).toBeVisible();
     await page.screenshot({
       path: path.join(SHOT_ROOT, "list-menu-375-light.png"),
@@ -130,7 +137,6 @@ test.describe("T-018-lite delete + C1–C2", () => {
     await page.keyboard.press("Escape");
     await page.locator("body").click({ position: { x: 8, y: 8 } });
 
-    // 1440 dark — must differ from light
     await page.setViewportSize({ width: 1440, height: 900 });
     await setTheme(page, "dark");
     await expect
@@ -161,20 +167,17 @@ test.describe("T-018-lite delete + C1–C2", () => {
       fullPage: true,
     });
 
-    // B3: title ink in dark (not inherited muted/link blue-on-dark)
     const titleColor = await page
       .locator("a.dy-rec__title")
       .first()
       .evaluate((el) => getComputedStyle(el).color);
     expect(titleColor).toMatch(/rgb\(/);
     const rgb = titleColor.match(/\d+/g)?.map(Number) ?? [];
-    // Light-ish ink on dark canvas (luma roughly > 140)
     const luma = 0.2126 * (rgb[0] ?? 0) + 0.7152 * (rgb[1] ?? 0) + 0.0722 * (rgb[2] ?? 0);
     expect(luma).toBeGreaterThan(140);
 
-    // minutes page for B4 / C2 width — after layout fix text column ≫ ~130px
     await setTheme(page, "light");
-    await row.click();
+    await recordingRow(page, name).click();
     await expect(page.locator("[data-recording='minutes']")).toBeVisible({
       timeout: 15_000,
     });
@@ -192,7 +195,6 @@ test.describe("T-018-lite delete + C1–C2", () => {
         panel: panel?.getBoundingClientRect().width ?? 0,
       };
     });
-    // Before fix: text ~130px; after grid 1.75fr/1fr body should be ≫ 130 at 1440.
     expect(widths.panel, JSON.stringify(widths)).toBeGreaterThanOrEqual(360);
     expect(widths.body, JSON.stringify(widths)).toBeGreaterThanOrEqual(200);
     await page.screenshot({
@@ -206,7 +208,7 @@ test.describe("T-018-lite delete + C1–C2", () => {
 
     await page.setViewportSize({ width: 375, height: 812 });
     await page.getByRole("tab", { name: /Minutes|Протокол/ }).click();
-    await expect(page.locator("[data-minutes='item']").first()).toBeVisible();
+    await expect(page.locator("[data-minutes='item'] .dy-item__body").first()).toBeVisible();
     const mobileBody = await page
       .locator("[data-minutes='item'] .dy-item__body")
       .first()

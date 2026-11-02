@@ -197,6 +197,16 @@ async def media_upload_intent(
     storage: Annotated[StorageProvider, Depends(get_storage)],
 ) -> UploadIntentOut:
     """Presigned PUT / multipart for direct browser→R2 upload (T-038)."""
+    if body.duration_ms is not None:
+        from dictably.domain import ledger as ledger_domain
+
+        need = max(1, int(body.duration_ms / 1000))
+        bal = await ledger_domain.balance_seconds(session, user.id)
+        if bal < need:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail="quota",
+            )
     data = await media_domain.create_upload_intent(
         session,
         storage,
@@ -310,6 +320,60 @@ async def get_media(
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> MediaOut:
     row = await media_domain.get_for_user(session, user.id, media_id)
+    return await _media_out(session, row)
+
+
+@router.post("/media/{media_id}/retry", response_model=MediaOut)
+async def retry_media(
+    media_id: UUID,
+    user: Annotated[User, Depends(require_user_csrf)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> MediaOut:
+    """Re-enqueue processing for a failed recording (T-040 «Спробувати ще»)."""
+    from sqlalchemy import select
+
+    from dictably.db.models import Job, JobKind, JobStatus, MediaStatus
+
+    row = await media_domain.get_for_user(session, user.id, media_id)
+    if row.status != MediaStatus.failed:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only failed recordings can be retried",
+        )
+    active = await session.execute(
+        select(Job.id)
+        .where(
+            Job.media_id == media_id,
+            Job.kind == JobKind.process_media,
+            Job.status.in_(
+                (JobStatus.queued, JobStatus.dispatched, JobStatus.running),
+            ),
+        )
+        .limit(1)
+    )
+    if active.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Already retrying",
+        )
+    # Flip status before enqueue so a second click cannot pass the failed check (S1).
+    row.status = MediaStatus.queued
+    row.error = None
+    await session.flush()
+    await process_domain.enqueue_or_run_process(session, media_id=media_id, settings=settings)
+    row = await media_domain.get_for_user(session, user.id, media_id)
+    return await _media_out(session, row)
+
+
+@router.post("/media/{media_id}/restore", response_model=MediaOut)
+async def restore_media(
+    media_id: UUID,
+    user: Annotated[User, Depends(require_user_csrf)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> MediaOut:
+    """Undo soft-delete within 30s (T-040 B1)."""
+    row = await media_domain.restore_for_user(session, user_id=user.id, media_id=media_id)
     return await _media_out(session, row)
 
 

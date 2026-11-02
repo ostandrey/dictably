@@ -172,6 +172,7 @@ export function deleteAccount(): Promise<void> {
 export function patchMe(body: {
   locale?: string | null;
   preferred_minutes_template?: string | null;
+  notify_ready_email?: boolean | null;
 }): Promise<User> {
   return apiFetch<User>("/api/me", {
     method: "PATCH",
@@ -237,8 +238,18 @@ export function getMedia(id: string): Promise<MediaItem> {
   return apiFetch<MediaItem>(`/api/media/${id}`);
 }
 
+/** Re-enqueue processing for a failed recording (T-040). */
+export function retryMedia(id: string): Promise<MediaItem> {
+  return apiFetch<MediaItem>(`/api/media/${id}/retry`, { method: "POST" });
+}
+
 export function deleteMedia(id: string): Promise<void> {
   return apiFetch<void>(`/api/media/${id}`, { method: "DELETE" });
+}
+
+/** Undo soft-delete within ~30s (T-040 B1). */
+export function restoreMedia(id: string): Promise<MediaItem> {
+  return apiFetch<MediaItem>(`/api/media/${id}/restore`, { method: "POST" });
 }
 
 export function getTranscript(id: string): Promise<Transcript> {
@@ -572,6 +583,8 @@ type UploadOptions = {
 export type UploadMediaOptions = UploadOptions & {
   /** Zoom-style: several files → one meeting, each file a speaker (T-035b). */
   meetingBundle?: boolean;
+  /** Declared duration for upload-intent quota gate (T-040). */
+  durationMs?: number | null;
 };
 
 const MULTIPART_CONCURRENCY = 4;
@@ -628,6 +641,9 @@ async function uploadMediaDirect(
       filename: file.name,
       content_type: file.type || null,
       size_bytes: file.size,
+      ...(options.durationMs != null && options.durationMs > 0
+        ? { duration_ms: Math.round(options.durationMs) }
+        : {}),
     }),
   });
 

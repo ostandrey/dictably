@@ -91,6 +91,10 @@ class User(Base, TimestampMixin):
     preferred_minutes_template: Mapped[str] = mapped_column(
         String(64), nullable=False, default="default", server_default="default"
     )
+    # T-040: email when minutes ready after long (>5 min) processing.
+    notify_ready_email: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=text("true"), nullable=False
+    )
 
     sessions: Mapped[list[Session]] = relationship(back_populates="user")
     media: Mapped[list[Media]] = relationship(back_populates="user")
@@ -130,6 +134,11 @@ class Media(Base, TimestampMixin):
             postgresql_using="gin",
             postgresql_ops={"filename": "gin_trgm_ops"},
         ),
+        Index(
+            "ix_media_deleted_at",
+            "deleted_at",
+            postgresql_where=text("deleted_at IS NOT NULL"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=new_uuid)
@@ -153,6 +162,9 @@ class Media(Base, TimestampMixin):
     language: Mapped[str | None] = mapped_column(String(16))
     error: Mapped[str | None] = mapped_column(Text)
     delete_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # T-040 soft-delete: list/audio hide immediately; hard purge after 30s.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status_before_delete: Mapped[str | None] = mapped_column(String(32))
     meeting_date: Mapped[date | None] = mapped_column(Date)
     speakers_expected: Mapped[int | None] = mapped_column(Integer)
     quality_warning: Mapped[str | None] = mapped_column(Text)

@@ -10,6 +10,7 @@ from dictably.worker.tasks import (
     ping,
     process_media,
     purge_expired_originals,
+    purge_soft_deleted_tick,
     smoke_providers,
 )
 
@@ -32,6 +33,7 @@ class WorkerSettings:
         smoke_providers,
         process_media,
         purge_expired_originals,
+        purge_soft_deleted_tick,
         fair_queue_tick,
         ops_alert_tick,
         abandon_uploads_tick,
@@ -40,6 +42,8 @@ class WorkerSettings:
         cron(purge_expired_originals, hour=3, minute=15),
         # Every minute: free slots + stale job reclaim (B1).
         cron(fair_queue_tick, minute=set(range(60))),
+        # Every minute: hard-purge soft-deleted past undo window (T-040 B1).
+        cron(purge_soft_deleted_tick, minute=set(range(60))),
         # Every 5 minutes: email alerts (B4).
         cron(ops_alert_tick, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),
         # Four times/day: abandon incomplete uploads (S1).

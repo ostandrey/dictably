@@ -12,6 +12,7 @@ export {
   adminRetryJob,
   deleteAccount,
   deleteMedia,
+  restoreMedia,
   devLogin,
   downloadMediaExport,
   exportAccount,
@@ -41,6 +42,7 @@ export {
   postOnboarding,
   probeMediaUpload,
   regenerateAnalysis,
+  retryMedia,
   splitSegmentSpeaker,
   uploadMedia,
 } from "./client";

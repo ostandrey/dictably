@@ -35,6 +35,7 @@ def user_out(user: User, *, balance_seconds: int = 0) -> UserOut:
         onboarding_completed_at=user.onboarding_completed_at,
         onboarding_skipped_at=user.onboarding_skipped_at,
         preferred_minutes_template=getattr(user, "preferred_minutes_template", None) or "default",
+        notify_ready_email=bool(getattr(user, "notify_ready_email", True)),
     )
 
 
@@ -61,6 +62,8 @@ async def patch_me(
             user.locale = loc
     if "preferred_minutes_template" in fields and body.preferred_minutes_template is not None:
         account_domain.remember_minutes_template(user, body.preferred_minutes_template)
+    if "notify_ready_email" in fields and body.notify_ready_email is not None:
+        user.notify_ready_email = bool(body.notify_ready_email)
     await session.commit()
     await session.refresh(user)
     balance = await ledger_domain.balance_seconds(session, user.id)
@@ -72,6 +75,7 @@ async def post_consent(
     body: ConsentIn,
     user: Annotated[User, Depends(require_user_csrf)],
     session: Annotated[AsyncSession, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> UserOut:
     await account_domain.accept_consent(
         session,
@@ -82,6 +86,8 @@ async def post_consent(
         signup_utm=body.signup_utm,
         signup_referrer=body.signup_referrer,
     )
+    # Trial before first upload — Settings + T-040 quota pre-check (idempotent).
+    await ledger_domain.ensure_trial_grant(session, user_id=user.id, seconds=settings.trial_seconds)
     await session.commit()
     await session.refresh(user)
     balance = await ledger_domain.balance_seconds(session, user.id)

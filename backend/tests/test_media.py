@@ -286,12 +286,12 @@ async def test_upload_soft_accepts_missing_ffprobe_in_test(
 
 
 @pytest.mark.asyncio
-async def test_delete_media_removes_files_and_rows(
+async def test_delete_media_hides_then_purge_removes(
     client: AsyncClient,
     storage: LocalStorageProvider,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """T-018-lite AC: after delete, audio → 404 and related DB rows gone."""
+    """T-040: soft-delete hides immediately; purge removes files + rows."""
     monkeypatch.setattr(media_domain, "probe_file", _ok_probe)
     csrf = await _login(client)
     up = await client.post(
@@ -316,13 +316,21 @@ async def test_delete_media_removes_files_and_rows(
     assert (await client.get(f"/api/media/{media_id}/audio")).status_code == 404
     listed = await client.get("/api/media")
     assert listed.json()["items"] == []
-    assert not any(p.is_file() for p in storage.root.rglob("*"))
 
     settings = get_settings()
     engine = create_async_engine(settings.test_database_url, pool_pre_ping=True)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     mid = UUID(media_id)
     async with factory() as session:
+        row = await session.get(Media, mid)
+        assert row is not None
+        assert row.status == "deleted"
+        from datetime import UTC, datetime, timedelta
+
+        row.deleted_at = datetime.now(UTC) - timedelta(seconds=60)
+        await session.commit()
+        n = await media_domain.purge_soft_deleted(session, storage)
+        assert n == 1
         assert (await session.get(Media, mid)) is None
         assert (
             await session.execute(select(Transcript).where(Transcript.media_id == mid))
@@ -338,6 +346,7 @@ async def test_delete_media_removes_files_and_rows(
         ).scalars().first() is None
     await engine.dispose()
     await reset_engine()
+    assert not any(p.is_file() for p in storage.root.rglob("*"))
 
 
 @pytest.mark.asyncio

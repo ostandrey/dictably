@@ -61,6 +61,21 @@ async def purge_expired_originals(_ctx: dict[str, Any]) -> dict[str, Any]:
     return {"purged": n}
 
 
+async def purge_soft_deleted_tick(_ctx: dict[str, Any]) -> dict[str, Any]:
+    """T-040 B1: hard-delete soft-deleted media past the 30s undo window."""
+    from dictably.core.config import get_settings
+    from dictably.db.session import get_session_factory
+    from dictably.domain import media as media_domain
+    from dictably.providers.factory import get_storage_provider
+
+    settings = get_settings()
+    factory = get_session_factory(settings)
+    storage = get_storage_provider(settings)
+    async with factory() as session:
+        n = await media_domain.purge_soft_deleted(session, storage)
+    return {"purged": n}
+
+
 async def fair_queue_tick(_ctx: dict[str, Any]) -> dict[str, Any]:
     """T-038 B1: start waiting jobs; fail stale dispatched/running."""
     from dictably.core.config import get_settings

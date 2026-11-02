@@ -301,49 +301,78 @@ test.describe("T-043 illustrations + S10/N9", () => {
       document.querySelector("[data-ill-shot='processing']")?.remove();
     });
 
-    // Failed + Deleted via mounted SVG (same paths as components)
-    await page.evaluate(() => {
-      const wrap = document.createElement("div");
-      wrap.setAttribute("data-ill-shot", "gallery");
-      wrap.style.cssText =
-        "display:flex;gap:32px;justify-content:center;padding:48px;background:var(--canvas)";
-      wrap.innerHTML = `
-        <div data-ill="failed"><svg width="240" height="120" viewBox="0 0 240 120" fill="none" aria-hidden="true">
-          <g stroke-width="6" stroke-linecap="round" stroke="var(--ink-subtle)" opacity=".4">
-            <path d="M24 50v20M38 38v44M52 46v28M66 32v56M80 48v24"/>
-            <path d="M160 44v32M174 34v52M188 50v20M202 42v36M216 52v16"/>
-          </g>
-          <circle cx="120" cy="60" r="22" fill="var(--danger-soft)" stroke="var(--danger)" stroke-width="2"/>
-          <path d="M120 49v14" stroke="var(--danger)" stroke-width="3.5" stroke-linecap="round"/>
-          <circle cx="120" cy="71" r="2.4" fill="var(--danger)"/>
-        </svg></div>
-        <div data-ill="deleted"><svg width="240" height="120" viewBox="0 0 240 120" fill="none" aria-hidden="true">
-          <rect x="78" y="12" width="84" height="96" rx="8" fill="none" stroke="var(--line)" stroke-width="2" stroke-dasharray="5 6"/>
-          <path d="M92 40h44M92 58h56M92 76h32" stroke="var(--line)" stroke-width="3" stroke-linecap="round"/>
-          <circle cx="162" cy="94" r="16" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
-          <path d="M155 94l5 5 9-10" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        </svg></div>`;
-      document.body.prepend(wrap);
-    });
-    for (const dark of [false, true]) {
-      const theme = dark ? "dark" : "light";
-      for (const width of [375, 1440]) {
-        await page.setViewportSize({
-          width,
-          height: width <= 400 ? 812 : 900,
+    // Failed: real product page (route media as failed) — T-043 N3 / T-040
+    {
+      await page.goto("/app/");
+      await clearListCache(page);
+      await ensureSignedIn(page);
+      const failName = `t043-fail-${Date.now()}.wav`;
+      await page.locator("[data-recordings='file']").setInputFiles({
+        name: failName,
+        mimeType: "audio/wav",
+        buffer: fs.readFileSync(FIXTURE),
+      });
+      await confirmUploadDetailsIfOpen(page);
+      const failRow = recordingRow(page, failName);
+      await expect(failRow).toBeVisible({ timeout: 30_000 });
+      const href = await failRow.locator("a.dy-rec__title").getAttribute("href");
+      const failId = new URL(href!, "http://127.0.0.1").searchParams.get("id");
+      expect(failId).toBeTruthy();
+      await page.route(`**/api/media/${failId}`, async (route) => {
+        if (route.request().method() !== "GET") {
+          await route.continue();
+          return;
+        }
+        const res = await route.fetch();
+        const json = await res.json();
+        json.status = "failed";
+        json.error = "ASR provider timed out";
+        await route.fulfill({
+          status: res.status(),
+          headers: { ...res.headers(), "content-type": "application/json" },
+          body: JSON.stringify(json),
         });
-        await applyTheme(page, dark ? "dark" : "light");
-        await page.locator('[data-ill="failed"]').screenshot({
-          path: path.join(SHOT_ROOT, `failed-${width}-${theme}.png`),
-        });
-        await page.locator('[data-ill="deleted"]').screenshot({
-          path: path.join(SHOT_ROOT, `deleted-${width}-${theme}.png`),
-        });
+      });
+      await page.goto(`/app/r/?id=${failId}`);
+      await expect(page.locator("[data-recording-failed]")).toBeVisible({
+        timeout: 15_000,
+      });
+      for (const dark of [false, true]) {
+        const theme = dark ? "dark" : "light";
+        for (const width of [375, 1440]) {
+          await page.setViewportSize({
+            width,
+            height: width <= 400 ? 812 : 900,
+          });
+          await applyTheme(page, dark ? "dark" : "light");
+          await page.locator("[data-recording-failed]").screenshot({
+            path: path.join(SHOT_ROOT, `failed-${width}-${theme}.png`),
+          });
+        }
+      }
+      await page.unroute(`**/api/media/${failId}`);
+    }
+
+    // Deleted: real gone page uses IllDeleted (T-043 N3)
+    {
+      await page.goto("/app/r/?id=00000000-0000-4000-8000-0000000000de");
+      await expect(page.locator("[data-recording-gone]")).toBeVisible({
+        timeout: 15_000,
+      });
+      for (const dark of [false, true]) {
+        const theme = dark ? "dark" : "light";
+        for (const width of [375, 1440]) {
+          await page.setViewportSize({
+            width,
+            height: width <= 400 ? 812 : 900,
+          });
+          await applyTheme(page, dark ? "dark" : "light");
+          await page.locator("[data-recording-gone]").screenshot({
+            path: path.join(SHOT_ROOT, `deleted-${width}-${theme}.png`),
+          });
+        }
       }
     }
-    await page.evaluate(() => {
-      document.querySelector("[data-ill-shot='gallery']")?.remove();
-    });
 
     // 404
     for (const dark of [false, true]) {
@@ -379,6 +408,13 @@ test.describe("T-043 illustrations + S10/N9", () => {
         path: path.join(SHOT_ROOT, "signin-375-light.png"),
         fullPage: true,
       });
+      await so.setViewportSize({ width: 1440, height: 900 });
+      await applyTheme(so, "dark");
+      await expect(so.locator("[data-auth='ill-signin']")).toBeVisible();
+      await so.screenshot({
+        path: path.join(SHOT_ROOT, "signin-1440-dark.png"),
+        fullPage: true,
+      });
       await signedOut.close();
     }
 
@@ -395,11 +431,12 @@ test.describe("T-043 illustrations + S10/N9", () => {
     await confirmUploadDetailsIfOpen(page);
     const delRow = recordingRow(page, delName);
     await expect(delRow).toBeVisible({ timeout: 30_000 });
+    // Soft-delete toast (T-040) — IllDeleted also on gone page above.
     await delRow.locator("[data-recordings='menu']").click();
     await page.locator("[data-recordings='delete']").click();
-    await expect(page.locator("[data-recordings='delete-ill']")).toBeVisible();
+    await expect(page.locator("[data-toast='item']")).toBeVisible();
     await applyTheme(page, "light");
-    await page.locator(".dy-dialog").screenshot({
+    await page.locator("[data-toast='root']").screenshot({
       path: path.join(SHOT_ROOT, "delete-dialog-ill-1440-light.png"),
     });
   });

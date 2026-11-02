@@ -197,10 +197,17 @@
   margin-left: auto;
 }
 
-/* Phone ≤767 / desktop ≥768 — one boundary for the app shell (T-041 B6). */
+/* Phone ≤767 / desktop ≥768 — one boundary for the app shell (T-041 B6).
+   T-043 N1: title y ≤ 24 → padding-top 12px (space-3). */
 @media (max-width: 767px) {
   .app-main {
     padding-top: var(--space-3);
+  }
+  .app-main__toolbar {
+    margin-top: 0;
+  }
+  .app-main__toolbar h1 {
+    font: 600 22px/28px var(--font-sans);
   }
   .app-main__toolbar.is-mobile-stack {
     flex-direction: column;
@@ -917,13 +924,14 @@
   }
 }
 
-/* T-043 S10: single column + tabs through 1023; sidebar stays from 768. */
+/* T-043 S10: single column + tabs through 1023; sidebar stays from 768.
+   T-043 S2: tab strip padding matches transcript/minutes inset (not edge-to-edge). */
 @media (max-width: 1023px) {
   .rec-page__tabs {
     display: flex;
-    width: 100%;
-    margin: 0;
-    padding: 0 var(--space-8);
+    width: auto;
+    margin: 0 var(--space-8);
+    padding: 0;
     box-sizing: border-box;
     border-bottom: 1px solid var(--line);
   }
@@ -963,6 +971,7 @@
 
 @media (max-width: 767px) {
   .rec-page__tabs {
+    margin: 0;
     padding: 0;
   }
   .rec-page__transcript,

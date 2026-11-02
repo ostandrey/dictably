@@ -10,7 +10,6 @@ import {
 } from "react";
 import { useToast } from "@/components/app/ToastProvider";
 import {
-  IllDeleted,
   IllEmptyRecordings,
   IllProcessing,
 } from "@/components/illustrations";
@@ -23,6 +22,7 @@ import {
   mediaAudioUrl,
   patchMedia,
   probeMediaUpload,
+  restoreMedia,
   uploadMedia,
   type MediaItem,
   type MediaProbe,
@@ -43,6 +43,10 @@ import {
   mediaDisplayTitle,
 } from "@/lib/mediaDisplay";
 import { ACCEPT, isAcceptedUpload, MAX_UPLOAD_BYTES } from "@/lib/uploadAccept";
+import {
+  formatMinutesApprox,
+  readFileDurationMs,
+} from "@/lib/mediaDuration";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   Alert,
@@ -254,6 +258,7 @@ export function RecordingsPanel({
     audioStreamIndex?: number;
     meetingBundle?: boolean;
     minutesTemplate?: string;
+    durationMs?: number | null;
   }>({});
   const { push: pushToast } = useToast();
   const { user } = useAuth();
@@ -288,10 +293,10 @@ export function RecordingsPanel({
   const [query, setQuery] = useState<string | null>(null);
   const [debouncedQ, setDebouncedQ] = useState<string | null>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<MediaItem | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [enterIds, setEnterIds] = useState<Set<string>>(new Set());
   const listAbortRef = useRef<AbortController | null>(null);
+  /** Media ids uploaded in this tab — soft merge may keep only these as "newer" (T-043 N2). */
+  const sessionUploadIds = useRef<Set<string>>(new Set());
   const resolvedQuery = query ?? seed?.query ?? "";
   const resolvedDebouncedQ = debouncedQ ?? seed?.query ?? "";
   const resolvedItems = useMemo(
@@ -352,7 +357,12 @@ export function RecordingsPanel({
         const prev = itemsRef.current;
         const merged =
           soft && prev.length > 0
-            ? mergeFirstPage(prev, list.items, list.next_cursor)
+            ? mergeFirstPage(
+                prev,
+                list.items,
+                list.next_cursor,
+                sessionUploadIds.current,
+              )
             : list.items;
         const keepOlder =
           soft && Boolean(list.next_cursor) && merged.length > list.items.length;
@@ -458,16 +468,19 @@ export function RecordingsPanel({
   }, [userId]);
 
   useEffect(() => {
+    // T-039 N1 / T-040: poll the oldest active first (list is newest→oldest).
     const activeIds = resolvedItems
       .filter((m) => ACTIVE.has(m.status))
-      .map((m) => m.id);
+      .map((m) => m.id)
+      .reverse()
+      .slice(0, 20);
     if (!activeIds.length) return;
 
     let cancelled = false;
     const tick = async () => {
       if (document.visibilityState === "hidden") return;
       try {
-        const statuses = await listMediaStatus(activeIds.slice(0, 20));
+        const statuses = await listMediaStatus(activeIds);
         if (cancelled || !statuses.length) return;
         setItems((prev) => {
           const base = prev ?? itemsRef.current;
@@ -501,6 +514,7 @@ export function RecordingsPanel({
           }
           return changed ? next : base;
         });
+        // Ready toast + tab title: ReadyNotify in AppChrome (T-040 S2).
       } catch {
         /* ignore poll errors */
       }
@@ -602,7 +616,9 @@ export function RecordingsPanel({
           vocabulary: opts.vocabulary,
           audioStreamIndex: opts.audioStreamIndex,
           minutesTemplate: opts.minutesTemplate,
+          durationMs: opts.durationMs,
         });
+        sessionUploadIds.current.add(created.id);
         setItems((prev) => {
           const base = prev ?? itemsRef.current;
           const next = [created, ...base.filter((m) => m.id !== created.id)];
@@ -646,7 +662,9 @@ export function RecordingsPanel({
           language: opts.language,
           vocabulary: opts.vocabulary,
           minutesTemplate: opts.minutesTemplate,
+          durationMs: opts.durationMs,
         });
+        sessionUploadIds.current.add(created.id);
         setItems((prev) => {
           const base = prev ?? itemsRef.current;
           const next = [created, ...base.filter((m) => m.id !== created.id)];
@@ -733,7 +751,8 @@ export function RecordingsPanel({
   const confirmDetails = useCallback(() => {
     if (!details?.files.length) return;
     const asBundle = details.meetingBundle && details.files.length >= 2;
-    uploadOptsRef.current = {
+    const files = details.files;
+    const opts = {
       language: details.language || undefined,
       speakersExpected:
         !asBundle && details.speakersExpected
@@ -747,15 +766,49 @@ export function RecordingsPanel({
       meetingBundle: asBundle,
       minutesTemplate: details.minutesTemplate || preferredTemplate,
     };
-    const files = details.files;
-    setDetails(null);
-    if (asBundle) {
-      void uploadBundle(files);
-      return;
-    }
-    for (const file of files) queueRef.current.push(file);
-    void pump();
-  }, [details, pump, preferredTemplate, uploadBundle]);
+    void (async () => {
+      const win =
+        typeof window !== "undefined"
+          ? (window as unknown as {
+              __dictablyForceDurationMs?: number;
+              __dictablyForceBalanceSeconds?: number;
+            })
+          : undefined;
+      const forceMs = win?.__dictablyForceDurationMs;
+      let needMs = typeof forceMs === "number" && forceMs > 0 ? forceMs : 0;
+      if (!needMs) {
+        for (const f of files) {
+          const d = await readFileDurationMs(f);
+          if (d != null) needMs = Math.max(needMs, d);
+        }
+      }
+      const bal =
+        typeof win?.__dictablyForceBalanceSeconds === "number"
+          ? win.__dictablyForceBalanceSeconds
+          : (user?.balance_seconds ?? 0);
+      if (needMs > 0 && bal < Math.ceil(needMs / 1000)) {
+        setDetails(null);
+        setError(
+          tApp("quotaTooShort", {
+            need: formatMinutesApprox(needMs),
+            left: Math.max(0, Math.floor(bal / 60)),
+          }),
+        );
+        return;
+      }
+      uploadOptsRef.current = {
+        ...opts,
+        durationMs: needMs > 0 ? needMs : null,
+      };
+      setDetails(null);
+      if (asBundle) {
+        void uploadBundle(files);
+        return;
+      }
+      for (const file of files) queueRef.current.push(file);
+      void pump();
+    })();
+  }, [details, pump, preferredTemplate, uploadBundle, user?.balance_seconds, tApp]);
 
   const enqueue = openDetails;
 
@@ -778,29 +831,61 @@ export function RecordingsPanel({
     return () => window.clearTimeout(id);
   }, [enqueue]);
 
-  async function confirmDelete() {
-    if (!pendingDelete) return;
-    setDeleting(true);
-    setError(null);
-    try {
-      await deleteMedia(pendingDelete.id);
+  function scheduleDelete(item: MediaItem) {
+    // Server soft-delete immediately; toast Undo → restore (T-040 B1). No browser timer.
+    setItems((prev) => {
+      const next = (prev ?? itemsRef.current).filter((m) => m.id !== item.id);
+      itemsRef.current = next;
+      persistCache(next, nextCursorRef.current, debouncedQRef.current);
+      return next;
+    });
+    setMenuId(null);
+    void deleteMedia(item.id).catch(() => {
+      setError(copy.error);
       setItems((prev) => {
-        const next = (prev ?? itemsRef.current).filter(
-          (m) => m.id !== pendingDelete.id,
-        );
+        const base = prev ?? itemsRef.current;
+        if (base.some((m) => m.id === item.id)) return base;
+        const next = [item, ...base];
         itemsRef.current = next;
+        persistCache(next, nextCursorRef.current, debouncedQRef.current);
         return next;
       });
-      setPendingDelete(null);
-      pushToast(deletedToast);
-    } catch {
-      setError(copy.error);
-    } finally {
-      setDeleting(false);
-    }
+    });
+    const undoLabel = tApp("undoDelete") || "Undo";
+    pushToast(deletedToast, {
+      durationMs: 30_000,
+      actionLabel: undoLabel,
+      onAction: () => {
+        void restoreMedia(item.id)
+          .then((restored) => {
+            setItems((prev) => {
+              const base = prev ?? itemsRef.current;
+              if (base.some((m) => m.id === restored.id)) return base;
+              const next = [restored, ...base];
+              itemsRef.current = next;
+              persistCache(next, nextCursorRef.current, debouncedQRef.current);
+              return next;
+            });
+            markEnter(restored.id);
+          })
+          .catch(() => {
+            setError(copy.error);
+          });
+      },
+    });
   }
 
   const uploading = uploadName != null;
+  // T-040: warn before leaving while upload is in flight.
+  useEffect(() => {
+    if (!uploading) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = tApp("uploadLeaveWarn");
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [uploading, tApp]);
   const showBusy = busy && resolvedItems.length === 0;
   const searchDim = busy && resolvedItems.length > 0;
   const showDropzone =
@@ -1031,6 +1116,13 @@ export function RecordingsPanel({
         >
           {copy.uploadCta}
         </button>
+        {(user?.balance_seconds ?? 0) > 0 ? (
+          <p className="recordings__quota-hint" data-recordings="quota-hint">
+            {tApp("quotaNearUpload", {
+              n: Math.max(0, Math.floor((user?.balance_seconds ?? 0) / 60)),
+            })}
+          </p>
+        ) : null}
         <input
           ref={inputRef}
           type="file"
@@ -1099,9 +1191,22 @@ export function RecordingsPanel({
       ) : null}
 
       {error ? (
-        <Alert tone="danger" data-recordings="error">
-          {error}
-        </Alert>
+        <div className="recordings__error" data-recordings="error-wrap">
+          <Alert tone="danger" data-recordings="error">
+            {error}
+          </Alert>
+          <button
+            type="button"
+            className="btn-secondary"
+            data-recordings="retry"
+            onClick={() => {
+              setError(null);
+              void loadFirstPage(resolvedDebouncedQ);
+            }}
+          >
+            {tApp("retry")}
+          </button>
+        </div>
       ) : null}
 
       <div className="recordings__list" data-recordings="list">
@@ -1240,8 +1345,7 @@ export function RecordingsPanel({
                                   e.preventDefault();
                                   e.stopPropagation();
                                   if (delBusy) return;
-                                  setMenuId(null);
-                                  setPendingDelete(item);
+                                  scheduleDelete(item);
                                 }}
                               >
                                 {copy.deleteLabel}
@@ -1274,46 +1378,6 @@ export function RecordingsPanel({
           </>
         )}
       </div>
-
-      <Dialog
-        open={pendingDelete != null}
-        title={copy.deleteConfirmTitle}
-        onClose={() => {
-          if (!deleting) setPendingDelete(null);
-        }}
-        actions={
-          <>
-            <Button
-              variant="secondary"
-              disabled={deleting}
-              onClick={() => setPendingDelete(null)}
-              data-recordings="delete-keep"
-            >
-              {copy.keepLabel}
-            </Button>
-            <Button
-              variant="danger"
-              loading={deleting}
-              onClick={() => void confirmDelete()}
-              data-recordings="delete-confirm"
-            >
-              {copy.deleteConfirmAction}
-            </Button>
-          </>
-        }
-      >
-        <div className="dy-dialog__ill" aria-hidden data-recordings="delete-ill">
-          <IllDeleted />
-        </div>
-        <p>
-          {copy.deleteConfirmBody.replace(
-            "{name}",
-            pendingDelete
-              ? mediaDisplayTitle(pendingDelete, uiLocale, provisional)
-              : "",
-          )}
-        </p>
-      </Dialog>
 
       <Dialog
         open={renameTarget != null}
@@ -1421,8 +1485,7 @@ export function RecordingsPanel({
                 disabled={isDeleteBusy(menuItem.status)}
                 onClick={() => {
                   if (isDeleteBusy(menuItem.status)) return;
-                  setMenuId(null);
-                  setPendingDelete(menuItem);
+                  scheduleDelete(menuItem);
                 }}
               >
                 {copy.deleteLabel}

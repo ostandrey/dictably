@@ -511,16 +511,30 @@ export function MinutesPanel({
         </p>
       </Dialog>
       {error ? (
-        <p className="sign-in__error" role="alert" data-minutes="error">
-          {error}
-        </p>
+        <div data-minutes="error-wrap">
+          <p className="sign-in__error" role="alert" data-minutes="error">
+            {error}
+          </p>
+          <button
+            type="button"
+            className="btn-secondary"
+            data-minutes="retry"
+            onClick={() => {
+              setLoading(true);
+              void load();
+            }}
+          >
+            {t("retry")}
+          </button>
+        </div>
       ) : null}
       {loading ? (
         <p className="dy-muted">…</p>
       ) : empty ? (
-        <p className="dy-muted" data-minutes="empty">
-          {emptyLabel}
-        </p>
+        <div className="dy-muted" data-minutes="empty">
+          <p data-minutes="empty-explain">{t("minutesEmptyExplain")}</p>
+          <p>{emptyLabel}</p>
+        </div>
       ) : (
         <div className="dy-minutes" data-minutes="body" data-template={serverTemplate}>
           {isOfficial ? (

@@ -22,6 +22,7 @@ class UserOut(BaseModel):
     onboarding_completed_at: datetime | None = None
     onboarding_skipped_at: datetime | None = None
     preferred_minutes_template: str = "default"
+    notify_ready_email: bool = True
 
 
 class ConsentIn(BaseModel):
@@ -66,10 +67,11 @@ class WordEditIn(BaseModel):
 
 
 class MePatchIn(BaseModel):
-    """Settings defaults (T-041) — locale + preferred minutes template only."""
+    """Settings defaults (T-041/T-040) — locale, template, ready-email toggle."""
 
     locale: str | None = Field(default=None, max_length=16)
     preferred_minutes_template: str | None = Field(default=None, max_length=64)
+    notify_ready_email: bool | None = None
 
 
 class MediaPatchIn(BaseModel):
@@ -105,6 +107,8 @@ class UploadIntentIn(BaseModel):
     filename: str
     content_type: str | None = None
     size_bytes: int = Field(ge=1, le=500 * 1024 * 1024)
+    # Client-declared duration for quota gate before bytes leave the browser (T-040).
+    duration_ms: int | None = Field(default=None, ge=1, le=3 * 60 * 60 * 1000)
 
 
 class UploadIntentOut(BaseModel):

@@ -26,6 +26,7 @@ import {
   patchSegmentSpeaker,
   patchSpeaker,
   patchWord,
+  retryMedia,
   splitSegmentSpeaker,
   type ExportFormat,
   type ExportKind,
@@ -35,7 +36,7 @@ import {
 } from "@/lib/api";
 import { useTranslations } from "next-intl";
 import { useToast } from "@/components/app/ToastProvider";
-import { IllFailed } from "@/components/illustrations";
+import { IllDeleted, IllFailed } from "@/components/illustrations";
 import { Alert, BottomSheet, Button, Dialog, EmptyState } from "@/components/ui";
 import {
   APP_RECORDING_STACK_MAX_PX,
@@ -46,6 +47,11 @@ import {
   mediaDisplayTitle,
   uiDateLocale,
 } from "@/lib/mediaDisplay";
+import {
+  clearRecordingDraft,
+  loadRecordingDraft,
+  saveRecordingDraft,
+} from "@/lib/recordingDrafts";
 import { MinutesPanel } from "./MinutesPanel";
 import { TranscriptSegment } from "./TranscriptSegment";
 
@@ -264,6 +270,9 @@ export function RecordingView({
   const [transcript, setTranscript] = useState<Transcript | null>(null);
   const [peaks, setPeaks] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [gone, setGone] = useState(false);
+  const [retryBusy, setRetryBusy] = useState(false);
+  const [statusLive, setStatusLive] = useState("");
   const [currentSec, setCurrentSec] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [rate, setRate] = useState(1);
@@ -308,6 +317,7 @@ export function RecordingView({
 
   const load = useCallback(async () => {
     setError(null);
+    setGone(false);
     try {
       const m = await getMedia(mediaId);
       setMedia(m);
@@ -335,6 +345,12 @@ export function RecordingView({
         window.location.href = recordingsHref;
         return;
       }
+      if (err instanceof ApiError && err.status === 404) {
+        setGone(true);
+        setMedia(null);
+        setTranscript(null);
+        return;
+      }
       setError(errorLabel);
     }
   }, [errorLabel, mediaId, recordingsHref]);
@@ -345,6 +361,28 @@ export function RecordingView({
     }, 0);
     return () => window.clearTimeout(t);
   }, [load]);
+
+  // T-040: restore unsaved title / meeting date / word edits after reload.
+  useEffect(() => {
+    const draft = loadRecordingDraft(mediaId);
+    if (!draft) return;
+    if (draft.title) setTitleDraft(draft.title);
+    if (draft.meetingDate) {
+      setMeetingDraft(draft.meetingDate);
+      setEditingMeeting(true);
+    }
+  }, [mediaId]);
+
+  useEffect(() => {
+    if (!media) return;
+    setStatusLive(
+      media.status === "ready"
+        ? tApp("statusReady")
+        : media.status === "failed"
+          ? tApp("statusFailed")
+          : tApp("statusProcessing"),
+    );
+  }, [media?.status, tApp, media]);
 
   useEffect(() => {
     if (!isMobile) {
@@ -635,8 +673,18 @@ export function RecordingView({
       });
       setTranscript(next);
       setEditingWord(null);
+      const draft = loadRecordingDraft(mediaId) ?? {};
+      const words = { ...(draft.words ?? {}) };
+      delete words[String(editingWord.index)];
+      saveRecordingDraft(mediaId, { ...draft, words });
+      if (!Object.keys(words).length && !draft.title && !draft.meetingDate) {
+        clearRecordingDraft(mediaId);
+      }
     } catch {
       setError(errorLabel);
+      saveRecordingDraft(mediaId, {
+        words: { [String(editingWord.index)]: editingWord.text },
+      });
     } finally {
       setSaving(false);
     }
@@ -651,11 +699,29 @@ export function RecordingView({
       const m = await patchMedia(mediaId, { meeting_date: meetingDraft });
       setMedia(m);
       setEditingMeeting(false);
+      const draft = loadRecordingDraft(mediaId) ?? {};
+      saveRecordingDraft(mediaId, { ...draft, meetingDate: undefined });
       if (prev && prev !== meetingDraft) pushToast(dueDatesRecalcToast);
     } catch {
       setError(errorLabel);
+      saveRecordingDraft(mediaId, { meetingDate: meetingDraft });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onRetryFailed() {
+    setRetryBusy(true);
+    setError(null);
+    try {
+      const m = await retryMedia(mediaId);
+      setMedia(m);
+      setStatusLive(tApp("statusProcessing"));
+      await load();
+    } catch {
+      setError(errorLabel);
+    } finally {
+      setRetryBusy(false);
     }
   }
 
@@ -860,24 +926,66 @@ export function RecordingView({
     }
   }
 
+  if (gone) {
+    return (
+      <div className="rec-page" data-recording="page" data-recording-gone>
+        <EmptyState
+          title={tApp("recordingGoneTitle")}
+          illustration={<IllDeleted />}
+          action={
+            <a href={recordingsHref} className="btn-secondary" data-recording="gone-back">
+              {tApp("backToRecordings")}
+            </a>
+          }
+        >
+          {tApp("recordingGoneBody")}
+        </EmptyState>
+      </div>
+    );
+  }
+
   if (error && !media) {
     return (
-      <Alert tone="danger" data-recording="error">
-        {error}
-      </Alert>
+      <div data-recording="load-error">
+        <Alert tone="danger" data-recording="error">
+          {error}
+        </Alert>
+        <button
+          type="button"
+          className="btn-secondary"
+          data-recording="retry"
+          onClick={() => void load()}
+        >
+          {tApp("retry")}
+        </button>
+      </div>
     );
   }
 
   if (media?.status === "failed") {
     return (
       <div className="rec-page" data-recording="page" data-recording-failed>
+        <div className="visually-hidden" aria-live="polite">
+          {statusLive}
+        </div>
         <EmptyState
           title={tApp("statusFailed")}
           illustration={<IllFailed />}
           action={
-            <a href={recordingsHref} className="btn-secondary">
-              {recordingsLabel}
-            </a>
+            <div className="dy-empty__actions">
+              <button
+                type="button"
+                className="btn-primary"
+                data-recording="retry-failed"
+                disabled={retryBusy}
+                onClick={() => void onRetryFailed()}
+              >
+                {retryBusy ? tApp("loading") : tApp("retry")}
+              </button>
+              <a href={recordingsHref} className="btn-secondary">
+                {recordingsLabel}
+              </a>
+            </div>
           }
         >
           {media.error?.trim() || tApp("statusFailedHint")}
@@ -977,9 +1085,17 @@ export function RecordingView({
     >
       <header className="rec-page__crumb">
         <div className="rec-page__crumb-path">
-          <a href={recordingsHref}>{recordingsLabel}</a>
-          <span aria-hidden>/</span>
-          <span>{displayTitle}</span>
+          {isMobile ? (
+            <a href={recordingsHref} data-recording="crumb-back">
+              ← {recordingsLabel}
+            </a>
+          ) : (
+            <>
+              <a href={recordingsHref}>{recordingsLabel}</a>
+              <span aria-hidden>/</span>
+              <span>{displayTitle}</span>
+            </>
+          )}
         </div>
         <div className="rec-page__crumb-actions">
           {!isMobile ? (
@@ -1195,7 +1311,13 @@ export function RecordingView({
                     value={meetingDraft}
                     aria-label={meetingDateHint}
                     data-recording="meeting-date-input"
-                    onChange={(e) => setMeetingDraft(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setMeetingDraft(v);
+                      saveRecordingDraft(mediaId, {
+                        meetingDate: v || undefined,
+                      });
+                    }}
                     onBlur={() => void saveMeetingDate()}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") void saveMeetingDate();
@@ -1352,10 +1474,24 @@ export function RecordingView({
       ) : null}
 
       {error ? (
-        <Alert tone="danger" data-recording="error">
-          {error}
-        </Alert>
+        <div data-recording="error-wrap">
+          <Alert tone="danger" data-recording="error">
+            {error}
+          </Alert>
+          <button
+            type="button"
+            className="btn-secondary"
+            data-recording="retry"
+            onClick={() => void load()}
+          >
+            {tApp("retry")}
+          </button>
+        </div>
       ) : null}
+
+      <div className="visually-hidden" aria-live="polite" data-recording="status-live">
+        {statusLive}
+      </div>
 
       <div
         className="rec-page__tabs dy-tabs"
@@ -1596,8 +1732,13 @@ export function RecordingView({
                     });
                     setMedia(m);
                     setTitleRenameOpen(false);
+                    const draft = loadRecordingDraft(mediaId) ?? {};
+                    saveRecordingDraft(mediaId, { ...draft, title: undefined });
                   } catch {
                     setError(errorLabel);
+                    saveRecordingDraft(mediaId, {
+                      title: titleDraft.trim() || undefined,
+                    });
                   } finally {
                     setTitleBusy(false);
                   }
@@ -1616,7 +1757,11 @@ export function RecordingView({
             value={titleDraft}
             maxLength={120}
             data-recording="title-input"
-            onChange={(e) => setTitleDraft(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value;
+              setTitleDraft(v);
+              saveRecordingDraft(mediaId, { title: v.trim() || undefined });
+            }}
           />
         </label>
         <p className="dy-muted">{media.filename}</p>

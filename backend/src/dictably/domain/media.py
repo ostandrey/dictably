@@ -9,6 +9,7 @@ import re
 import subprocess
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from pathlib import Path, PurePosixPath
 from uuid import UUID
 
@@ -20,6 +21,9 @@ from dictably.db.models import Media, MediaStatus, User
 from dictably.providers.storage.base import StorageProvider
 
 logger = logging.getLogger(__name__)
+
+# Soft-delete undo window (T-040 B1); hard purge via cron after this.
+SOFT_DELETE_SECONDS = 30
 
 MAX_UPLOAD_BYTES = 500 * 1024 * 1024
 # Reject absurd bodies before Starlette buffers multipart (S2 / TASKS >2 GB).
@@ -289,22 +293,88 @@ async def delete_for_user(
     user_id: UUID,
     media_id: UUID,
 ) -> None:
-    """Hard-delete recording files + DB row (T-018-lite). DB ON DELETE CASCADE clears children."""
+    """Soft-delete: hide from list/audio immediately; hard purge after 30s (T-040 B1)."""
+    del storage  # files kept until purge_soft_deleted
     media = await get_for_user(session, user_id, media_id)
     if media.status in _BUSY_STATUSES:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=DELETE_BUSY_DETAIL,
         )
+    if media.status == MediaStatus.deleted:
+        return
+    media.status_before_delete = media.status
+    media.status = MediaStatus.deleted
+    media.deleted_at = datetime.now(UTC)
+    await session.commit()
+
+
+async def restore_for_user(
+    session: AsyncSession,
+    *,
+    user_id: UUID,
+    media_id: UUID,
+) -> Media:
+    """Undo soft-delete within SOFT_DELETE_SECONDS; else 409."""
+    media = await session.get(Media, media_id)
+    if media is None or media.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    if media.status != MediaStatus.deleted or media.deleted_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Not deleted",
+        )
+    age = datetime.now(UTC) - media.deleted_at
+    if age > timedelta(seconds=SOFT_DELETE_SECONDS):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Restore window expired",
+        )
+    prev = (media.status_before_delete or MediaStatus.ready).strip() or MediaStatus.ready
+    media.status = prev
+    media.deleted_at = None
+    media.status_before_delete = None
+    await session.commit()
+    await session.refresh(media)
+    return media
+
+
+async def _hard_delete_media(
+    session: AsyncSession,
+    storage: StorageProvider,
+    media: Media,
+) -> None:
+    """Remove storage objects + DB row (cascade children)."""
     keys = [str(v) for v in (media.storage_keys or {}).values() if v]
     for key in keys:
         try:
             await storage.delete(key)
-        except Exception:  # noqa: BLE001 — best-effort; DB row still removed
-            logger.exception("failed to delete storage key %s on media %s", key, media_id)
-    # Core DELETE — avoids ORM nulling transcript.media_id (PK) before cascade.
+        except Exception:  # noqa: BLE001
+            logger.exception("failed to delete storage key %s on media %s", key, media.id)
     await session.execute(delete(Media).where(Media.id == media.id))
-    await session.commit()
+
+
+async def purge_soft_deleted(
+    session: AsyncSession,
+    storage: StorageProvider,
+    *,
+    older_than_seconds: int = SOFT_DELETE_SECONDS,
+) -> int:
+    """Hard-delete soft-deleted rows past the undo window. Returns count purged."""
+    cutoff = datetime.now(UTC) - timedelta(seconds=older_than_seconds)
+    result = await session.execute(
+        select(Media).where(
+            Media.status == MediaStatus.deleted,
+            Media.deleted_at.is_not(None),
+            Media.deleted_at < cutoff,
+        )
+    )
+    rows = list(result.scalars().all())
+    for media in rows:
+        await _hard_delete_media(session, storage, media)
+    if rows:
+        await session.commit()
+    return len(rows)
 
 
 async def upload_recording(

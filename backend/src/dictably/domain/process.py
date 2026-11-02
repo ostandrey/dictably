@@ -403,6 +403,20 @@ async def _run_process_media_body(
                     media_id=media.id,
                 )
                 await session.commit()
+                # T-040: email when processing took >5 min and user opted in.
+                try:
+                    from dictably.domain.notify import maybe_send_ready_email
+
+                    owner = await session.get(User, media.user_id)
+                    if owner is not None:
+                        await maybe_send_ready_email(
+                            settings=settings,
+                            user=owner,
+                            media=media,
+                            processing_seconds=time.monotonic() - t0,
+                        )
+                except Exception:  # noqa: BLE001
+                    logger.exception("ready-email hook failed")
                 await maybe_start_next_for_user(session, user_id=media.user_id, settings=settings)
                 return
             except ProcessError as exc:

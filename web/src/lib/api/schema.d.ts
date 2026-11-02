@@ -985,6 +985,8 @@ export interface components {
             locale?: string | null;
             /** Preferred Minutes Template */
             preferred_minutes_template?: string | null;
+            /** Notify Ready Email */
+            notify_ready_email?: boolean | null;
         };
         /** MediaProbeOut */
         MediaProbeOut: {
@@ -1290,6 +1292,11 @@ export interface components {
              * @default default
              */
             preferred_minutes_template: string;
+            /**
+             * Notify Ready Email
+             * @default true
+             */
+            notify_ready_email?: boolean;
         };
         /** ValidationError */
         ValidationError: {
