@@ -87,7 +87,9 @@ class FakeLLMProvider:
             "language": lang,
             "template": tid,
             "title": (
-                "Fake official protocol" if tid == TEMPLATE_OFFICIAL else "Fake meeting minutes"
+                "Board protocol — Q4 review"
+                if tid == TEMPLATE_OFFICIAL
+                else "Weekly sync with Acme"
             ),
             "parties": parties,
             "participants": participants,

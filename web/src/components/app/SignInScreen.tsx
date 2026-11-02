@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/app/AuthProvider";
-import { IllEmptyRecordings } from "@/components/illustrations";
+import { IllSignIn } from "@/components/illustrations";
 import { Alert } from "@/components/ui";
 import { devLogin } from "@/lib/api";
 import { currentAppNext, sanitizeNextPath } from "@/lib/safeNext";
@@ -246,8 +246,8 @@ export function SignInScreen({ locale, nextPath, homeFallback, copy }: Props) {
         </div>
         <div className="auth-screen__stack">
           <h2 className="auth-screen__aside-title">{copy.asideTitle}</h2>
-          <div className="auth-screen__ill" aria-hidden>
-            <IllEmptyRecordings />
+          <div className="auth-screen__ill" aria-hidden data-auth="ill-signin">
+            <IllSignIn />
           </div>
           <ul className="auth-screen__points">
             {points.map((p) => (

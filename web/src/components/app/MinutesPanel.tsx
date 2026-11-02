@@ -47,8 +47,12 @@ type Props = {
   onSeek: (startMs: number, segmentIds: string[]) => void;
   /** Hide the regenerate control — parent ⋯ menu owns it (T-041). */
   hideRegenerate?: boolean;
-  /** Notify parent of regen budget for the recording menu. */
-  onRegenMeta?: (meta: { left: number; busy: boolean }) => void;
+  /** Notify parent of regen budget + current template for the recording menu. */
+  onRegenMeta?: (meta: {
+    left: number;
+    busy: boolean;
+    template: string;
+  }) => void;
   /** External regenerate confirm open (from recording ⋯). */
   externalRegenOpen?: boolean;
   onExternalRegenClose?: () => void;
@@ -136,10 +140,12 @@ export function MinutesPanel({
   }, [load]);
 
   const result = analysis?.result;
-  const serverTemplate =
+  const serverTemplateRaw =
     (analysis as { template?: string } | null)?.template ||
     (result as { template?: string } | undefined)?.template ||
     "default";
+  const serverTemplate =
+    serverTemplateRaw === "official_protocol" ? "official_protocol" : "default";
 
   async function runRegenerate(nextTemplate: string) {
     setBusy(true);
@@ -164,8 +170,9 @@ export function MinutesPanel({
     onRegenMeta?.({
       left: analysis?.regenerations_left ?? 0,
       busy,
+      template: serverTemplate,
     });
-  }, [analysis?.regenerations_left, busy, onRegenMeta]);
+  }, [analysis?.regenerations_left, busy, onRegenMeta, serverTemplate]);
 
   const showRegenConfirm = regenConfirm || externalRegenOpen;
 

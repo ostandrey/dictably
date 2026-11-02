@@ -8,20 +8,26 @@ export function isOlderThan(a: MediaItem, b: MediaItem): boolean {
 
 /**
  * Merge a fresh first page into an already-loaded list (stale-while-revalidate).
- * Keep prior rows older than the last fresh row; drop rows missing from fresh that
- * are newer than that boundary (deleted). If API has no next_cursor, drop all older.
+ * Keep prior rows older than the last fresh row; drop mid-window rows missing from
+ * fresh (deleted). Keep prior rows newer than the freshest API row — just-uploaded
+ * items must not vanish if the soft refresh races ahead of the write (T-043 N9).
+ * If API has no next_cursor, still keep those newer local rows above fresh.
  */
 export function mergeFirstPage(
   prev: MediaItem[],
   fresh: MediaItem[],
   nextCursor: string | null,
 ): MediaItem[] {
-  if (!nextCursor) return fresh;
-  if (!fresh.length) return fresh;
+  if (!fresh.length) return nextCursor ? prev : fresh;
   const freshIds = new Set(fresh.map((m) => m.id));
+  const newest = fresh[0]!;
+  const newer = prev.filter(
+    (m) => !freshIds.has(m.id) && isOlderThan(newest, m),
+  );
+  if (!nextCursor) return [...newer, ...fresh];
   const boundary = fresh[fresh.length - 1]!;
   const older = prev.filter(
     (m) => !freshIds.has(m.id) && isOlderThan(m, boundary),
   );
-  return [...fresh, ...older];
+  return [...newer, ...fresh, ...older];
 }

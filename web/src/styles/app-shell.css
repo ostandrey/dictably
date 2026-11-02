@@ -454,6 +454,21 @@
   margin: var(--space-1) var(--space-2);
   background: var(--line);
 }
+.rec-page__export-label {
+  padding: var(--space-2) var(--space-3) 2px;
+  font: 600 11px/16px var(--font-sans);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.rec-page__export-item.is-current {
+  font-weight: 600;
+}
+.rec-page__export-check {
+  float: right;
+  color: var(--accent);
+  font-weight: 700;
+}
 
 .rec-page__hero {
   padding: var(--space-6) var(--space-8);
@@ -867,46 +882,6 @@
   .rec-page__scroll .rec-page__virtual {
     padding-bottom: calc(64px + 8px);
   }
-  .rec-page__tabs {
-    display: flex;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    border-bottom: 1px solid var(--line);
-  }
-  .rec-page__tabs .dy-tab {
-    flex: 1 1 50%;
-    justify-content: center;
-    min-height: 44px;
-    height: 44px;
-    margin: 0;
-  }
-  .rec-page__body {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-  .rec-page__transcript,
-  .rec-page__minutes {
-    display: none;
-    border-left: 0;
-    border-top: 0;
-    padding: var(--space-3) 0 var(--space-8);
-    background: transparent;
-  }
-  .rec-page__transcript.is-open,
-  .rec-page__minutes.is-open {
-    display: flex;
-    flex-direction: column;
-  }
-  .rec-page__minutes-head h2,
-  .rec-page__transcript-head h2 {
-    display: none;
-  }
-  .rec-page__minutes-template {
-    display: none;
-  }
   .rec-page__player {
     position: fixed;
     left: 0;
@@ -939,6 +914,60 @@
   }
   .rec-page__scroll {
     height: min(52vh, 560px);
+  }
+}
+
+/* T-043 S10: single column + tabs through 1023; sidebar stays from 768. */
+@media (max-width: 1023px) {
+  .rec-page__tabs {
+    display: flex;
+    width: 100%;
+    margin: 0;
+    padding: 0 var(--space-8);
+    box-sizing: border-box;
+    border-bottom: 1px solid var(--line);
+  }
+  .rec-page__tabs .dy-tab {
+    flex: 1 1 50%;
+    justify-content: center;
+    min-height: 44px;
+    height: 44px;
+    margin: 0;
+  }
+  .rec-page__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .rec-page__transcript,
+  .rec-page__minutes {
+    display: none;
+    border-left: 0;
+    border-top: 0;
+    padding: var(--space-3) var(--space-8) var(--space-8);
+    background: transparent;
+  }
+  .rec-page__transcript.is-open,
+  .rec-page__minutes.is-open {
+    display: flex;
+    flex-direction: column;
+  }
+  .rec-page__minutes-head h2,
+  .rec-page__transcript-head h2 {
+    display: none;
+  }
+  .rec-page__minutes-template {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .rec-page__tabs {
+    padding: 0;
+  }
+  .rec-page__transcript,
+  .rec-page__minutes {
+    padding: var(--space-3) 0 var(--space-8);
   }
 }
 

@@ -127,7 +127,6 @@ _GENERIC_TITLES = frozenset(
         "meeting",
         "нарада",
         "meeting minutes",
-        "fake meeting minutes",
     }
 )
 

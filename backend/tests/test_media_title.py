@@ -112,8 +112,8 @@ async def test_clear_title_allows_llm_again(
     )
     assert regen.status_code == 200, regen.text
     got = await client.get(f"/api/media/{media_id}")
-    # Fake LLM title is generic "Fake meeting minutes" → skipped (S3); stays null.
-    assert got.json()["title"] is None
+    # Fake LLM returns a realistic title (T-043 N8).
+    assert got.json()["title"] == "Weekly sync with Acme"
 
 
 def test_apply_llm_title_skips_generic() -> None:
@@ -124,7 +124,7 @@ def test_apply_llm_title_skips_generic() -> None:
     m = SimpleNamespace(title=None, title_source="llm")
     _apply_llm_title(m, "Minutes")  # type: ignore[arg-type]
     assert m.title is None
-    _apply_llm_title(m, "Fake meeting minutes")  # type: ignore[arg-type]
+    _apply_llm_title(m, "Meeting minutes")  # type: ignore[arg-type]
     assert m.title is None
     _apply_llm_title(m, "Budget review with Acme")  # type: ignore[arg-type]
     assert m.title == "Budget review with Acme"

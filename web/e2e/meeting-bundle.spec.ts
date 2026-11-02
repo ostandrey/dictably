@@ -53,7 +53,7 @@ test.describe("T-035b multi-file Zoom meeting", () => {
     await confirmUploadDetailsIfOpen(page);
 
     const row = page.locator("[data-recordings='row']").filter({
-      hasText: /Olena|Andriy|Meeting/,
+      hasText: /Olena|Andriy|Meeting|Acme|Weekly|audioOlena/,
     });
     await expect(row.first()).toBeVisible({ timeout: 60_000 });
     await expect(row.first()).toContainText(/Ready|Готово/, { timeout: 60_000 });

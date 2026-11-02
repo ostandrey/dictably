@@ -35,8 +35,12 @@ import {
 } from "@/lib/api";
 import { useTranslations } from "next-intl";
 import { useToast } from "@/components/app/ToastProvider";
-import { Alert, BottomSheet, Button, Dialog } from "@/components/ui";
-import { useIsMobile } from "@/hooks/useIsMobile";
+import { IllFailed } from "@/components/illustrations";
+import { Alert, BottomSheet, Button, Dialog, EmptyState } from "@/components/ui";
+import {
+  APP_RECORDING_STACK_MAX_PX,
+  useIsMobile,
+} from "@/hooks/useIsMobile";
 import {
   joinMeta,
   mediaDisplayTitle,
@@ -244,6 +248,7 @@ export function RecordingView({
 }: Props) {
   const tApp = useTranslations("app");
   const isMobile = useIsMobile();
+  const stackTabs = useIsMobile(APP_RECORDING_STACK_MAX_PX);
   const { push: pushToast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -278,6 +283,7 @@ export function RecordingView({
     null,
   );
   const [regenLeft, setRegenLeft] = useState(0);
+  const [currentTemplate, setCurrentTemplate] = useState("default");
   const [renameOpen, setRenameOpen] = useState(false);
   const [draftNames, setDraftNames] = useState<Record<string, string>>({});
   const [draftParty, setDraftParty] = useState<Record<string, string>>({});
@@ -303,12 +309,17 @@ export function RecordingView({
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [m, t, p] = await Promise.all([
-        getMedia(mediaId),
+      const m = await getMedia(mediaId);
+      setMedia(m);
+      if (m.status === "failed") {
+        setTranscript(null);
+        setPeaks([]);
+        return;
+      }
+      const [t, p] = await Promise.all([
         getTranscript(mediaId),
         getPeaks(mediaId).catch(() => [] as number[]),
       ]);
-      setMedia(m);
       setTranscript(t);
       setPeaks(Array.isArray(p) ? p : []);
       const names: Record<string, string> = {};
@@ -857,6 +868,24 @@ export function RecordingView({
     );
   }
 
+  if (media?.status === "failed") {
+    return (
+      <div className="rec-page" data-recording="page" data-recording-failed>
+        <EmptyState
+          title={tApp("statusFailed")}
+          illustration={<IllFailed />}
+          action={
+            <a href={recordingsHref} className="btn-secondary">
+              {recordingsLabel}
+            </a>
+          }
+        >
+          {media.error?.trim() || tApp("statusFailedHint")}
+        </EmptyState>
+      </div>
+    );
+  }
+
   if (!media || !transcript) {
     return <p className="dy-muted">Loading…</p>;
   }
@@ -1067,31 +1096,56 @@ export function RecordingView({
                     {regenerateLabel}
                   </button>
                 ) : null}
-                {isMobile ? (
+                {isMobile || stackTabs ? (
                   <>
+                    <div
+                      className="rec-page__export-label"
+                      role="presentation"
+                      data-minutes="template-group"
+                    >
+                      {tApp("minutesTemplate")}
+                    </div>
                     <button
                       type="button"
                       role="menuitem"
-                      className="rec-page__export-item"
+                      className={`rec-page__export-item${currentTemplate === "default" ? " is-current" : ""}`}
                       data-minutes="template-pick-default"
+                      aria-current={
+                        currentTemplate === "default" ? "true" : undefined
+                      }
                       onClick={() => {
                         setMoreOpen(false);
                         setExternalTemplatePick("default");
                       }}
                     >
                       {tApp("minutesTemplateDefault")}
+                      {currentTemplate === "default" ? (
+                        <span className="rec-page__export-check" aria-hidden>
+                          ✓
+                        </span>
+                      ) : null}
                     </button>
                     <button
                       type="button"
                       role="menuitem"
-                      className="rec-page__export-item"
+                      className={`rec-page__export-item${currentTemplate === "official_protocol" ? " is-current" : ""}`}
                       data-minutes="template-pick-official"
+                      aria-current={
+                        currentTemplate === "official_protocol"
+                          ? "true"
+                          : undefined
+                      }
                       onClick={() => {
                         setMoreOpen(false);
                         setExternalTemplatePick("official_protocol");
                       }}
                     >
                       {tApp("minutesTemplateOfficial")}
+                      {currentTemplate === "official_protocol" ? (
+                        <span className="rec-page__export-check" aria-hidden>
+                          ✓
+                        </span>
+                      ) : null}
                     </button>
                   </>
                 ) : null}
@@ -1183,9 +1237,12 @@ export function RecordingView({
                 </button>
               )}
             </p>
-            <p className="rec-page__filename dy-muted" data-recording="filename">
-              {media.filename}
-            </p>
+            {(media.title ?? "").trim() &&
+            media.filename !== displayTitle ? (
+              <p className="rec-page__filename dy-muted" data-recording="filename">
+                {media.filename}
+              </p>
+            ) : null}
           </div>
           <div className="rec-page__speakers">
             {speakers.map((sp) => (
@@ -1330,7 +1387,7 @@ export function RecordingView({
 
       <section className="rec-page__body">
         <div
-          className={`rec-page__transcript${mobileTab === "transcript" ? " is-open" : ""}`}
+          className={`rec-page__transcript${mobileTab === "transcript" || !stackTabs ? " is-open" : ""}`}
           data-recording="transcript"
         >
           <div className="rec-page__transcript-head">
@@ -1458,7 +1515,7 @@ export function RecordingView({
         </div>
 
         <MinutesPanel
-          className={`rec-page__minutes${mobileTab === "minutes" ? " is-open" : ""}`}
+          className={`rec-page__minutes${mobileTab === "minutes" || !stackTabs ? " is-open" : ""}`}
           mediaId={mediaId}
           title={minutesTab}
           emptyLabel={minutesEmpty}
@@ -1476,7 +1533,10 @@ export function RecordingView({
           onExternalRegenClose={() => setExternalRegenOpen(false)}
           externalTemplatePick={externalTemplatePick}
           onExternalTemplateHandled={() => setExternalTemplatePick(null)}
-          onRegenMeta={(meta) => setRegenLeft(meta.left)}
+          onRegenMeta={(meta) => {
+            setRegenLeft(meta.left);
+            setCurrentTemplate(meta.template);
+          }}
           speakerMeta={Object.fromEntries(
             speakers.map((sp) => [
               sp.label,

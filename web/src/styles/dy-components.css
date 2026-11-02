@@ -465,12 +465,25 @@ a.dy-rec__title:hover { color: var(--accent); }
 }
 .dy-dialog__title { font: 600 20px/28px var(--font-sans); letter-spacing: -0.01em; margin: 0; }
 .dy-dialog__body { font: 400 15px/24px var(--font-sans); color: var(--ink-muted); margin: 0; }
+.dy-dialog__ill {
+  display: grid;
+  place-items: center;
+  margin: 0 0 var(--space-3);
+}
+.dy-dialog__ill svg {
+  width: min(200px, 100%);
+  height: auto;
+}
 .dy-dialog__actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
 
 /* Empty state */
 .dy-empty { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-12) var(--space-6); text-align: center; max-width: 420px; margin: 0 auto; }
 .dy-empty--rich { max-width: 440px; gap: var(--space-4); }
 .dy-empty__ill { display: grid; place-items: center; margin-bottom: var(--space-2); }
+.dy-empty__ill svg { width: min(240px, 100%); height: auto; max-width: 200px; }
+@media (min-width: 768px) {
+  .dy-empty__ill svg { max-width: 240px; }
+}
 .dy-empty__art { display: flex; gap: 3px; align-items: center; height: 40px; }
 .dy-empty__art span { width: 4px; border-radius: var(--radius-full); }
 .dy-empty__title { font: 600 20px/28px var(--font-sans); letter-spacing: -0.01em; margin: 0; }

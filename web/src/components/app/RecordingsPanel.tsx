@@ -9,7 +9,11 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useToast } from "@/components/app/ToastProvider";
-import { IllEmptyRecordings, IllProcessing } from "@/components/illustrations";
+import {
+  IllDeleted,
+  IllEmptyRecordings,
+  IllProcessing,
+} from "@/components/illustrations";
 import { useLocale, useTranslations } from "next-intl";
 import {
   ApiError,
@@ -1298,6 +1302,9 @@ export function RecordingsPanel({
           </>
         }
       >
+        <div className="dy-dialog__ill" aria-hidden data-recordings="delete-ill">
+          <IllDeleted />
+        </div>
         <p>
           {copy.deleteConfirmBody.replace(
             "{name}",
