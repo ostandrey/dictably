@@ -7,15 +7,7 @@ import { clearAuthSession, useAuth } from "@/components/app/AuthProvider";
 import { Dialog } from "@/components/ui/Dialog";
 import { deleteAccount, exportAccount, patchMe } from "@/lib/api";
 import { localePath } from "@/i18n/locales";
-
-function formatBalance(seconds: number): string {
-  if (seconds <= 0) return "0 m";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h <= 0) return `${m} m`;
-  if (m <= 0) return `${h} h`;
-  return `${h} h ${m} m`;
-}
+import { formatBalanceSeconds } from "@/lib/mediaDuration";
 
 /** Account settings: Billing → Defaults → Data → Delete (T-041 P0 / S6). */
 export function SettingsPanel() {
@@ -111,7 +103,7 @@ export function SettingsPanel() {
         <div className="dy-settings__quota" data-settings="quota" data-minutes>
           <div className="dy-settings__quota-row">
             <span>{t("settingsQuota")}</span>
-            <span className="dy-time">{formatBalance(balance)}</span>
+            <span className="dy-time">{formatBalanceSeconds(balance)}</span>
           </div>
         </div>
       </section>
@@ -169,11 +161,6 @@ export function SettingsPanel() {
           {t("settingsDataTitle")}
         </h2>
         <p className="dy-settings__p">{t("settingsDataBody")}</p>
-        {user ? (
-          <p className="dy-settings__meta" data-settings="email">
-            {user.email}
-          </p>
-        ) : null}
         <div className="dy-settings__actions">
           <button
             type="button"

@@ -96,10 +96,10 @@ a {
   justify-content: center;
   min-height: 44px;
   padding: 0.55rem 1.1rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
-  font-weight: 550;
+  font-weight: 500;
   line-height: 1.2;
   white-space: nowrap;
   cursor: pointer;
@@ -402,9 +402,7 @@ a {
 }
 
 .badge {
-  font-size: 0.7rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
   color: var(--muted);
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
@@ -573,7 +571,7 @@ a {
 
 .faq__item summary {
   cursor: pointer;
-  font-weight: 550;
+  font-weight: 500;
   list-style: none;
   min-height: 44px;
   display: flex;
@@ -855,10 +853,8 @@ a {
   padding: 0.65rem 0.85rem;
   border-bottom: 1px solid var(--rule);
   font-family: var(--font-sans);
-  font-size: var(--text-xs);
-  font-weight: 550;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--muted);
 }
 
@@ -1023,7 +1019,7 @@ a {
 }
 
 .demo__speaker {
-  font-weight: 550;
+  font-weight: 500;
 }
 
 .demo__line-text {

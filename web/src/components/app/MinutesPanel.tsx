@@ -59,6 +59,8 @@ type Props = {
   /** External request to change template (mobile ⋯). */
   externalTemplatePick?: string | null;
   onExternalTemplateHandled?: () => void;
+  /** Empty minutes → switch to transcript (T-045 S8). */
+  onOpenTranscript?: () => void;
 };
 
 function formatClock(ms: number): string {
@@ -87,7 +89,6 @@ function Timecode({ start }: { start: number | null }) {
 export function MinutesPanel({
   mediaId,
   title,
-  emptyLabel,
   summaryLabel,
   decisionsLabel,
   deadlinesLabel,
@@ -106,6 +107,7 @@ export function MinutesPanel({
   onExternalRegenClose,
   externalTemplatePick = null,
   onExternalTemplateHandled,
+  onOpenTranscript,
 }: Props) {
   const t = useTranslations("app");
   const verifyLabel = t("minutesVerify");
@@ -533,7 +535,27 @@ export function MinutesPanel({
       ) : empty ? (
         <div className="dy-muted" data-minutes="empty">
           <p data-minutes="empty-explain">{t("minutesEmptyExplain")}</p>
-          <p>{emptyLabel}</p>
+          <div className="dy-minutes__empty-actions" data-minutes="empty-actions">
+            {onOpenTranscript ? (
+              <button
+                type="button"
+                className="btn-secondary"
+                data-minutes="empty-transcript"
+                onClick={onOpenTranscript}
+              >
+                {t("minutesEmptyOpenTranscript")}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="btn-secondary"
+              data-minutes="empty-regenerate"
+              disabled={busy || (analysis?.regenerations_left ?? 0) <= 0}
+              onClick={() => setRegenConfirm(true)}
+            >
+              {regenerateLabel}
+            </button>
+          </div>
         </div>
       ) : (
         <div className="dy-minutes" data-minutes="body" data-template={serverTemplate}>

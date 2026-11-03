@@ -445,8 +445,17 @@
 }
 .lp-how__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  /* T-045 D9: align with section title — three equal columns */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-6);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+@media (max-width: 900px) {
+  .lp-how__grid {
+    grid-template-columns: 1fr;
+  }
 }
 .lp-how__card {
   display: flex;
@@ -489,11 +498,17 @@
 /* Why */
 .lp-why {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  /* T-045 D9: 2×2 so the fourth card isn’t alone */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 40px 48px;
   list-style: none;
   margin: 0;
   padding: 0;
+}
+@media (max-width: 700px) {
+  .lp-why {
+    grid-template-columns: 1fr;
+  }
 }
 .lp-why li {
   display: flex;

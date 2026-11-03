@@ -33,8 +33,9 @@ test.describe("T-011 auth", () => {
     );
     await passAccountGates(page);
     await expect(page.locator("[data-recordings='panel']")).toBeVisible();
-    await expect(page.locator("[data-auth='logout']")).toBeVisible();
     await expect(page.locator("[data-auth='account']")).toBeVisible();
+    await page.locator("[data-auth='account-toggle']").click();
+    await expect(page.locator("[data-auth='logout']")).toBeVisible();
 
     const media = await page.request.get("/api/media");
     expect(media.status()).toBe(200);

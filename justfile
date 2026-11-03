@@ -60,8 +60,9 @@ api:
 worker:
     cd backend && uv run arq dictably.worker.settings.WorkerSettings
 
+# T-045 B1: always rebuild out/ — Playwright serves static export, stale build fails AC.
 e2e:
-    cd web && pnpm e2e
+    cd web && pnpm build:local && pnpm exec playwright test
     just free-api-port
 
 # Kill whatever is listening on API port (T-036 S2 / Owner Docker).

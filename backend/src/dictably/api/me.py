@@ -43,7 +43,11 @@ def user_out(user: User, *, balance_seconds: int = 0) -> UserOut:
 async def me(
     user: Annotated[User, Depends(require_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> UserOut:
+    # T-045 N1: backfill trial for users who consented before trial-on-consent.
+    await ledger_domain.ensure_trial_grant(session, user_id=user.id, seconds=settings.trial_seconds)
+    await session.commit()
     balance = await ledger_domain.balance_seconds(session, user.id)
     return user_out(user, balance_seconds=balance)
 

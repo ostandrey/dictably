@@ -403,17 +403,26 @@ async def _run_process_media_body(
                     media_id=media.id,
                 )
                 await session.commit()
-                # T-040: email when processing took >5 min and user opted in.
+                # T-040: email when wait (queue + process) took >5 min and user opted in.
+                # T-045 N4: count from job enqueue, not worker start.
                 try:
                     from dictably.domain.notify import maybe_send_ready_email
 
                     owner = await session.get(User, media.user_id)
                     if owner is not None:
+                        origin = job.created_at
+                        if origin is not None and origin.tzinfo is None:
+                            origin = origin.replace(tzinfo=UTC)
+                        wait_s = (
+                            (datetime.now(UTC) - origin).total_seconds()
+                            if origin is not None
+                            else time.monotonic() - t0
+                        )
                         await maybe_send_ready_email(
                             settings=settings,
                             user=owner,
                             media=media,
-                            processing_seconds=time.monotonic() - t0,
+                            processing_seconds=wait_s,
                         )
                 except Exception:  # noqa: BLE001
                     logger.exception("ready-email hook failed")

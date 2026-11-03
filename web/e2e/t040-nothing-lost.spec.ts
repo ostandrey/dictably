@@ -43,11 +43,12 @@ test.describe("T-040 nothing lost", () => {
       await route.continue();
     });
 
+    // Desktop (D7): no quota-hint beside upload — block still works.
+    await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/app/");
     await ensureSignedIn(page);
-    await expect(page.locator("[data-recordings='quota-hint']")).toBeVisible({
-      timeout: 10_000,
-    });
+    await expect(page.locator("[data-recordings='panel']")).toBeVisible();
+    await expect(page.locator("[data-recordings='quota-hint']")).toHaveCount(0);
     await page.evaluate(() => {
       const w = window as unknown as {
         __dictablyForceDurationMs?: number;
@@ -70,6 +71,18 @@ test.describe("T-040 nothing lost", () => {
       { timeout: 10_000 },
     );
     expect(uploadCalls).toBe(0);
+
+    // Phone: quota hint visible when balance > 0 (T-045 B1 / D7).
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.evaluate(() => {
+      const w = window as unknown as { __dictablyForceBalanceSeconds?: number };
+      delete w.__dictablyForceBalanceSeconds;
+    });
+    await page.reload();
+    await ensureSignedIn(page);
+    await expect(page.locator("[data-recordings='quota-hint']")).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("offline banner appears and clears", async ({ page, context }) => {

@@ -16,6 +16,7 @@ import {
   type AuthConfig,
   type User,
 } from "@/lib/api";
+import { clearAllRecordingDrafts } from "@/lib/recordingDrafts";
 import { clearRecordingsListCache } from "@/lib/recordingsListCache";
 
 export type AuthStatus = "loading" | "authenticated" | "anonymous";
@@ -41,6 +42,8 @@ let cached: {
 /** Drop cached session after logout (keep auth config for Sign-in buttons). */
 export function clearAuthSession() {
   clearRecordingsListCache();
+  // T-045 N2: drafts survive session expiry, not explicit Sign out.
+  clearAllRecordingDrafts();
   cached = {
     user: null,
     config: cached?.config ?? null,

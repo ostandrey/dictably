@@ -1,9 +1,12 @@
 "use client";
 
 import { type ReactNode } from "react";
+import { AccountMenu } from "@/components/app/AccountMenu";
 import { AppLink } from "@/components/app/AppLink";
 import { clearAuthSession, useAuth } from "@/components/app/AuthProvider";
-import { logout, type User } from "@/lib/api";
+import { AudioLines, Settings, Users } from "@/components/icons";
+import { logout } from "@/lib/api";
+import { formatBalanceSeconds } from "@/lib/mediaDuration";
 
 type Props = {
   /** When omitted, the child supplies the page title (e.g. SignInPanel). */
@@ -28,23 +31,6 @@ type Props = {
   children: ReactNode;
 };
 
-function formatBalance(seconds: number): string {
-  if (seconds <= 0) return "0 m";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h <= 0) return `${m} m left`;
-  if (m <= 0) return `${h} h left`;
-  return `${h} h ${m} m left`;
-}
-
-function initials(user: User): string {
-  const base = (user.name || user.email || "?").trim();
-  const parts = base.split(/[\s@._-]+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return (parts[0]![0]! + parts[1]![0]!).toUpperCase();
-  }
-  return base.slice(0, 2).toUpperCase();
-}
 
 function SkeletonChrome() {
   return (
@@ -115,25 +101,11 @@ export function AppShell({
   const showQuota = Boolean(user) && balance > 0;
 
   const accountBlock = user ? (
-    <div className="app-sidebar__account" data-auth="account">
-      <span className="app-sidebar__avatar" aria-hidden>
-        {initials(user)}
-      </span>
-      <span className="app-sidebar__who">
-        <span className="app-sidebar__name">
-          {user.name?.trim() || user.email.split("@")[0]}
-        </span>
-        <span className="app-sidebar__email">{user.email}</span>
-      </span>
-      <button
-        type="button"
-        className="btn-text app-sidebar__logout"
-        data-auth="logout"
-        onClick={() => void onLogout()}
-      >
-        {logoutLabel}
-      </button>
-    </div>
+    <AccountMenu
+      user={user}
+      logoutLabel={logoutLabel}
+      onLogout={() => void onLogout()}
+    />
   ) : (
     <AppLink href={backHref} className="app-sidebar__back">
       {backLabel}
@@ -144,7 +116,9 @@ export function AppShell({
     <div className="app-sidebar__quota" data-minutes>
       <div className="app-sidebar__quota-row">
         <span>Minutes</span>
-        <span className="dy-time dy-muted">{formatBalance(balance)}</span>
+        <span className="dy-time dy-muted">
+          {formatBalanceSeconds(balance, { withLeft: true })}
+        </span>
       </div>
     </div>
   ) : null;
@@ -171,6 +145,7 @@ export function AppShell({
             className={nav === "recordings" ? "is-active" : undefined}
             aria-current={nav === "recordings" ? "page" : undefined}
           >
+            <AudioLines size={16} strokeWidth={1.5} aria-hidden className="app-nav__icon" />
             {navRecordings}
           </AppLink>
           <AppLink
@@ -178,6 +153,7 @@ export function AppShell({
             className={nav === "people" ? "is-active" : undefined}
             aria-current={nav === "people" ? "page" : undefined}
           >
+            <Users size={16} strokeWidth={1.5} aria-hidden className="app-nav__icon" />
             {navPeople}
           </AppLink>
           <AppLink
@@ -185,6 +161,7 @@ export function AppShell({
             className={nav === "settings" ? "is-active" : undefined}
             aria-current={nav === "settings" ? "page" : undefined}
           >
+            <Settings size={16} strokeWidth={1.5} aria-hidden className="app-nav__icon" />
             {navSettings}
           </AppLink>
           {user?.role === "admin" ? (
@@ -227,6 +204,7 @@ export function AppShell({
           className={nav === "recordings" ? "is-active" : undefined}
           aria-current={nav === "recordings" ? "page" : undefined}
         >
+          <AudioLines size={20} strokeWidth={1.5} aria-hidden className="app-nav__icon" />
           {navRecordings}
         </AppLink>
         <AppLink
@@ -234,6 +212,7 @@ export function AppShell({
           className={nav === "people" ? "is-active" : undefined}
           aria-current={nav === "people" ? "page" : undefined}
         >
+          <Users size={20} strokeWidth={1.5} aria-hidden className="app-nav__icon" />
           {navPeople}
         </AppLink>
         <AppLink
@@ -241,6 +220,7 @@ export function AppShell({
           className={nav === "settings" ? "is-active" : undefined}
           aria-current={nav === "settings" ? "page" : undefined}
         >
+          <Settings size={20} strokeWidth={1.5} aria-hidden className="app-nav__icon" />
           {navSettings}
         </AppLink>
         {user?.role === "admin" ? (

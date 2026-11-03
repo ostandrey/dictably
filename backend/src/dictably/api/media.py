@@ -195,11 +195,16 @@ async def media_upload_intent(
     user: Annotated[User, Depends(require_user_csrf_consent)],
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[StorageProvider, Depends(get_storage)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> UploadIntentOut:
     """Presigned PUT / multipart for direct browser→R2 upload (T-038)."""
     if body.duration_ms is not None:
         from dictably.domain import ledger as ledger_domain
 
+        # T-045 N1: grant trial for pre-T-040 consent users before quota check.
+        await ledger_domain.ensure_trial_grant(
+            session, user_id=user.id, seconds=settings.trial_seconds
+        )
         need = max(1, int(body.duration_ms / 1000))
         bal = await ledger_domain.balance_seconds(session, user.id)
         if bal < need:
@@ -333,9 +338,15 @@ async def retry_media(
     """Re-enqueue processing for a failed recording (T-040 «Спробувати ще»)."""
     from sqlalchemy import select
 
-    from dictably.db.models import Job, JobKind, JobStatus, MediaStatus
+    from dictably.db.models import Job, JobKind, JobStatus, Media, MediaStatus
 
-    row = await media_domain.get_for_user(session, user.id, media_id)
+    # T-045 S6: row lock so two parallel retries cannot both pass the failed check.
+    locked = await session.execute(
+        select(Media).where(Media.id == media_id, Media.user_id == user.id).with_for_update()
+    )
+    row = locked.scalar_one_or_none()
+    if row is None or row.status == MediaStatus.deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     if row.status != MediaStatus.failed:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

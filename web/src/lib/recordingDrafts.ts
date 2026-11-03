@@ -55,3 +55,18 @@ export function clearRecordingDraft(mediaId: string): void {
     /* ignore */
   }
 }
+
+/** Clear all recording drafts (explicit Sign out — T-045 N2). */
+export function clearAllRecordingDrafts(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith("dictably.draft.")) keys.push(k);
+    }
+    for (const k of keys) localStorage.removeItem(k);
+  } catch {
+    /* ignore */
+  }
+}

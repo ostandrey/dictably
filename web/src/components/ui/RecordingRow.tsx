@@ -47,7 +47,7 @@ export function RecordingRow({
   return (
     <div
       className={`dy-rec${muted ? " is-muted" : ""}`}
-      data-rec-layout="stacked"
+      data-rec-layout="row"
       {...rest}
     >
       <div className="dy-rec__main">
@@ -59,17 +59,17 @@ export function RecordingRow({
           <p className="dy-rec__title">{title}</p>
         )}
         {meta ? <p className="dy-rec__meta">{meta}</p> : null}
-        <div className="dy-rec__status">
-          <Badge tone={tone[status]} dot>
-            {statusLabel}
-          </Badge>
-          {statusHint ? (
-            <span className="dy-rec__status-hint">{statusHint}</span>
-          ) : null}
-        </div>
       </div>
       <div className="dy-rec__speakers" aria-hidden>
         {dots}
+      </div>
+      <div className="dy-rec__status">
+        <Badge tone={tone[status]} dot>
+          {statusLabel}
+        </Badge>
+        {statusHint ? (
+          <span className="dy-rec__status-hint">{statusHint}</span>
+        ) : null}
       </div>
       {action ?? <span className="dy-rec__action-spacer" />}
     </div>

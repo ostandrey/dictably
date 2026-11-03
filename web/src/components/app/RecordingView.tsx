@@ -37,6 +37,7 @@ import {
 import { useTranslations } from "next-intl";
 import { useToast } from "@/components/app/ToastProvider";
 import { IllDeleted, IllFailed } from "@/components/illustrations";
+import { Download, MoreHorizontal, Share2 } from "@/components/icons";
 import { Alert, BottomSheet, Button, Dialog, EmptyState } from "@/components/ui";
 import {
   APP_RECORDING_STACK_MAX_PX,
@@ -1098,79 +1099,77 @@ export function RecordingView({
           )}
         </div>
         <div className="rec-page__crumb-actions">
-          {!isMobile ? (
-            <div className="rec-page__export" ref={exportMenuRef}>
-              <button
-                type="button"
-                className="btn-text"
-                data-recording="export"
-                aria-expanded={exportOpen}
-                aria-haspopup="menu"
-                aria-label={exportMenuLabel}
-                disabled={exportBusy}
-                onClick={() => setExportOpen((v) => !v)}
-              >
-                {exportLabel}
-              </button>
-              {exportOpen ? (
-                <div className="rec-page__export-pop" role="menu" data-recording="export-menu">
-                  {shareItems}
-                  <div className="rec-page__export-sep" role="separator" />
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="rec-page__export-item"
-                    data-export="transcript-txt"
-                    disabled={exportBusy}
-                    onClick={() => void runExport("transcript", "txt")}
-                  >
-                    {exportTranscriptTxt}
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="rec-page__export-item"
-                    data-export="transcript-docx"
-                    disabled={exportBusy}
-                    onClick={() => void runExport("transcript", "docx")}
-                  >
-                    {exportTranscriptDocx}
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="rec-page__export-item"
-                    data-export="transcript-srt"
-                    disabled={exportBusy}
-                    onClick={() => void runExport("transcript", "srt")}
-                  >
-                    {exportTranscriptSrt}
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="rec-page__export-item"
-                    data-export="transcript-vtt"
-                    disabled={exportBusy}
-                    onClick={() => void runExport("transcript", "vtt")}
-                  >
-                    {exportTranscriptVtt}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          {isMobile ? (
+          <div className="rec-page__export" ref={exportMenuRef}>
             <button
               type="button"
-              className="rec-page__share-btn"
-              data-recording="share"
-              aria-label={tApp("shareRecording")}
-              onClick={() => setShareOpen(true)}
+              className="btn-secondary rec-page__export-btn"
+              data-recording="export"
+              aria-expanded={exportOpen}
+              aria-haspopup="menu"
+              aria-label={exportMenuLabel}
+              disabled={exportBusy}
+              onClick={() => setExportOpen((v) => !v)}
             >
-              {tApp("shareRecording")}
+              <Download size={16} strokeWidth={1.5} aria-hidden />
+              {exportLabel}
             </button>
-          ) : null}
+            {exportOpen ? (
+              <div className="rec-page__export-pop" role="menu" data-recording="export-menu">
+                {shareItems}
+                <div className="rec-page__export-sep" role="separator" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="rec-page__export-item"
+                  data-export="transcript-txt"
+                  disabled={exportBusy}
+                  onClick={() => void runExport("transcript", "txt")}
+                >
+                  {exportTranscriptTxt}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="rec-page__export-item"
+                  data-export="transcript-docx"
+                  disabled={exportBusy}
+                  onClick={() => void runExport("transcript", "docx")}
+                >
+                  {exportTranscriptDocx}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="rec-page__export-item"
+                  data-export="transcript-srt"
+                  disabled={exportBusy}
+                  onClick={() => void runExport("transcript", "srt")}
+                >
+                  {exportTranscriptSrt}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="rec-page__export-item"
+                  data-export="transcript-vtt"
+                  disabled={exportBusy}
+                  onClick={() => void runExport("transcript", "vtt")}
+                >
+                  {exportTranscriptVtt}
+                </button>
+              </div>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            className="rec-page__share-btn"
+            data-recording="share"
+            aria-label={tApp("shareRecording")}
+            onClick={() => setShareOpen(true)}
+          >
+            <Share2 size={16} strokeWidth={1.5} aria-hidden />
+            <span className="rec-page__share-label">{tApp("shareRecording")}</span>
+          </button>
           <div className="rec-page__more" ref={moreMenuRef}>
             <button
               type="button"
@@ -1181,7 +1180,7 @@ export function RecordingView({
               aria-label={tApp("recordingMenu")}
               onClick={() => setMoreOpen((v) => !v)}
             >
-              ···
+              <MoreHorizontal size={20} strokeWidth={1.5} aria-hidden />
             </button>
             {moreOpen ? (
               <div className="rec-page__export-pop" role="menu" data-recording="more-menu">
@@ -1683,6 +1682,7 @@ export function RecordingView({
               },
             ]),
           )}
+          onOpenTranscript={() => setMobileTab("transcript")}
           onSeek={(startMs, segmentIds) => {
             setMobileTab("transcript");
             setEvidenceSegIds(segmentIds);

@@ -13,6 +13,7 @@ import {
   IllEmptyRecordings,
   IllProcessing,
 } from "@/components/illustrations";
+import { MoreHorizontal } from "@/components/icons";
 import { useLocale, useTranslations } from "next-intl";
 import {
   ApiError,
@@ -37,6 +38,7 @@ import {
 } from "@/lib/recordingsListCache";
 import { mergeFirstPage } from "@/lib/recordingsListMerge";
 import {
+  formatCreatedDay,
   formatDurationMs,
   formatMeetingDay,
   joinMeta,
@@ -44,6 +46,7 @@ import {
 } from "@/lib/mediaDisplay";
 import { ACCEPT, isAcceptedUpload, MAX_UPLOAD_BYTES } from "@/lib/uploadAccept";
 import {
+  formatBalanceSeconds,
   formatMinutesApprox,
   readFileDurationMs,
 } from "@/lib/mediaDuration";
@@ -232,7 +235,8 @@ function rowMeta(
         item.status,
       ));
   return joinMeta([
-    formatMeetingDay(item.meeting_date, uiLocale),
+    formatMeetingDay(item.meeting_date, uiLocale) ||
+      formatCreatedDay(item.created_at, uiLocale),
     formatDurationMs(item.duration_ms),
     languageLabel(item.language, uiLocale),
     needFile ? truncateFilename(item.filename) : null,
@@ -1116,11 +1120,9 @@ export function RecordingsPanel({
         >
           {copy.uploadCta}
         </button>
-        {(user?.balance_seconds ?? 0) > 0 ? (
+        {isMobile && (user?.balance_seconds ?? 0) > 0 ? (
           <p className="recordings__quota-hint" data-recordings="quota-hint">
-            {tApp("quotaNearUpload", {
-              n: Math.max(0, Math.floor((user?.balance_seconds ?? 0) / 60)),
-            })}
+            {formatBalanceSeconds(user?.balance_seconds ?? 0, { withLeft: true })}
           </p>
         ) : null}
         <input
@@ -1304,7 +1306,7 @@ export function RecordingsPanel({
                               );
                             }}
                           >
-                            ···
+                            <MoreHorizontal size={20} strokeWidth={1.5} aria-hidden />
                           </button>
                           {!isMobile && menuId === item.id ? (
                             <div className="dy-rec__menu-pop" role="menu">

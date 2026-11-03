@@ -15,8 +15,8 @@ const ACTIVE = new Set([
 ]);
 
 /**
- * App-wide “ready” toast + tab title (T-040 S2).
- * Lives in chrome so Settings/People also get the signal.
+ * App-wide “ready” toast + tab title (T-040 S2 / T-045 S7).
+ * Visible: refresh watch list + poll 4s. Hidden: status-only poll 30s.
  */
 export function ReadyNotify() {
   const t = useTranslations("app");
@@ -32,6 +32,7 @@ export function ReadyNotify() {
 
   useEffect(() => {
     let cancelled = false;
+    let timer: number | null = null;
 
     const restoreTitle = () => {
       if (!titleOverride.current) return;
@@ -48,17 +49,19 @@ export function ReadyNotify() {
     };
 
     const tick = async () => {
-      if (document.visibilityState === "hidden") return;
+      const hidden = document.visibilityState === "hidden";
       try {
-        const list = await listMedia({ limit: 40 });
-        if (cancelled) return;
-        for (const m of list.items) {
-          if (ACTIVE.has(m.status)) {
-            watched.current.add(m.id);
-            const title =
-              (m.title ?? "").trim() ||
-              mediaDisplayTitle(m, uiLocale, provisional);
-            titles.current.set(m.id, title);
+        if (!hidden) {
+          const list = await listMedia({ limit: 40 });
+          if (cancelled) return;
+          for (const m of list.items) {
+            if (ACTIVE.has(m.status)) {
+              watched.current.add(m.id);
+              const title =
+                (m.title ?? "").trim() ||
+                mediaDisplayTitle(m, uiLocale, provisional);
+              titles.current.set(m.id, title);
+            }
           }
         }
         const ids = [...watched.current].slice(0, 40);
@@ -86,9 +89,15 @@ export function ReadyNotify() {
       }
     };
 
-    const id = window.setInterval(() => {
-      void tick();
-    }, 4000);
+    const schedule = () => {
+      if (timer != null) window.clearInterval(timer);
+      const ms = document.visibilityState === "hidden" ? 30_000 : 4_000;
+      timer = window.setInterval(() => {
+        void tick();
+      }, ms);
+    };
+
+    schedule();
     void tick();
 
     const onVis = () => {
@@ -96,11 +105,12 @@ export function ReadyNotify() {
         restoreTitle();
         void tick();
       }
+      schedule();
     };
     document.addEventListener("visibilitychange", onVis);
     return () => {
       cancelled = true;
-      window.clearInterval(id);
+      if (timer != null) window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [pushToast, provisional, statusReady, uiLocale, t]);

@@ -87,67 +87,69 @@ export const TranscriptSegment = memo(function TranscriptSegment({
       style={style}
       ref={onMeasure}
     >
-      <span className="dy-speaker rec-seg-speaker">
-        <span
-          className={`dy-speaker__dot sp-${speakerTone(speakers, speakerId)}`}
-          aria-hidden
-        />
-        <button
-          type="button"
-          className="btn-text"
-          data-recording="seg-speaker"
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleMenu(segId);
-          }}
-        >
-          {speakerName(speakers, speakerId)}
-        </button>
-        {menuOpen ? (
+      <div className="dy-turn__head">
+        <span className="dy-speaker rec-seg-speaker">
           <span
-            className="rec-seg-menu"
-            role="menu"
-            data-recording="seg-speaker-menu"
-            onClick={(e) => e.stopPropagation()}
+            className={`dy-speaker__dot sp-${speakerTone(speakers, speakerId)}`}
+            aria-hidden
+          />
+          <button
+            type="button"
+            className="btn-text"
+            data-recording="seg-speaker"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleMenu(segId);
+            }}
           >
-            <span className="rec-seg-menu__label">{changeSpeakerLabel}</span>
-            {speakers.map((sp) => (
+            {speakerName(speakers, speakerId)}
+          </button>
+          {menuOpen ? (
+            <span
+              className="rec-seg-menu"
+              role="menu"
+              data-recording="seg-speaker-menu"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="rec-seg-menu__label">{changeSpeakerLabel}</span>
+              {speakers.map((sp) => (
+                <button
+                  key={sp.id}
+                  type="button"
+                  role="menuitem"
+                  className="rec-seg-menu__item"
+                  onClick={() => onChangeSpeaker(segId, sp.id)}
+                >
+                  {sp.display_name || sp.label}
+                </button>
+              ))}
               <button
-                key={sp.id}
                 type="button"
                 role="menuitem"
                 className="rec-seg-menu__item"
-                onClick={() => onChangeSpeaker(segId, sp.id)}
+                data-recording="seg-split"
+                onClick={() => onSplitSpeaker(segId)}
               >
-                {sp.display_name || sp.label}
+                {newSpeakerLabel}
               </button>
-            ))}
-            <button
-              type="button"
-              role="menuitem"
-              className="rec-seg-menu__item"
-              data-recording="seg-split"
-              onClick={() => onSplitSpeaker(segId)}
-            >
-              {newSpeakerLabel}
-            </button>
-          </span>
-        ) : null}
-      </span>
-      <button
-        type="button"
-        className={`dy-timecode${active ? " is-active" : ""}`}
-        data-recording="seg-seek"
-        aria-label={formatClock(startMs / 1000)}
-        onClick={() => onSeek(startMs)}
-      >
-        <svg className="dy-icon" viewBox="0 0 12 12" aria-hidden>
-          <path d="M3 2.5v7l6-3.5z" />
-        </svg>
-        <span className="dy-time">{formatClock(startMs / 1000)}</span>
-      </button>
+            </span>
+          ) : null}
+        </span>
+        <button
+          type="button"
+          className={`dy-timecode${active ? " is-active" : ""}`}
+          data-recording="seg-seek"
+          aria-label={formatClock(startMs / 1000)}
+          onClick={() => onSeek(startMs)}
+        >
+          <svg className="dy-icon" viewBox="0 0 12 12" aria-hidden>
+            <path d="M3 2.5v7l6-3.5z" />
+          </svg>
+          <span className="dy-time">{formatClock(startMs / 1000)}</span>
+        </button>
+      </div>
       <button
         type="button"
         className="dy-turn__text"

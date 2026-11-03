@@ -265,19 +265,21 @@ export function ProductExample({ copy }: Props) {
                   data-line-seconds={turn.seconds}
                   data-seek={turn.seconds}
                 >
-                  <span className="dy-speaker">
-                    <span className={`dy-speaker__dot sp-${turn.tone}`} aria-hidden />
-                    {turn.name}
-                    <span className="dy-speaker__role">{turn.role}</span>
-                  </span>
-                  <span
-                    className={`dy-timecode${active ? " is-active" : ""}`}
-                    data-seek={turn.seconds}
-                  >
-                    <svg className="dy-icon" viewBox="0 0 12 12" aria-hidden>
-                      <path d="M3 2.5v7l6-3.5z" />
-                    </svg>
-                    <span className="dy-time">{turn.time}</span>
+                  <span className="dy-turn__head">
+                    <span className="dy-speaker">
+                      <span className={`dy-speaker__dot sp-${turn.tone}`} aria-hidden />
+                      {turn.name}
+                      <span className="dy-speaker__role">{turn.role}</span>
+                    </span>
+                    <span
+                      className={`dy-timecode${active ? " is-active" : ""}`}
+                      data-seek={turn.seconds}
+                    >
+                      <svg className="dy-icon" viewBox="0 0 12 12" aria-hidden>
+                        <path d="M3 2.5v7l6-3.5z" />
+                      </svg>
+                      <span className="dy-time">{turn.time}</span>
+                    </span>
                   </span>
                   <p className="dy-turn__text" data-line-text>
                     {turn.mark ? (

@@ -252,3 +252,62 @@ async def test_retry_double_click_409(
     )
     assert second.status_code == 409, second.text
     assert calls["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_retry_parallel_one_200_one_409(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """T-045 S6: two concurrent retries → one 200, one 409, one enqueue."""
+    import asyncio
+
+    from dictably.domain import process as process_domain
+
+    csrf = await _login(client, "retry-par@example.com")
+    me = await client.get("/api/me")
+    user_id = UUID(me.json()["id"])
+    store = LocalStorageProvider(tmp_path / "storage-par")
+    monkeypatch.setattr("dictably.api.media.get_storage", lambda: store)
+
+    media = Media(
+        user_id=user_id,
+        filename="fail-par.wav",
+        status=MediaStatus.failed,
+        error="boom",
+        storage_keys={},
+        size_bytes=4,
+    )
+    db_session.add(media)
+    await db_session.flush()
+    key = f"u/{user_id}/{media.id}/original.wav"
+    await store.put_bytes(key, b"abcd")
+    media.storage_keys = {"original": key}
+    await db_session.commit()
+    mid = media.id
+
+    calls = {"n": 0}
+
+    async def _hold(session, *, media_id, settings=None):  # noqa: ANN001
+        calls["n"] += 1
+        await asyncio.sleep(0.05)
+        row = await session.get(Media, media_id)
+        assert row is not None
+        row.status = MediaStatus.queued
+        await session.commit()
+        return row
+
+    monkeypatch.setattr(process_domain, "enqueue_or_run_process", _hold)
+
+    async def _retry() -> int:
+        res = await client.post(
+            f"/api/media/{mid}/retry",
+            headers={auth_domain.CSRF_HEADER: csrf},
+        )
+        return res.status_code
+
+    codes = sorted(await asyncio.gather(_retry(), _retry()))
+    assert codes == [200, 409], codes
+    assert calls["n"] == 1
