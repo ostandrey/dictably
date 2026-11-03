@@ -95,6 +95,10 @@ class User(Base, TimestampMixin):
     notify_ready_email: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default=text("true"), nullable=False
     )
+    # T-042: personal ASR boost terms (≤200), merged into each upload.
+    vocabulary: Mapped[list[Any]] = mapped_column(
+        JSONB, nullable=False, insert_default=list, server_default="[]"
+    )
 
     sessions: Mapped[list[Session]] = relationship(back_populates="user")
     media: Mapped[list[Media]] = relationship(back_populates="user")

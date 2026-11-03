@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { clearAuthSession, useAuth } from "@/components/app/AuthProvider";
 import { Dialog } from "@/components/ui/Dialog";
-import { deleteAccount, exportAccount, patchMe } from "@/lib/api";
+import { deleteAccount, exportAccount, learnVocabulary, patchMe } from "@/lib/api";
 import { localePath } from "@/i18n/locales";
 import { formatBalanceSeconds } from "@/lib/mediaDuration";
 
@@ -19,6 +19,7 @@ export function SettingsPanel() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
+  const [vocabBusy, setVocabBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uiLocale, setUiLocale] = useState<"en" | "uk">(
     user?.locale === "uk" ? "uk" : "en",
@@ -31,6 +32,8 @@ export function SettingsPanel() {
   const [notifyReady, setNotifyReady] = useState(
     user?.notify_ready_email !== false,
   );
+  const vocabulary = user?.vocabulary ?? [];
+  const [vocabDraft, setVocabDraft] = useState("");
 
   const balance = user?.balance_seconds ?? 0;
 
@@ -72,6 +75,36 @@ export function SettingsPanel() {
       setError(t("error"));
     } finally {
       setSaveBusy(false);
+    }
+  }
+
+  async function onAddTerm() {
+    const term = vocabDraft.trim();
+    if (!term) return;
+    setVocabBusy(true);
+    setError(null);
+    try {
+      const next = await learnVocabulary(term);
+      setUser(next);
+      setVocabDraft("");
+    } catch {
+      setError(t("error"));
+    } finally {
+      setVocabBusy(false);
+    }
+  }
+
+  async function onRemoveTerm(term: string) {
+    setVocabBusy(true);
+    setError(null);
+    try {
+      const nextList = vocabulary.filter((v) => v !== term);
+      const next = await patchMe({ vocabulary: nextList });
+      setUser(next);
+    } catch {
+      setError(t("error"));
+    } finally {
+      setVocabBusy(false);
     }
   }
 
@@ -153,6 +186,69 @@ export function SettingsPanel() {
           >
             {saveBusy ? t("loading") : t("settingsSaveDefaults")}
           </button>
+        </div>
+      </section>
+
+      {/* T-046 N1: own section (saves immediately — not under Save defaults) */}
+      <section className="dy-settings__section" aria-labelledby="settings-vocabulary">
+        <h2 id="settings-vocabulary" className="dy-settings__h">
+          {t("settingsVocabularyLabel")}
+        </h2>
+        <p className="dy-settings__p">{t("settingsVocabularyHint")}</p>
+        <div className="dy-settings__vocab" data-settings="vocabulary">
+          {vocabulary.length === 0 ? (
+            <p className="dy-settings__vocab-empty" data-settings="vocabulary-empty">
+              {t("settingsVocabularyEmpty")}
+            </p>
+          ) : (
+            <ul className="dy-settings__vocab-list" data-settings="vocabulary-list">
+              {vocabulary.map((term) => (
+                <li key={term} className="dy-settings__vocab-item">
+                  <span>{term}</span>
+                  <button
+                    type="button"
+                    className="btn-text dy-settings__vocab-remove"
+                    disabled={vocabBusy}
+                    data-settings="vocabulary-remove"
+                    data-term={term}
+                    onClick={() => void onRemoveTerm(term)}
+                  >
+                    {t("settingsVocabularyRemove")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {vocabulary.length < 200 ? (
+            <div className="dy-settings__vocab-add">
+              <label className="dy-settings__field dy-settings__vocab-add-field">
+                <span>{t("settingsVocabularyAddLabel")}</span>
+                <input
+                  className="dy-input"
+                  value={vocabDraft}
+                  data-settings="vocabulary-input"
+                  maxLength={64}
+                  placeholder={t("settingsVocabularyPlaceholder")}
+                  onChange={(e) => setVocabDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void onAddTerm();
+                    }
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                className="dy-btn dy-btn--secondary"
+                disabled={vocabBusy || !vocabDraft.trim()}
+                data-settings="vocabulary-add"
+                onClick={() => void onAddTerm()}
+              >
+                {t("settingsVocabularyAdd")}
+              </button>
+            </div>
+          ) : null}
         </div>
       </section>
 

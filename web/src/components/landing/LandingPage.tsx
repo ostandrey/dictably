@@ -14,7 +14,23 @@ type Props = { copy: LandingCopy };
 export function LandingPage({ copy }: Props) {
   const locale = copy.locale;
   const appHref = locale === "uk" ? "/uk/app/" : "/app/";
-  const iconKeys = ["proof", "sides", "langs", "privacy"] as const;
+  /* T-046: Proof, Sides, Any language, Zoom tracks, No bot, Private */
+  const iconKeys = [
+    "proof",
+    "sides",
+    "langs",
+    "tracks",
+    "nobot",
+    "privacy",
+  ] as const;
+  const iconTones = [
+    "evidence",
+    "warning",
+    "accent",
+    "success",
+    "accent",
+    "evidence",
+  ] as const;
 
   return (
     <>
@@ -101,14 +117,11 @@ export function LandingPage({ copy }: Props) {
             <ul className="lp-why">
               {copy.why.items.map((item, i) => {
                 const key = iconKeys[i] ?? "proof";
+                const tone = iconTones[i] ?? "accent";
                 return (
                   <li key={item.title}>
                     <span
-                      className={`lp-why__icon lp-why__icon--${
-                        (
-                          ["evidence", "warning", "accent", "success"] as const
-                        )[i] ?? "accent"
-                      }`}
+                      className={`lp-why__icon lp-why__icon--${tone}`}
                       aria-hidden
                     >
                       <WhyIcons name={key} />

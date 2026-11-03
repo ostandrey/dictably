@@ -164,6 +164,71 @@ def remember_minutes_template(user: User, template: str | None) -> str:
     return tid
 
 
+VOCABULARY_MAX = 200
+VOCABULARY_TERM_MAX_CHARS = 64
+VOCABULARY_TERM_MAX_WORDS = 6
+# Edge punctuation stripped from learned terms (T-046 S2) — keep letters/digits inside.
+_VOCAB_EDGE_CHARS = " \t\n\r.,;:!?…\"'«»„“”()[]{}<>/\\|-+*=#@$%^&~`"
+
+
+def clean_vocabulary_term(raw: str) -> str | None:
+    """Normalize one term: trim edge punct, ≤6 words, ≤64 chars (T-046 S2)."""
+    term = " ".join(str(raw).split())
+    term = term.strip(_VOCAB_EDGE_CHARS)
+    if not term:
+        return None
+    words = term.split()
+    if len(words) > VOCABULARY_TERM_MAX_WORDS:
+        term = " ".join(words[:VOCABULARY_TERM_MAX_WORDS])
+    if len(term) > VOCABULARY_TERM_MAX_CHARS:
+        term = term[:VOCABULARY_TERM_MAX_CHARS].rstrip(_VOCAB_EDGE_CHARS + " ")
+    return term or None
+
+
+def normalize_vocabulary(terms: list[str] | None) -> list[str]:
+    """Clean, drop empties, casefold-dedupe, cap at VOCABULARY_MAX (T-042/T-046)."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in terms or []:
+        term = clean_vocabulary_term(str(raw))
+        if not term:
+            continue
+        key = term.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(term)
+        if len(out) >= VOCABULARY_MAX:
+            break
+    return out
+
+
+def set_vocabulary(user: User, terms: list[str] | None) -> list[str]:
+    cleaned = normalize_vocabulary(terms)
+    user.vocabulary = cleaned
+    return cleaned
+
+
+def learn_vocabulary_term(user: User, term: str) -> bool:
+    """Append one term if new and under cap. True when added."""
+    cleaned = clean_vocabulary_term(term)
+    if not cleaned:
+        return False
+    current = list(user.vocabulary or [])
+    if any(t.casefold() == cleaned.casefold() for t in current):
+        return False
+    if len(current) >= VOCABULARY_MAX:
+        return False
+    current.append(cleaned)
+    user.vocabulary = current
+    return True
+
+
+def merge_upload_vocabulary(user: User, form_terms: list[str] | None) -> list[str]:
+    """Personal dictionary first, then per-upload terms (T-042)."""
+    return normalize_vocabulary([*(user.vocabulary or []), *(form_terms or [])])
+
+
 async def build_export(session: AsyncSession, user: User) -> dict[str, Any]:
     """JSON dump of the account — transcripts + latest minutes; no audio blobs (T-033 S2)."""
     result = await session.execute(
@@ -253,6 +318,7 @@ async def build_export(session: AsyncSession, user: User) -> dict[str, Any]:
             "onboarding_skipped_at": (
                 user.onboarding_skipped_at.isoformat() if user.onboarding_skipped_at else None
             ),
+            "vocabulary": list(user.vocabulary or []),
         },
         "recordings": recordings,
     }

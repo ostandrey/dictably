@@ -1,11 +1,11 @@
-/** Shared upload limits / accept list for RecordingsPanel + AppDropOverlay. */
+/** Shared upload limits / accept list for RecordingsPanel + AppDropOverlay.
+ * Keep in sync with backend `ALLOWED_EXTENSIONS` (T-046).
+ */
 
 export const MAX_UPLOAD_BYTES = 500 * 1024 * 1024;
 
-export const ACCEPT =
-  ".mp3,.m4a,.wav,.ogg,.oga,.flac,.aac,.mp4,.mov,.webm,.mkv,audio/*,video/*";
-
-const EXT_OK = new Set([
+/** Extensions without dots — must match server allowlist. */
+export const ALLOWED_UPLOAD_EXTENSIONS = [
   "mp3",
   "m4a",
   "wav",
@@ -13,16 +13,29 @@ const EXT_OK = new Set([
   "oga",
   "flac",
   "aac",
+  "opus",
+  "amr",
+  "wma",
   "mp4",
   "mov",
   "webm",
   "mkv",
-]);
+  "3gp",
+  "m4v",
+  "avi",
+] as const;
+
+const EXT_OK = new Set<string>(ALLOWED_UPLOAD_EXTENSIONS);
+
+export const ACCEPT = ALLOWED_UPLOAD_EXTENSIONS.map((e) => `.${e}`).join(",");
+
+export function extensionOf(filename: string): string {
+  const base = filename.split(/[/\\]/).pop() ?? filename;
+  const dot = base.lastIndexOf(".");
+  if (dot <= 0 || dot === base.length - 1) return "";
+  return base.slice(dot + 1).toLowerCase();
+}
 
 export function isAcceptedUpload(file: File): boolean {
-  if (file.type.startsWith("audio/") || file.type.startsWith("video/")) {
-    return true;
-  }
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  return EXT_OK.has(ext);
+  return EXT_OK.has(extensionOf(file.name));
 }

@@ -20,6 +20,8 @@ EVENT_MINUTES_VIEWED = "minutes_viewed"
 EVENT_EXPORT_DOWNLOADED = "export_downloaded"
 EVENT_REGENERATED = "regenerated"
 EVENT_PAID = "paid"
+# T-042: user saved a corrected word into personal vocabulary (never store the word).
+EVENT_VOCABULARY_LEARNED = "vocabulary_learned"
 
 # Cohort funnel order (processing_failed sits under ready — S1).
 FUNNEL_EVENTS = (

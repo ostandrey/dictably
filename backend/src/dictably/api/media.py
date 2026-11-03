@@ -137,6 +137,19 @@ def _peaks_key(media: Media) -> str | None:
     return (media.storage_keys or {}).get("peaks")
 
 
+def _parse_vocab_form(raw: str | None) -> list[str]:
+    if not raw or not raw.strip():
+        return []
+    return [t.strip() for part in raw.replace("\n", ",").split(",") for t in [part] if t.strip()]
+
+
+def _merged_vocab(
+    user: User, form_raw: str | None = None, form_list: list[str] | None = None
+) -> list[str]:
+    form_terms = form_list if form_list is not None else _parse_vocab_form(form_raw)
+    return account_domain.merge_upload_vocabulary(user, form_terms)
+
+
 @router.get("/media", response_model=MediaListOut)
 async def list_media(
     user: Annotated[User, Depends(require_user)],
@@ -246,14 +259,7 @@ async def media_upload_complete(
         row.language = body.language.strip()[:16]
     if body.speakers_expected is not None:
         row.speakers_expected = body.speakers_expected
-    if body.vocabulary and body.vocabulary.strip():
-        terms = [
-            t.strip()
-            for part in body.vocabulary.replace("\n", ",").split(",")
-            for t in [part]
-            if t.strip()
-        ][:200]
-        row.vocabulary = terms
+    row.vocabulary = _merged_vocab(user, form_raw=body.vocabulary)
     preferred = getattr(user, "preferred_minutes_template", None) or "default"
     tid = account_domain.remember_minutes_template(
         user, body.minutes_template if body.minutes_template else preferred
@@ -803,14 +809,7 @@ async def upload_media(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Meeting bundle needs at least 2 files",
             )
-        vocab_terms: list[str] = []
-        if vocabulary and vocabulary.strip():
-            vocab_terms = [
-                t.strip()
-                for part in vocabulary.replace("\n", ",").split(",")
-                for t in [part]
-                if t.strip()
-            ][:200]
+        vocab_terms = _merged_vocab(user, form_raw=vocabulary)
         row = await meeting_bundle_domain.upload_meeting_bundle(
             session,
             storage,
@@ -840,14 +839,7 @@ async def upload_media(
                     detail="speakers_expected must be 1–20",
                 )
             row.speakers_expected = speakers_expected
-        if vocabulary and vocabulary.strip():
-            terms = [
-                t.strip()
-                for part in vocabulary.replace("\n", ",").split(",")
-                for t in [part]
-                if t.strip()
-            ][:200]
-            row.vocabulary = terms
+        row.vocabulary = _merged_vocab(user, form_raw=vocabulary)
         if audio_stream_index is not None:
             if audio_stream_index < 0:
                 raise HTTPException(

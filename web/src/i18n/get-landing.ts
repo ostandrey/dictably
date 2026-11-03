@@ -59,6 +59,8 @@ export async function getLandingCopy(locale: string): Promise<LandingCopy> {
         { title: t("why.item2Title"), body: t("why.item2Body") },
         { title: t("why.item3Title"), body: t("why.item3Body") },
         { title: t("why.item4Title"), body: t("why.item4Body") },
+        { title: t("why.item5Title"), body: t("why.item5Body") },
+        { title: t("why.item6Title"), body: t("why.item6Body") },
       ],
     },
     pricing: {

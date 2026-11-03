@@ -40,10 +40,16 @@ ALLOWED_EXTENSIONS = frozenset(
         ".oga",
         ".flac",
         ".aac",
+        ".opus",
+        ".amr",
+        ".wma",
         ".mp4",
         ".mov",
         ".webm",
         ".mkv",
+        ".3gp",
+        ".m4v",
+        ".avi",
     }
 )
 
@@ -56,9 +62,12 @@ ALLOWED_FORMAT_NAMES = frozenset(
         "matroska,webm",
         "wav",
         "ogg",
+        "opus",
         "flac",
         "aac",
+        "amr",
         "asf",
+        "avi",
     }
 )
 _ALLOWED_FORMAT_TOKENS = frozenset(

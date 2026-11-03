@@ -62,12 +62,15 @@ worker:
 
 # T-045 B1: always rebuild out/ — Playwright serves static export, stale build fails AC.
 e2e:
-    cd web && pnpm build:local && pnpm exec playwright test
-    just free-api-port
+    cd web; pnpm build:local
+    cd web; pnpm exec playwright test
+    # ignore cleanup errors — tests already finished
+    -{{ just_executable() }} free-api-port
 
 # Kill whatever is listening on API port (T-036 S2 / Owner Docker).
+# $$ → literal $ for PowerShell (just interpolates otherwise).
 free-api-port:
-    powershell -NoLogo -Command "$p = netstat -ano | Select-String 'LISTENING' | Select-String ':8000\\s'; foreach ($line in $p) { $procId = ($line.ToString() -split '\\s+')[-1]; if ($procId -match '^\\d+$' -and [int]$procId -gt 0) { Stop-Process -Id ([int]$procId) -Force -ErrorAction SilentlyContinue; Write-Host \"killed $procId\" } }; Write-Host 'port 8000 cleared'"
+    powershell -NoLogo -Command "$$p = netstat -ano | Select-String 'LISTENING' | Select-String ':8000\\s'; foreach ($$line in $$p) { $$procId = ($$line.ToString() -split '\\s+')[-1]; if ($$procId -match '^\\d+$' -and [int]$$procId -gt 0) { Stop-Process -Id ([int]$$procId) -Force -ErrorAction SilentlyContinue; Write-Host \"killed $$procId\" } }; Write-Host 'port 8000 cleared'"
 
 lh:
     cd web && pnpm build:local && pnpm lh

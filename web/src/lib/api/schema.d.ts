@@ -121,6 +121,30 @@ export interface paths {
         delete: operations["delete_me_api_me_delete"];
         options?: never;
         head?: never;
+        /**
+         * Patch Me
+         * @description Update Settings defaults: UI locale + preferred minutes template (T-041).
+         */
+        patch: operations["patch_me_api_me_patch"];
+        trace?: never;
+    };
+    "/api/me/vocabulary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Learn Vocabulary
+         * @description Remember a corrected term for future uploads (T-042). No word in analytics.
+         */
+        post: operations["learn_vocabulary_api_me_vocabulary_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -198,6 +222,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/media/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Media Status */
+        get: operations["media_status_api_media_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/upload-intent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Media Upload Intent
+         * @description Presigned PUT / multipart for direct browser→R2 upload (T-038).
+         */
+        post: operations["media_upload_intent_api_media_upload_intent_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/{media_id}/upload-complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Media Upload Complete
+         * @description HEAD-confirm object in storage; enqueue process (format checked by worker).
+         */
+        post: operations["media_upload_complete_api_media__media_id__upload_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/{media_id}/upload-abort": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Media Upload Abort
+         * @description Abort incomplete direct upload (S1/S3).
+         */
+        post: operations["media_upload_abort_api_media__media_id__upload_abort_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/media/probe": {
         parameters: {
             query?: never;
@@ -235,6 +336,46 @@ export interface paths {
         head?: never;
         /** Patch Media */
         patch: operations["patch_media_api_media__media_id__patch"];
+        trace?: never;
+    };
+    "/api/media/{media_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Media
+         * @description Re-enqueue processing for a failed recording (T-040 «Спробувати ще»).
+         */
+        post: operations["retry_media_api_media__media_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/{media_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Media
+         * @description Undo soft-delete within 30s (T-040 B1).
+         */
+        post: operations["restore_media_api_media__media_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/media/{media_id}/transcript": {
@@ -587,6 +728,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/ops": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Admin Ops
+         * @description Queue / errors / disk monitoring (T-038).
+         */
+        get: operations["admin_ops_api_admin_ops_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -668,6 +829,8 @@ export interface components {
              * @default 0
              */
             pct_prev: number;
+            /** Branch Of */
+            branch_of?: string | null;
         };
         /** AdminGrantIn */
         AdminGrantIn: {
@@ -678,6 +841,10 @@ export interface components {
         AdminJobListOut: {
             /** Items */
             items?: components["schemas"]["AdminJobOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Total */
+            total?: number | null;
         };
         /** AdminJobOut */
         AdminJobOut: {
@@ -706,6 +873,10 @@ export interface components {
         AdminMediaListOut: {
             /** Items */
             items?: components["schemas"]["AdminMediaOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Total */
+            total?: number | null;
         };
         /** AdminMediaOut */
         AdminMediaOut: {
@@ -735,10 +906,68 @@ export interface components {
              */
             created_at: string;
         };
+        /** AdminOpsOut */
+        AdminOpsOut: {
+            /**
+             * Queue Length
+             * @default 0
+             */
+            queue_length: number;
+            /**
+             * Running
+             * @default 0
+             */
+            running: number;
+            /**
+             * Media Queued
+             * @default 0
+             */
+            media_queued: number;
+            /**
+             * Succeeded 24H
+             * @default 0
+             */
+            succeeded_24h: number;
+            /**
+             * Failed 24H
+             * @default 0
+             */
+            failed_24h: number;
+            /**
+             * Error Rate Pct
+             * @default 0
+             */
+            error_rate_pct: number;
+            /** Avg Process Seconds */
+            avg_process_seconds?: number | null;
+            /** Disk Free Gb */
+            disk_free_gb?: number | null;
+            /** Disk Total Gb */
+            disk_total_gb?: number | null;
+            /**
+             * Storage Provider
+             * @default local
+             */
+            storage_provider: string;
+            /**
+             * Alert Queue Threshold
+             * @default 20
+             */
+            alert_queue_threshold: number;
+            /**
+             * Alert Error Rate Pct
+             * @default 25
+             */
+            alert_error_rate_pct: number;
+        };
         /** AdminUserListOut */
         AdminUserListOut: {
             /** Items */
             items?: components["schemas"]["AdminUserOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Total */
+            total?: number | null;
         };
         /** AdminUserOut */
         AdminUserOut: {
@@ -824,6 +1053,11 @@ export interface components {
             google: boolean;
             /** Dev Login */
             dev_login: boolean;
+            /**
+             * Direct Upload
+             * @default false
+             */
+            direct_upload: boolean;
         };
         /** Body_probe_media_upload_api_media_probe_post */
         Body_probe_media_upload_api_media_probe_post: {
@@ -905,10 +1139,26 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * MePatchIn
+         * @description Settings defaults (T-041/T-040/T-042) — locale, template, ready-email, vocabulary.
+         */
+        MePatchIn: {
+            /** Locale */
+            locale?: string | null;
+            /** Preferred Minutes Template */
+            preferred_minutes_template?: string | null;
+            /** Notify Ready Email */
+            notify_ready_email?: boolean | null;
+            /** Vocabulary */
+            vocabulary?: string[] | null;
+        };
         /** MediaListOut */
         MediaListOut: {
             /** Items */
             items?: components["schemas"]["MediaOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
         };
         /** MediaOut */
         MediaOut: {
@@ -979,15 +1229,6 @@ export interface components {
             /** Title */
             title?: string | null;
         };
-        /** MePatchIn */
-        MePatchIn: {
-            /** Locale */
-            locale?: string | null;
-            /** Preferred Minutes Template */
-            preferred_minutes_template?: string | null;
-            /** Notify Ready Email */
-            notify_ready_email?: boolean | null;
-        };
         /** MediaProbeOut */
         MediaProbeOut: {
             /** Audio Tracks */
@@ -997,6 +1238,32 @@ export interface components {
              * @default false
              */
             needs_track_choice: boolean;
+        };
+        /** MediaStatusItemOut */
+        MediaStatusItemOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Status */
+            status: string;
+            /** Error */
+            error?: string | null;
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /** Quality Warning */
+            quality_warning?: string | null;
+            /**
+             * Speaker Count
+             * @default 0
+             */
+            speaker_count: number;
+        };
+        /** MediaStatusOut */
+        MediaStatusOut: {
+            /** Items */
+            items?: components["schemas"]["MediaStatusItemOut"][];
         };
         /** MinutesAgreementOut */
         MinutesAgreementOut: {
@@ -1242,6 +1509,57 @@ export interface components {
             /** Speaker Id */
             speaker_id?: string | null;
         };
+        /** UploadCompleteIn */
+        UploadCompleteIn: {
+            /** Upload Id */
+            upload_id?: string | null;
+            /** Parts */
+            parts?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Language */
+            language?: string | null;
+            /** Speakers Expected */
+            speakers_expected?: number | null;
+            /** Vocabulary */
+            vocabulary?: string | null;
+            /** Minutes Template */
+            minutes_template?: string | null;
+        };
+        /** UploadIntentIn */
+        UploadIntentIn: {
+            /** Filename */
+            filename: string;
+            /** Content Type */
+            content_type?: string | null;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Duration Ms */
+            duration_ms?: number | null;
+        };
+        /** UploadIntentOut */
+        UploadIntentOut: {
+            /** Media Id */
+            media_id: string;
+            /** Key */
+            key: string;
+            /** Mode */
+            mode: string;
+            /** Url */
+            url?: string | null;
+            /** Headers */
+            headers?: {
+                [key: string]: string;
+            };
+            /** Upload Id */
+            upload_id?: string | null;
+            /** Part Size */
+            part_size?: number | null;
+            /** Parts */
+            parts?: {
+                [key: string]: unknown;
+            }[];
+        };
         /** UserOut */
         UserOut: {
             /**
@@ -1296,7 +1614,9 @@ export interface components {
              * Notify Ready Email
              * @default true
              */
-            notify_ready_email?: boolean;
+            notify_ready_email: boolean;
+            /** Vocabulary */
+            vocabulary?: string[];
         };
         /** ValidationError */
         ValidationError: {
@@ -1310,6 +1630,14 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * VocabularyLearnIn
+         * @description Add one term to the personal vocabulary (T-042 toast → Remember).
+         */
+        VocabularyLearnIn: {
+            /** Term */
+            term: string;
         };
         /** WordEditIn */
         WordEditIn: {
@@ -1560,6 +1888,82 @@ export interface operations {
             };
         };
     };
+    patch_me_api_me_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MePatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    learn_vocabulary_api_me_vocabulary_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VocabularyLearnIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     post_consent_api_me_consent_post: {
         parameters: {
             query?: never;
@@ -1671,7 +2075,11 @@ export interface operations {
     };
     list_media_api_media_get: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+                cursor?: string | null;
+                q?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: {
@@ -1726,6 +2134,152 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MediaOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    media_status_api_media_status_get: {
+        parameters: {
+            query: {
+                /** @description Comma-separated media ids (max 20) */
+                ids: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                dictably_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaStatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    media_upload_intent_api_media_upload_intent_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadIntentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadIntentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    media_upload_complete_api_media__media_id__upload_complete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadCompleteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    media_upload_abort_api_media__media_id__upload_abort_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -1862,6 +2416,78 @@ export interface operations {
                 "application/json": components["schemas"]["MediaPatchIn"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_media_api_media__media_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_media_api_media__media_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                media_id: string;
+            };
+            cookie?: {
+                dictably_session?: string | null;
+                dictably_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -2360,7 +2986,12 @@ export interface operations {
     };
     admin_list_users_api_admin_users_get: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+                cursor?: string | null;
+                q?: string | null;
+                include_total?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: {
@@ -2393,6 +3024,10 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string | null;
+                limit?: number;
+                cursor?: string | null;
+                q?: string | null;
+                include_total?: boolean;
             };
             header?: never;
             path?: never;
@@ -2426,6 +3061,10 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string | null;
+                limit?: number;
+                cursor?: string | null;
+                q?: string | null;
+                include_total?: boolean;
             };
             header?: never;
             path?: never;
@@ -2618,6 +3257,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminFunnelOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_ops_api_admin_ops_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                dictably_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminOpsOut"];
                 };
             };
             /** @description Validation Error */

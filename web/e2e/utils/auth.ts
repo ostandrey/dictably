@@ -33,18 +33,23 @@ export async function ensureSignedIn(
   opts?: { email?: string; name?: string },
 ) {
   await page.waitForSelector(
-    "[data-auth='dev-login'], [data-recordings='panel'], [data-consent='accept']",
+    "[data-auth='dev-login'], [data-recordings='panel'], [data-settings='panel'], [data-consent='accept']",
   );
 
   if (await page.locator("[data-consent='accept']").isVisible()) {
     await passAccountGates(page);
-    await expect(page.locator("[data-recordings='panel']")).toBeVisible({
+    await expect(
+      page.locator("[data-recordings='panel'], [data-settings='panel']").first(),
+    ).toBeVisible({
       timeout: 15_000,
     });
     return;
   }
 
-  if (await page.locator("[data-recordings='panel']").isVisible()) {
+  if (
+    (await page.locator("[data-recordings='panel']").isVisible()) ||
+    (await page.locator("[data-settings='panel']").isVisible())
+  ) {
     return;
   }
 
@@ -63,11 +68,13 @@ export async function ensureSignedIn(
   );
   await page.reload();
   await page.waitForSelector(
-    "[data-consent='accept'], [data-recordings='panel'], [data-onboarding='skip']",
+    "[data-consent='accept'], [data-recordings='panel'], [data-settings='panel'], [data-onboarding='skip']",
     { timeout: 15_000 },
   );
   await passAccountGates(page);
-  await expect(page.locator("[data-recordings='panel']")).toBeVisible({
+  await expect(
+    page.locator("[data-recordings='panel'], [data-settings='panel']").first(),
+  ).toBeVisible({
     timeout: 15_000,
   });
 }

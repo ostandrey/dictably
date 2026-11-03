@@ -498,12 +498,17 @@
 /* Why */
 .lp-why {
   display: grid;
-  /* T-045 D9: 2×2 so the fourth card isn’t alone */
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* T-046: 3×2 on desktop; single column on phone */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 40px 48px;
   list-style: none;
   margin: 0;
   padding: 0;
+}
+@media (max-width: 900px) {
+  .lp-why {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 @media (max-width: 700px) {
   .lp-why {

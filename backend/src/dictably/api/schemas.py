@@ -23,6 +23,7 @@ class UserOut(BaseModel):
     onboarding_skipped_at: datetime | None = None
     preferred_minutes_template: str = "default"
     notify_ready_email: bool = True
+    vocabulary: list[str] = Field(default_factory=list)
 
 
 class ConsentIn(BaseModel):
@@ -67,11 +68,20 @@ class WordEditIn(BaseModel):
 
 
 class MePatchIn(BaseModel):
-    """Settings defaults (T-041/T-040) — locale, template, ready-email toggle."""
+    """Settings defaults (T-041/T-040/T-042) — locale, template, ready-email, vocabulary."""
 
     locale: str | None = Field(default=None, max_length=16)
     preferred_minutes_template: str | None = Field(default=None, max_length=64)
     notify_ready_email: bool | None = None
+    # Cap enforced in account.set_vocabulary (≤200); no Field max_length so oversize
+    # payloads truncate instead of 422.
+    vocabulary: list[str] | None = None
+
+
+class VocabularyLearnIn(BaseModel):
+    """Add one term to the personal vocabulary (T-042 toast → Remember)."""
+
+    term: str = Field(min_length=1, max_length=200)
 
 
 class MediaPatchIn(BaseModel):

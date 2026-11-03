@@ -20,6 +20,7 @@ import {
   getMedia,
   getPeaks,
   getTranscript,
+  learnVocabulary,
   mediaAudioUrl,
   mergeSpeakers,
   patchMedia,
@@ -35,6 +36,7 @@ import {
   type Transcript,
 } from "@/lib/api";
 import { useTranslations } from "next-intl";
+import { useAuth } from "@/components/app/AuthProvider";
 import { useToast } from "@/components/app/ToastProvider";
 import { IllDeleted, IllFailed } from "@/components/illustrations";
 import { Download, MoreHorizontal, Share2 } from "@/components/icons";
@@ -256,6 +258,7 @@ export function RecordingView({
   const tApp = useTranslations("app");
   const isMobile = useIsMobile();
   const stackTabs = useIsMobile(APP_RECORDING_STACK_MAX_PX);
+  const { user, setUser } = useAuth();
   const { push: pushToast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -667,6 +670,8 @@ export function RecordingView({
     if (!editingWord) return;
     setSaving(true);
     setError(null);
+    const prevText = (transcript?.words?.[editingWord.index]?.text ?? "").trim();
+    const nextText = editingWord.text.trim();
     try {
       const next = await patchWord(mediaId, {
         word_index: editingWord.index,
@@ -680,6 +685,23 @@ export function RecordingView({
       saveRecordingDraft(mediaId, { ...draft, words });
       if (!Object.keys(words).length && !draft.title && !draft.meetingDate) {
         clearRecordingDraft(mediaId);
+      }
+      // T-042: offer to learn corrected term into personal vocabulary.
+      if (nextText && nextText.toLocaleLowerCase() !== prevText.toLocaleLowerCase()) {
+        const known = (user?.vocabulary ?? []).some(
+          (v) => v.toLocaleLowerCase() === nextText.toLocaleLowerCase(),
+        );
+        if (!known) {
+          pushToast(tApp("vocabRememberToast", { term: nextText }), {
+            actionLabel: tApp("vocabRememberAction"),
+            durationMs: 8000,
+            onAction: () => {
+              void learnVocabulary(nextText)
+                .then((u) => setUser(u))
+                .catch(() => undefined);
+            },
+          });
+        }
       }
     } catch {
       setError(errorLabel);

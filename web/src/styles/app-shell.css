@@ -132,6 +132,7 @@
   color: inherit;
   font: inherit;
   border-radius: var(--radius-sm);
+  transition: background var(--duration-fast) var(--ease);
 }
 .app-sidebar__account-btn:hover,
 .app-sidebar__account-btn[aria-expanded="true"] {
@@ -434,6 +435,7 @@
   color: var(--ink-muted);
   cursor: pointer;
   font: 600 16px/1 var(--font-sans);
+  transition: background var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease);
 }
 .rec-page__share-btn {
   display: inline-flex;
@@ -450,6 +452,7 @@
   color: var(--ink);
   cursor: pointer;
   font: 500 15px/20px var(--font-sans);
+  transition: background var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease);
 }
 .rec-page__share-label {
   font: inherit;

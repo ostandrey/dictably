@@ -7,11 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dictably.api.cookies import clear_session_cookies
 from dictably.api.deps import client_ip, require_user, require_user_csrf
-from dictably.api.schemas import ConsentIn, MePatchIn, OnboardingIn, UserOut
+from dictably.api.schemas import ConsentIn, MePatchIn, OnboardingIn, UserOut, VocabularyLearnIn
 from dictably.core.config import Settings, get_settings
 from dictably.db.models import User
 from dictably.db.session import get_db
 from dictably.domain import account as account_domain
+from dictably.domain import analytics as analytics_domain
 from dictably.domain import ledger as ledger_domain
 from dictably.providers.factory import get_storage_provider
 
@@ -36,6 +37,7 @@ def user_out(user: User, *, balance_seconds: int = 0) -> UserOut:
         onboarding_skipped_at=user.onboarding_skipped_at,
         preferred_minutes_template=getattr(user, "preferred_minutes_template", None) or "default",
         notify_ready_email=bool(getattr(user, "notify_ready_email", True)),
+        vocabulary=list(getattr(user, "vocabulary", None) or []),
     )
 
 
@@ -68,6 +70,28 @@ async def patch_me(
         account_domain.remember_minutes_template(user, body.preferred_minutes_template)
     if "notify_ready_email" in fields and body.notify_ready_email is not None:
         user.notify_ready_email = bool(body.notify_ready_email)
+    if "vocabulary" in fields and body.vocabulary is not None:
+        account_domain.set_vocabulary(user, body.vocabulary)
+    await session.commit()
+    await session.refresh(user)
+    balance = await ledger_domain.balance_seconds(session, user.id)
+    return user_out(user, balance_seconds=balance)
+
+
+@router.post("/me/vocabulary", response_model=UserOut)
+async def learn_vocabulary(
+    body: VocabularyLearnIn,
+    user: Annotated[User, Depends(require_user_csrf)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> UserOut:
+    """Remember a corrected term for future uploads (T-042). No word in analytics."""
+    added = account_domain.learn_vocabulary_term(user, body.term)
+    if added:
+        await analytics_domain.track(
+            session,
+            name=analytics_domain.EVENT_VOCABULARY_LEARNED,
+            user_id=user.id,
+        )
     await session.commit()
     await session.refresh(user)
     balance = await ledger_domain.balance_seconds(session, user.id)

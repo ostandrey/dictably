@@ -442,19 +442,26 @@ def normalize_to_playback(
     soft_missing: bool = False,
     audio_stream_index: int | None = None,
 ) -> NormalizeResult:
-    """AAC mono 64 kbps + simple peak envelope. Soft mode for ENV=test without ffmpeg."""
+    """AAC mono 64 kbps + simple peak envelope.
+
+    Soft mode (ENV=test): missing ffmpeg *or* unreadable fixture bytes → empty stub
+    (same as mix / ASR prep).
+    """
     dest_dir.mkdir(parents=True, exist_ok=True)
     playback = dest_dir / "playback.m4a"
     peaks = dest_dir / "peaks.json"
+
+    def _soft_stub() -> NormalizeResult:
+        logger.warning("ffmpeg soft-writing empty playback stub")
+        playback.write_bytes(b"")
+        peaks.write_text(json.dumps({"peaks": [], "duration_ms": None}), encoding="utf-8")
+        return NormalizeResult(playback, peaks, None)
 
     try:
         ffmpeg = require_ffmpeg()
     except FfmpegError:
         if soft_missing:
-            logger.warning("ffmpeg missing; soft-writing empty playback stub")
-            playback.write_bytes(b"")
-            peaks.write_text(json.dumps({"peaks": [], "duration_ms": None}), encoding="utf-8")
-            return NormalizeResult(playback, peaks, None)
+            return _soft_stub()
         raise
 
     cmd = [
@@ -490,6 +497,8 @@ def normalize_to_playback(
     except subprocess.TimeoutExpired as exc:
         raise FfmpegError("ffmpeg timed out") from exc
     except subprocess.CalledProcessError as exc:
+        if soft_missing:
+            return _soft_stub()
         raise FfmpegError(exc.stderr or "ffmpeg failed") from exc
 
     duration_ms, peak_vals = _peaks_via_pcm(ffmpeg, playback)

@@ -173,10 +173,19 @@ export function patchMe(body: {
   locale?: string | null;
   preferred_minutes_template?: string | null;
   notify_ready_email?: boolean | null;
+  vocabulary?: string[] | null;
 }): Promise<User> {
   return apiFetch<User>("/api/me", {
     method: "PATCH",
     body: JSON.stringify(body),
+  });
+}
+
+/** T-042: remember a corrected term (fires vocabulary_learned, no word stored). */
+export function learnVocabulary(term: string): Promise<User> {
+  return apiFetch<User>("/api/me/vocabulary", {
+    method: "POST",
+    body: JSON.stringify({ term }),
   });
 }
 

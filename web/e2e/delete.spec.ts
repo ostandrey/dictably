@@ -65,12 +65,23 @@ test.describe("T-018-lite delete + C1–C2", () => {
 
     const row2 = recordingRow(page, name);
     await row2.locator("[data-recordings='menu']").click();
+    // Optimistic UI can hide the row before DELETE finishes — wait for API.
+    const deleted = page.waitForResponse(
+      (r) =>
+        r.request().method() === "DELETE" &&
+        r.url().includes(`/api/media/${id}`) &&
+        r.status() === 204,
+    );
     await page.locator("[data-recordings='delete']").click();
+    await deleted;
     await expect(row2).toHaveCount(0, { timeout: 10_000 });
     await expect(page.locator("[data-toast='action']")).toBeVisible();
     // Soft-delete hides audio immediately (restore window ~30s; no client timer).
-    const audioRes = await page.request.get(`/api/media/${id}/audio`);
-    expect(audioRes.status()).toBe(404);
+    await expect
+      .poll(async () => (await page.request.get(`/api/media/${id}/audio`)).status(), {
+        timeout: 10_000,
+      })
+      .toBe(404);
   });
 
   test("row click opens recording (B1 stretch link)", async ({ page }) => {

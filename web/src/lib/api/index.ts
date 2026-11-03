@@ -26,6 +26,7 @@ export {
   getMedia,
   getPeaks,
   getTranscript,
+  learnVocabulary,
   listMedia,
   listMediaStatus,
   listSpeakers,
