@@ -26,6 +26,10 @@ type Props = {
   navPeople?: string;
   navSettings?: string;
   navAdmin?: string;
+  /** Sidebar quota label (T-047 F2): EN «Minutes» / UK «Залишилось». */
+  quotaLabel?: string;
+  /** Locale for balance formatting (T-047 F2). */
+  uiLocale?: string;
   /** On settings page: show quota + account in main (mobile M1). */
   showAccountInMain?: boolean;
   children: ReactNode;
@@ -71,6 +75,8 @@ export function AppShell({
   navPeople = "People",
   navSettings = "Settings",
   navAdmin = "Admin",
+  quotaLabel = "Minutes",
+  uiLocale = "en",
   showAccountInMain = false,
   children,
 }: Props) {
@@ -115,9 +121,9 @@ export function AppShell({
   const quotaBlock = showQuota ? (
     <div className="app-sidebar__quota" data-minutes>
       <div className="app-sidebar__quota-row">
-        <span>Minutes</span>
+        <span>{quotaLabel}</span>
         <span className="dy-time dy-muted">
-          {formatBalanceSeconds(balance, { withLeft: true })}
+          {formatBalanceSeconds(balance, { locale: uiLocale })}
         </span>
       </div>
     </div>

@@ -71,6 +71,8 @@ const ACTIVE = new Set([
 ]);
 
 export type RecordingsCopy = {
+  /** List page H1 (T-047 F2 — not hardcoded EN). */
+  listTitle?: string;
   title: string;
   hint: string;
   choose: string;
@@ -184,7 +186,8 @@ function statusHintFor(
       return copy.statusUploadedHint ?? null;
     }
     case "queued":
-      return copy.statusQueuedNext ?? copy.statusQueuedHint;
+      // T-047 F5: one queue hint only (drop statusQueuedNext duplicate).
+      return copy.statusQueuedHint ?? null;
     case "processing":
     case "transcribing":
     case "analyzing":
@@ -224,9 +227,7 @@ function rowMeta(
   copy: RecordingsCopy,
   uiLocale: string,
 ): string {
-  if (item.status === "queued") {
-    return copy.statusQueuedHint;
-  }
+  // T-047 F5: queued uses statusHint — meta stays date/duration, not a second hint.
   // S2: while processing / failed without a human title, show filename so rows differ.
   const needFile =
     !(item.title ?? "").trim() &&
@@ -577,7 +578,9 @@ export function RecordingsPanel({
     if (!menuId) return;
     const onDoc = (e: MouseEvent) => {
       const t = e.target as HTMLElement | null;
+      // T-047 F1: bottom sheet is portaled outside [data-recordings-menu].
       if (t?.closest(`[data-recordings-menu="${menuId}"]`)) return;
+      if (t?.closest("[data-sheet='panel']")) return;
       setMenuId(null);
     };
     document.addEventListener("mousedown", onDoc);
@@ -1092,7 +1095,7 @@ export function RecordingsPanel({
     <section className="recordings" data-recordings="panel">
       <div className={`app-main__toolbar${isMobile ? " is-mobile-stack" : ""}`}>
         <h1 className="dy-type-title" style={{ margin: 0 }}>
-          Recordings
+          {copy.listTitle ?? copy.title}
         </h1>
         <span className="app-main__toolbar-spacer" />
         {showSearch ? (
@@ -1122,7 +1125,10 @@ export function RecordingsPanel({
         </button>
         {isMobile && (user?.balance_seconds ?? 0) > 0 ? (
           <p className="recordings__quota-hint" data-recordings="quota-hint">
-            {formatBalanceSeconds(user?.balance_seconds ?? 0, { withLeft: true })}
+            {formatBalanceSeconds(user?.balance_seconds ?? 0, {
+              withLeft: true,
+              locale: uiLocale,
+            })}
           </p>
         ) : null}
         <input

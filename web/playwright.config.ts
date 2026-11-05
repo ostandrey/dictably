@@ -50,6 +50,13 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      testIgnore: "**/t047-f1-webkit.spec.ts",
+    },
+    {
+      // T-047 F1: real touch path on WebKit (iPhone-sized).
+      name: "webkit-t047",
+      use: { ...devices["iPhone 13"] },
+      testMatch: "**/t047-f1-webkit.spec.ts",
     },
   ],
 });

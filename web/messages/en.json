@@ -15,7 +15,7 @@
     "signIn": "Sign in"
   },
   "hero": {
-    "badge": "Your first recording is free",
+    "badge": "3 hours free",
     "h1": "Meeting minutes you can click to hear",
     "sub": "Upload a call or a meeting recording. Get the transcript by speaker and the minutes: what each side agreed to, linked to the exact second it was said.",
     "cta": "Upload a recording",
@@ -83,16 +83,16 @@
     "q3": "Do I need a bot in Zoom/Teams?",
     "a3": "No. Upload the recording after the meeting — or record right in the browser (coming soon).",
     "q4": "Who can see my recordings?",
-    "a4": "Only you. Files are stored privately. Originals are deleted after 30 days, or sooner if you delete them. Transcripts and minutes stay until you delete them. Never used for training.",
+    "a4": "Only you see your recordings. Support sees file names only, to help with errors. Files are stored privately. Originals are deleted after 30 days, or sooner if you delete them. Transcripts and minutes stay until you delete them. Never used for training.",
     "q5": "Is it legal to record meetings?",
     "a5": "Rules differ by country — always tell participants you are recording.",
     "q6": "When does it launch?",
-    "a6": "Early access starts with founding members. Sign in and upload one of your recordings — the first is free."
+    "a6": "Early access starts with founding members. Sign in and upload a recording — 3 hours free."
   },
   "final": {
     "h2": "Stop rewriting meetings. Start sending minutes.",
     "cta": "Upload a recording",
-    "under": "Your first recording is free. No card needed."
+    "under": "3 hours free. No card needed."
   },
   "footer": {
     "privacy": "Privacy",
@@ -271,7 +271,7 @@
     "recordingsH1": "Recordings",
     "recordingsTitle": "My recordings",
     "recordingsEmpty": "No recordings yet",
-    "recordingsEmptyBody": "Upload a call or meeting. The first one is free — you'll get the transcript and the minutes in a few minutes.",
+    "recordingsEmptyBody": "Upload a call or meeting. 3 hours free — you'll get the transcript and the minutes in a few minutes.",
     "searchEmpty": "No results for “{q}”",
     "clearSearch": "Clear search",
     "searchRecordings": "Search recordings",
@@ -369,6 +369,7 @@
     "navRecordings": "Recordings",
     "navPeople": "People",
     "navSettings": "Settings",
+    "sidebarQuota": "Minutes",
     "peopleSoon": "People arrives in a later update.",
     "peopleTitle": "People from your meetings",
     "peopleBody": "Soon: everyone who shows up across your recordings, with their promises and follow-ups in one place.",

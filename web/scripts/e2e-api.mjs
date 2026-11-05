@@ -11,21 +11,9 @@ const backend = path.resolve(__dirname, "..", "..", "backend");
 const port = process.env.E2E_API_PORT || "8000";
 
 /**
- * Fake ASR uses fixed multi-second timings on tiny fixtures. Real ffmpeg would
- * convert short.wav to ~1s playback and break seek e2e (±0.3s). Keep ENV=test
- * soft stubs by hiding ffmpeg/ffprobe from the API child PATH.
+ * T-047 N1: explicit soft-ffmpeg flag (not PATH filtering). Fake ASR timings
+ * assume multi-second media; real ffmpeg on short.wav (~1s) breaks seek e2e.
  */
-function pathWithoutFfmpeg(rawPath) {
-  const sep = path.delimiter;
-  return (rawPath || "")
-    .split(sep)
-    .filter((entry) => {
-      const lower = entry.toLowerCase();
-      return !lower.includes("ffmpeg") && !lower.includes("ffprobe");
-    })
-    .join(sep);
-}
-
 const child = spawn(
   "uv",
   ["run", "uvicorn", "dictably.main:app", "--host", "127.0.0.1", "--port", port],
@@ -35,8 +23,7 @@ const child = spawn(
     shell: true,
     env: {
       ...process.env,
-      PATH: pathWithoutFfmpeg(process.env.PATH),
-      Path: pathWithoutFfmpeg(process.env.Path || process.env.PATH),
+      DICTABLY_E2E_SOFT_FFMPEG: "1",
     },
   },
 );

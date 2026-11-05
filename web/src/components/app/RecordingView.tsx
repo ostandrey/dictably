@@ -1121,67 +1121,70 @@ export function RecordingView({
           )}
         </div>
         <div className="rec-page__crumb-actions">
-          <div className="rec-page__export" ref={exportMenuRef}>
-            <button
-              type="button"
-              className="btn-secondary rec-page__export-btn"
-              data-recording="export"
-              aria-expanded={exportOpen}
-              aria-haspopup="menu"
-              aria-label={exportMenuLabel}
-              disabled={exportBusy}
-              onClick={() => setExportOpen((v) => !v)}
-            >
-              <Download size={16} strokeWidth={1.5} aria-hidden />
-              {exportLabel}
-            </button>
-            {exportOpen ? (
-              <div className="rec-page__export-pop" role="menu" data-recording="export-menu">
-                {shareItems}
-                <div className="rec-page__export-sep" role="separator" />
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="rec-page__export-item"
-                  data-export="transcript-txt"
-                  disabled={exportBusy}
-                  onClick={() => void runExport("transcript", "txt")}
-                >
-                  {exportTranscriptTxt}
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="rec-page__export-item"
-                  data-export="transcript-docx"
-                  disabled={exportBusy}
-                  onClick={() => void runExport("transcript", "docx")}
-                >
-                  {exportTranscriptDocx}
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="rec-page__export-item"
-                  data-export="transcript-srt"
-                  disabled={exportBusy}
-                  onClick={() => void runExport("transcript", "srt")}
-                >
-                  {exportTranscriptSrt}
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="rec-page__export-item"
-                  data-export="transcript-vtt"
-                  disabled={exportBusy}
-                  onClick={() => void runExport("transcript", "vtt")}
-                >
-                  {exportTranscriptVtt}
-                </button>
-              </div>
-            ) : null}
-          </div>
+          {/* T-047 F3: Export lives inside Share below 768 — hide desktop control on phone. */}
+          {!isMobile ? (
+            <div className="rec-page__export" ref={exportMenuRef}>
+              <button
+                type="button"
+                className="btn-secondary rec-page__export-btn"
+                data-recording="export"
+                aria-expanded={exportOpen}
+                aria-haspopup="menu"
+                aria-label={exportMenuLabel}
+                disabled={exportBusy}
+                onClick={() => setExportOpen((v) => !v)}
+              >
+                <Download size={16} strokeWidth={1.5} aria-hidden />
+                {exportLabel}
+              </button>
+              {exportOpen ? (
+                <div className="rec-page__export-pop" role="menu" data-recording="export-menu">
+                  {shareItems}
+                  <div className="rec-page__export-sep" role="separator" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="rec-page__export-item"
+                    data-export="transcript-txt"
+                    disabled={exportBusy}
+                    onClick={() => void runExport("transcript", "txt")}
+                  >
+                    {exportTranscriptTxt}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="rec-page__export-item"
+                    data-export="transcript-docx"
+                    disabled={exportBusy}
+                    onClick={() => void runExport("transcript", "docx")}
+                  >
+                    {exportTranscriptDocx}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="rec-page__export-item"
+                    data-export="transcript-srt"
+                    disabled={exportBusy}
+                    onClick={() => void runExport("transcript", "srt")}
+                  >
+                    {exportTranscriptSrt}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="rec-page__export-item"
+                    data-export="transcript-vtt"
+                    disabled={exportBusy}
+                    onClick={() => void runExport("transcript", "vtt")}
+                  >
+                    {exportTranscriptVtt}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <button
             type="button"
             className="rec-page__share-btn"

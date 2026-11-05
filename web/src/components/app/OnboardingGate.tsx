@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/components/app/AuthProvider";
 import { Dialog } from "@/components/ui/Dialog";
 import { postOnboarding } from "@/lib/api";
@@ -19,9 +19,13 @@ const MEETING_LOCALES = ["en", "uk", "pl", "de", "es", "other"] as const;
 /** One-screen post-consent onboarding; Skip never shows again (T-033). */
 export function OnboardingGate() {
   const t = useTranslations("app");
+  const pageLocale = useLocale();
   const { status, user, setUser } = useAuth();
   const [cases, setCases] = useState<string[]>([]);
-  const [meetingLocale, setMeetingLocale] = useState<string>("en");
+  // T-047 F4: meeting language defaults to page locale.
+  const [meetingLocale, setMeetingLocale] = useState<string>(
+    pageLocale === "uk" ? "uk" : "en",
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

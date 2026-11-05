@@ -27,16 +27,19 @@ export function formatMinutesApprox(ms: number): number {
   return Math.max(1, Math.round(ms / 60_000));
 }
 
-/** One balance format app-wide (T-045 N3 / D7): «2 h 55 min». */
+/** One balance format app-wide (T-045 N3 / D7): «2 h 55 min» / UK «2 год 55 хв». */
 export function formatBalanceSeconds(
   seconds: number,
-  opts?: { withLeft?: boolean },
+  opts?: { withLeft?: boolean; locale?: string },
 ): string {
-  const left = opts?.withLeft ? " left" : "";
-  if (seconds <= 0) return `0 min${left}`;
+  const uk = (opts?.locale ?? "en").startsWith("uk");
+  const uH = uk ? "год" : "h";
+  const uM = uk ? "хв" : "min";
+  const left = opts?.withLeft ? (uk ? " залишилось" : " left") : "";
+  if (seconds <= 0) return `0 ${uM}${left}`;
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  if (h <= 0) return `${m} min${left}`;
-  if (m <= 0) return `${h} h${left}`;
-  return `${h} h ${m} min${left}`;
+  if (h <= 0) return `${m} ${uM}${left}`;
+  if (m <= 0) return `${h} ${uH}${left}`;
+  return `${h} ${uH} ${m} ${uM}${left}`;
 }

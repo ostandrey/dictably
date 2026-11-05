@@ -17,6 +17,7 @@ export default async function AppHomePage() {
       recordingBaseHref="/app/r/"
       deletedToast={t("app.deletedToast")}
       recordings={{
+        listTitle: t("app.recordingsH1"),
         title: t("app.uploadTitle"),
         hint: t("app.uploadHint"),
         choose: t("app.uploadChoose"),

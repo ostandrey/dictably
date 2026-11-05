@@ -58,6 +58,8 @@ export function AppChrome({
           navPeople={t("navPeople")}
           navSettings={t("navSettings")}
           navAdmin={t("navAdmin")}
+          quotaLabel={t("sidebarQuota")}
+          uiLocale={locale}
           showAccountInMain={nav === "settings"}
         >
           {children}

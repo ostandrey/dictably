@@ -77,3 +77,17 @@ coverage/
 .DS_Store
 Thumbs.db
 .idea/
+
+# Real recordings must never reach git or Docker (Owner bench files, 2026-11-05)
+**/bench/data/
+*.mkv
+*.webm
+*.wav
+*.ogg
+*.opus
+*.amr
+*.3gp
+*.avi
+*.wma
+*.flac
+*.aac

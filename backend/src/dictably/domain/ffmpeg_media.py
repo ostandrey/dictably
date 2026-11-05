@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 import shutil
 import struct
 import subprocess
@@ -61,7 +62,18 @@ class AsrAudioResult:
     duration_ms: int | None
 
 
+def e2e_soft_ffmpeg() -> bool:
+    """T-047 N1: explicit flag (not PATH filtering) so e2e always soft-stubs media."""
+    return os.environ.get("DICTABLY_E2E_SOFT_FFMPEG", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+
+
 def require_ffmpeg() -> str:
+    if e2e_soft_ffmpeg():
+        raise FfmpegError("ffmpeg soft-forced off")
     exe = shutil.which("ffmpeg")
     if not exe:
         raise FfmpegError("ffmpeg not found")
@@ -69,6 +81,8 @@ def require_ffmpeg() -> str:
 
 
 def require_ffprobe() -> str:
+    if e2e_soft_ffmpeg():
+        raise FfmpegError("ffprobe soft-forced off")
     exe = shutil.which("ffprobe")
     if not exe:
         raise FfmpegError("ffprobe not found")

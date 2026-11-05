@@ -21,8 +21,11 @@ export function SettingsPanel() {
   const [saveBusy, setSaveBusy] = useState(false);
   const [vocabBusy, setVocabBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // T-047 F4: prefer saved locale, else current page locale (not always EN).
   const [uiLocale, setUiLocale] = useState<"en" | "uk">(
-    user?.locale === "uk" ? "uk" : "en",
+    user?.locale === "uk" || user?.locale === "en"
+      ? user.locale
+      : locale,
   );
   const [template, setTemplate] = useState(
     user?.preferred_minutes_template === "official_protocol"
@@ -136,7 +139,9 @@ export function SettingsPanel() {
         <div className="dy-settings__quota" data-settings="quota" data-minutes>
           <div className="dy-settings__quota-row">
             <span>{t("settingsQuota")}</span>
-            <span className="dy-time">{formatBalanceSeconds(balance)}</span>
+            <span className="dy-time">
+              {formatBalanceSeconds(balance, { locale })}
+            </span>
           </div>
         </div>
       </section>

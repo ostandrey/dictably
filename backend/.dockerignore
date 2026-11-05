@@ -14,3 +14,6 @@ dist/
 build/
 .coverage
 htmlcov/
+
+# Real recordings (bench) — keep out of the image
+**/bench/data/

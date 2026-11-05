@@ -6,6 +6,8 @@
 
 export const pricing = {
   currency: "USD",
+  /** Keep in sync with backend TRIAL_SECONDS (default 3h). Landing/FAQ copy (T-047 F8). */
+  trialHours: 3,
   pro: {
     id: "pro",
     priceMonthly: 19,

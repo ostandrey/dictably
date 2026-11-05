@@ -30,19 +30,22 @@ export function uniqueE2eEmail(prefix = "e2e"): string {
  */
 export async function ensureSignedIn(
   page: Page,
-  opts?: { email?: string; name?: string },
+  opts?: { email?: string; name?: string; skipOnboarding?: boolean },
 ) {
+  const finishGates = opts?.skipOnboarding !== false;
   await page.waitForSelector(
     "[data-auth='dev-login'], [data-recordings='panel'], [data-settings='panel'], [data-consent='accept']",
   );
 
   if (await page.locator("[data-consent='accept']").isVisible()) {
-    await passAccountGates(page);
-    await expect(
-      page.locator("[data-recordings='panel'], [data-settings='panel']").first(),
-    ).toBeVisible({
-      timeout: 15_000,
-    });
+    if (finishGates) {
+      await passAccountGates(page);
+      await expect(
+        page.locator("[data-recordings='panel'], [data-settings='panel']").first(),
+      ).toBeVisible({
+        timeout: 15_000,
+      });
+    }
     return;
   }
 
@@ -71,6 +74,15 @@ export async function ensureSignedIn(
     "[data-consent='accept'], [data-recordings='panel'], [data-settings='panel'], [data-onboarding='skip']",
     { timeout: 15_000 },
   );
+  if (!finishGates) {
+    if (await page.locator("[data-consent='accept']").isVisible()) {
+      await page.locator("[data-consent='accept']").click();
+      await expect(page.locator("[data-consent='accept']")).toHaveCount(0, {
+        timeout: 10_000,
+      });
+    }
+    return;
+  }
   await passAccountGates(page);
   await expect(
     page.locator("[data-recordings='panel'], [data-settings='panel']").first(),
