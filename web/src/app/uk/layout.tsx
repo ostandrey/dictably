@@ -7,6 +7,12 @@ import { isPreview, site } from "@/lib/site";
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   ...(isPreview ? { robots: { index: false, follow: false } } : {}),
+  // favicon.ico via src/app/favicon.ico (Next injects once — T-048 S2)
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  manifest: "/manifest.webmanifest",
 };
 
 export default async function UkRootLayout({

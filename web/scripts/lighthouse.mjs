@@ -30,6 +30,7 @@ const mime = {
   ".png": "image/png",
   ".ico": "image/x-icon",
   ".svg": "image/svg+xml",
+  ".webmanifest": "application/manifest+json",
   ".txt": "text/plain",
   ".xml": "application/xml",
   ".woff2": "font/woff2",

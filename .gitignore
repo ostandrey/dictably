@@ -91,3 +91,6 @@ Thumbs.db
 *.wma
 *.flac
 *.aac
+asr/bench/manifest.json
+asr/bench/results/
+asr/bench/audio/

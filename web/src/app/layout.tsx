@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Onest } from "next/font/google";
 import { CloudflareBeacon } from "@/components/analytics/CloudflareBeacon";
 import { htmlThemeAttrs, siteThemeMode } from "@/lib/theme";
@@ -27,6 +27,12 @@ export const metadata: Metadata = {
   ...(isPreview
     ? { robots: { index: false, follow: false } }
     : {}),
+  // favicon.ico via src/app/favicon.ico (Next injects once — T-048 S2)
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  manifest: "/manifest.webmanifest",
   openGraph: {
     type: "website",
     siteName: site.name,
@@ -36,6 +42,10 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     images: ["/og.png"],
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f7b6c",
 };
 
 /** Root shell so `not-found` / 404.html get fonts + tokens (T-036 B2). */

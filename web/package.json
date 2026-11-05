@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "og": "node scripts/generate-og.mjs",
+    "icons": "node scripts/generate-icons.mjs",
     "e2e": "pnpm build:local && playwright test",
     "e2e:shots": "pnpm build:local && playwright test e2e/landing.spec.ts -g screenshots",
     "lh": "node scripts/lighthouse.mjs",
