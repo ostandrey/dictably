@@ -235,22 +235,21 @@ def probe_audio(
     )
 
 
-def _live_channel_indices(
+def _pcm_s16le(
     ffmpeg: str,
     src: Path,
-    channels: int,
     *,
+    channels: int,
+    sample_rate: int = 8000,
+    duration_s: float = 30.0,
     audio_stream_index: int | None = None,
-) -> list[int]:
-    """Sample ~30s of PCM and mark channels above CHANNEL_LIVE_RMS."""
-    if channels <= 1:
-        return [0]
+) -> bytes:
     cmd = [
         ffmpeg,
         "-protocol_whitelist",
         "file",
         "-t",
-        "30",
+        str(duration_s),
         "-i",
         str(src),
     ]
@@ -262,17 +261,35 @@ def _live_channel_indices(
             "-ac",
             str(channels),
             "-ar",
-            "8000",
+            str(sample_rate),
             "-f",
             "s16le",
             "pipe:1",
         ]
     )
+    proc = subprocess.run(cmd, check=True, capture_output=True, timeout=FFMPEG_TIMEOUT_S)
+    return proc.stdout or b""
+
+
+def _live_channel_indices(
+    ffmpeg: str,
+    src: Path,
+    channels: int,
+    *,
+    audio_stream_index: int | None = None,
+) -> list[int]:
+    """Sample ~30s of PCM and mark channels above CHANNEL_LIVE_RMS."""
+    if channels <= 1:
+        return [0]
     try:
-        proc = subprocess.run(cmd, check=True, capture_output=True, timeout=FFMPEG_TIMEOUT_S)
+        data = _pcm_s16le(
+            ffmpeg,
+            src,
+            channels=channels,
+            audio_stream_index=audio_stream_index,
+        )
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
         return list(range(channels))
-    data = proc.stdout or b""
     if len(data) < channels * 2:
         return list(range(channels))
     n_frames = len(data) // (2 * channels)
@@ -288,6 +305,79 @@ def _live_channel_indices(
         if rms >= CHANNEL_LIVE_RMS:
             live.append(c)
     return live
+
+
+# T-051: identical L/R (screen/phone) must not enter dual-channel ASR.
+_NEAR_IDENTICAL_CORR = 0.9
+_NEAR_IDENTICAL_DB = 1.0
+_NEAR_IDENTICAL_WINDOW = 800  # samples @ 8 kHz ≈ 100 ms
+
+
+def stereo_channels_near_identical(
+    src: Path,
+    *,
+    soft_missing: bool = False,
+    audio_stream_index: int | None = None,
+) -> bool:
+    """True when L≈R (corr > 0.9 or |ΔdB| < 1 across windows) — use mono + diarize."""
+    try:
+        ffmpeg = require_ffmpeg()
+    except FfmpegError:
+        if soft_missing:
+            return False
+        raise
+    try:
+        data = _pcm_s16le(
+            ffmpeg,
+            src,
+            channels=2,
+            audio_stream_index=audio_stream_index,
+        )
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+        return False
+    if len(data) < 8:
+        return False
+    n_frames = len(data) // 4
+    if n_frames < _NEAR_IDENTICAL_WINDOW:
+        return False
+
+    # Pearson correlation over full sample.
+    sum_l = sum_r = sum_ll = sum_rr = sum_lr = 0.0
+    for i in range(n_frames):
+        base = i * 4
+        (left,) = struct.unpack_from("<h", data, base)
+        (right,) = struct.unpack_from("<h", data, base + 2)
+        lf = float(left)
+        rf = float(right)
+        sum_l += lf
+        sum_r += rf
+        sum_ll += lf * lf
+        sum_rr += rf * rf
+        sum_lr += lf * rf
+    n = float(n_frames)
+    num = n * sum_lr - sum_l * sum_r
+    den = math.sqrt(max(0.0, (n * sum_ll - sum_l * sum_l) * (n * sum_rr - sum_r * sum_r)))
+    corr = (num / den) if den > 1e-9 else 1.0
+    if corr >= _NEAR_IDENTICAL_CORR:
+        return True
+
+    # Windowed energy difference (dB).
+    win = _NEAR_IDENTICAL_WINDOW
+    diffs: list[float] = []
+    for start in range(0, n_frames - win + 1, win):
+        e_l = e_r = 0.0
+        for i in range(start, start + win):
+            base = i * 4
+            (left,) = struct.unpack_from("<h", data, base)
+            (right,) = struct.unpack_from("<h", data, base + 2)
+            e_l += float(left * left)
+            e_r += float(right * right)
+        rms_l = math.sqrt(e_l / win) + 1e-9
+        rms_r = math.sqrt(e_r / win) + 1e-9
+        diffs.append(abs(20.0 * math.log10(rms_l / rms_r)))
+    if not diffs:
+        return False
+    return (sum(diffs) / len(diffs)) < _NEAR_IDENTICAL_DB
 
 
 def normalize_for_asr(

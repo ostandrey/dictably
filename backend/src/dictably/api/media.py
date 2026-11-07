@@ -92,6 +92,13 @@ def _speaker_out(row: Speaker) -> SpeakerOut:
     )
 
 
+def _minutes_status(row: Media) -> str | None:
+    raw = (row.asr_meta or {}).get("minutes_status")
+    if raw in {"ok", "failed"}:
+        return str(raw)
+    return None
+
+
 def _media_out_with_count(row: Media, speaker_count: int) -> MediaOut:
     vocab = [str(v) for v in (row.vocabulary or [])]
     return MediaOut(
@@ -112,6 +119,7 @@ def _media_out_with_count(row: Media, speaker_count: int) -> MediaOut:
         vocabulary=vocab,
         transcript_mode=row.transcript_mode or "clean",
         minutes_template=getattr(row, "minutes_template", None) or "default",
+        minutes_status=_minutes_status(row),
     )
 
 
@@ -196,6 +204,7 @@ async def media_status(
                 duration_ms=r.duration_ms,
                 quality_warning=r.quality_warning,
                 speaker_count=counts.get(r.id, 0),
+                minutes_status=_minutes_status(r),
             )
             for r in rows
         ]

@@ -42,6 +42,7 @@ export type AdminOps = {
   media_queued: number;
   succeeded_24h: number;
   failed_24h: number;
+  minutes_failed_24h?: number;
   error_rate_pct: number;
   avg_process_seconds: number | null;
   disk_free_gb: number | null;
@@ -49,6 +50,10 @@ export type AdminOps = {
   storage_provider: string;
   alert_queue_threshold: number;
   alert_error_rate_pct: number;
+  llm_ok?: boolean | null;
+  llm_model?: string | null;
+  llm_error?: string | null;
+  llm_detail?: string | null;
 };
 
 export type {
@@ -227,6 +232,7 @@ export type MediaStatusItem = {
   duration_ms?: number | null;
   quality_warning?: string | null;
   speaker_count?: number;
+  minutes_status?: string | null;
 };
 
 export async function listMediaStatus(

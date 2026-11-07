@@ -1679,6 +1679,7 @@ export function RecordingView({
           mediaId={mediaId}
           title={minutesTab}
           emptyLabel={minutesEmpty}
+          minutesStatus={media.minutes_status ?? null}
           summaryLabel={summaryLabel}
           decisionsLabel={decisionsLabel}
           deadlinesLabel={deadlinesLabel}

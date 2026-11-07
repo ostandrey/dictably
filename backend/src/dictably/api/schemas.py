@@ -147,6 +147,7 @@ class AdminOpsOut(BaseModel):
     media_queued: int = 0
     succeeded_24h: int = 0
     failed_24h: int = 0
+    minutes_failed_24h: int = 0
     error_rate_pct: float = 0
     avg_process_seconds: float | None = None
     disk_free_gb: float | None = None
@@ -154,6 +155,10 @@ class AdminOpsOut(BaseModel):
     storage_provider: str = "local"
     alert_queue_threshold: int = 20
     alert_error_rate_pct: float = 25.0
+    llm_ok: bool | None = None
+    llm_model: str | None = None
+    llm_error: str | None = None
+    llm_detail: str | None = None
 
 
 class DevLoginIn(BaseModel):
@@ -179,6 +184,8 @@ class MediaOut(BaseModel):
     vocabulary: list[str] = Field(default_factory=list)
     transcript_mode: str = "clean"
     minutes_template: str = "default"
+    # T-051: ok | failed | null — transcript may exist while minutes failed.
+    minutes_status: str | None = None
 
 
 class MediaListOut(BaseModel):
@@ -193,6 +200,7 @@ class MediaStatusItemOut(BaseModel):
     duration_ms: int | None = None
     quality_warning: str | None = None
     speaker_count: int = 0
+    minutes_status: str | None = None
 
 
 class MediaStatusOut(BaseModel):

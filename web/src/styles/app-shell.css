@@ -1260,6 +1260,11 @@
   color: var(--ink);
 }
 
+.admin-ops__hot {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 .admin-costs__total dd {
   color: var(--accent);
 }

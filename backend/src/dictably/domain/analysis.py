@@ -114,6 +114,11 @@ async def run_and_store(
     # T-041 B1/S3: LLM may fill title only when the user has not set one;
     # skip empty / generic labels; clamp to 60 chars (spec).
     _apply_llm_title(media, (cleaned.title or "").strip())
+    # T-051: clear minutes failure after a successful run / regenerate.
+    meta = dict(media.asr_meta or {})
+    meta["minutes_status"] = "ok"
+    meta.pop("minutes_error", None)
+    media.asr_meta = meta
     await session.flush()
     return row
 

@@ -34,6 +34,7 @@ from dictably.domain.ffmpeg_media import (
     normalize_for_asr,
     normalize_to_playback,
     probe_audio,
+    stereo_channels_near_identical,
 )
 from dictably.domain.media import MAX_DURATION_MS, probe_file
 from dictably.domain.meeting_bundle import media_is_multi_file
@@ -623,20 +624,26 @@ async def _pipeline(
         await storage.put_bytes(peaks_key, norm.peaks_path.read_bytes())
         keys["playback"] = playback_key
         keys["peaks"] = peaks_key
-
-        # Drop original video-heavy blob after we have playback (keep audio originals).
-        suffix = Path(original_key).suffix.lower()
-        if suffix in {".mp4", ".mov", ".mkv", ".webm"}:
-            await storage.delete(original_key)
-            keys.pop("original", None)
-
+        # T-051: keep original through ASR (+ T-038 retention purge). Early delete
+        # broke normalize_for_asr on mp4/mov/mkv/webm ("Could not prepare audio").
         media.storage_keys = keys
         media.status = MediaStatus.transcribing
         await session.commit()
         await _touch_heartbeat(session, job)
 
-        # ASR prep (16 kHz + highpass + loudnorm). Stereo with 2 live channels → dual.
+        # ASR prep (16 kHz + highpass + loudnorm). Stereo with 2 live channels → dual
+        # unless channels are near-identical (screen/phone record) → mono + diarize.
         dual = len(audio_info.live_channels) >= 2 and audio_info.channels >= 2
+        near_identical = False
+        if dual:
+            near_identical = await asyncio.to_thread(
+                stereo_channels_near_identical,
+                original_path,
+                soft_missing=soft,
+                audio_stream_index=audio_stream_index,
+            )
+            if near_identical:
+                dual = False
         channel_index: int | None = None
         if not dual and audio_info.channels >= 2 and len(audio_info.live_channels) == 1:
             channel_index = audio_info.live_channels[0]
@@ -695,6 +702,7 @@ async def _pipeline(
         media.asr_meta = {
             **dict(media.asr_meta or {}),
             "dual_channel": dual,
+            "near_identical_stereo": near_identical,
             "channels": audio_info.channels,
             "live_channels": list(audio_info.live_channels),
             "sample_rate": audio_info.sample_rate,
@@ -716,10 +724,31 @@ async def _pipeline(
     if tr_row is not None:
         try:
             await analysis_domain.run_and_store(session, media=media, transcript=tr_row)
+            meta = dict(media.asr_meta or {})
+            meta["minutes_status"] = "ok"
+            meta.pop("minutes_error", None)
+            media.asr_meta = meta
             await session.flush()
         except Exception as exc:  # noqa: BLE001 — minutes failure must not lose transcript
             logger.exception("analyze failed for %s: %s", media.id, exc)
-            # Keep going to ready; UI can regenerate.
+            # T-051: ready with transcript, but surface minutes failure (not silent 404).
+            meta = dict(media.asr_meta or {})
+            meta["minutes_status"] = "failed"
+            meta["minutes_error"] = str(exc)[:500]
+            media.asr_meta = meta
+            try:
+                from dictably.domain import analytics as analytics_domain
+
+                await analytics_domain.track(
+                    session,
+                    name=analytics_domain.EVENT_PROCESSING_FAILED,
+                    user_id=media.user_id,
+                    media_id=media.id,
+                    props={"code": "llm_failed"},
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception("minutes-fail analytics for %s", media.id)
+            await session.flush()
 
 
 async def _pipeline_multi_file(

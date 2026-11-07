@@ -1211,6 +1211,8 @@ export interface components {
              * @default default
              */
             minutes_template: string;
+            /** Minutes Status — ok | failed | null (T-051) */
+            minutes_status?: string | null;
         };
         /** MediaPatchIn */
         MediaPatchIn: {

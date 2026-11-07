@@ -430,13 +430,17 @@ a.dy-rec__title:hover { color: var(--accent); }
 .dy-step.is-current { color: var(--ink); font-weight: 500; }
 .dy-step.is-current .dy-step__icon { border-color: var(--accent); color: var(--accent); }
 
-/* Alert */
-.dy-alert { display: grid; grid-template-columns: 20px 1fr; gap: var(--space-1) var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid transparent; max-width: 560px; }
-.dy-alert__title { font: 600 15px/22px var(--font-sans); margin: 0; }
+/* Alert — col1 icon (20px), col2 title + body (never put raw text as grid child) */
+.dy-alert { display: grid; grid-template-columns: 20px 1fr; gap: var(--space-1) var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid transparent; max-width: 560px; align-items: start; }
+.dy-alert > .dy-icon { grid-column: 1; grid-row: 1 / span 2; margin-top: 2px; }
+.dy-alert__title { grid-column: 2; font: 600 15px/22px var(--font-sans); margin: 0; }
 .dy-alert__body { grid-column: 2; font: 400 14px/20px var(--font-sans); margin: 0; color: var(--ink); }
+.dy-alert__body > :first-child { margin-top: 0; }
+.dy-alert__body > :last-child { margin-bottom: 0; }
 .dy-alert--info { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 28%, transparent); } .dy-alert--info .dy-icon { color: var(--accent); }
 .dy-alert--success { background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 28%, transparent); } .dy-alert--success .dy-icon { color: var(--success); }
 .dy-alert--warning { background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 32%, transparent); } .dy-alert--warning .dy-icon { color: var(--warning); }
+.dy-alert--warning .dy-alert__title { color: var(--warning); }
 .dy-alert--danger { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 32%, transparent); }
 .dy-alert--danger .dy-alert__title { color: var(--danger); } .dy-alert--danger .dy-icon { color: var(--danger); }
 .dy-empty__action { margin-top: var(--space-2); }

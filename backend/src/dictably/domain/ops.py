@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dictably.core.config import Settings, get_settings
-from dictably.db.models import Job, JobKind, JobStatus, Media, MediaStatus
+from dictably.db.models import Job, JobKind, JobStatus, Media, MediaStatus, ProductEvent
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +93,23 @@ async def ops_report(
         ).scalar_one()
         or 0
     )
+    # T-051: minutes LLM failures (media may still be ready).
+    from dictably.domain import analytics as analytics_domain
+
+    minutes_failed_24h = int(
+        (
+            await session.execute(
+                select(func.count())
+                .select_from(ProductEvent)
+                .where(
+                    ProductEvent.name == analytics_domain.EVENT_PROCESSING_FAILED,
+                    ProductEvent.created_at >= since,
+                    ProductEvent.props["code"].as_string() == "llm_failed",
+                )
+            )
+        ).scalar_one()
+        or 0
+    )
     total_24h = succeeded_24h + failed_24h
     # B4: ignore error % until enough samples (avoid 1/1 = 100% false alarm).
     if total_24h >= _MIN_JOBS_FOR_ERROR_RATE:
@@ -135,12 +152,22 @@ async def ops_report(
     except OSError:
         pass
 
+    llm_check: dict[str, Any] = {"ok": True}
+    try:
+        from dictably.domain import health as health_domain
+
+        llm_check = await health_domain.check_llm(settings)
+    except Exception:  # noqa: BLE001
+        logger.exception("ops llm check failed")
+        llm_check = {"ok": False, "error": "probe_failed"}
+
     report = {
         "queue_length": queued,
         "running": running,
         "media_queued": media_queued,
         "succeeded_24h": succeeded_24h,
         "failed_24h": failed_24h,
+        "minutes_failed_24h": minutes_failed_24h,
         "error_rate_pct": error_rate_pct,
         "avg_process_seconds": avg_seconds,
         "disk_free_gb": disk_free_gb,
@@ -148,6 +175,10 @@ async def ops_report(
         "storage_provider": settings.storage_provider,
         "alert_queue_threshold": settings.alert_queue_threshold,
         "alert_error_rate_pct": settings.alert_error_rate_pct,
+        "llm_ok": bool(llm_check.get("ok")),
+        "llm_model": llm_check.get("model"),
+        "llm_error": llm_check.get("error"),
+        "llm_detail": llm_check.get("detail"),
     }
     if send_alerts:
         await maybe_send_ops_alert(report, settings=settings)
@@ -194,7 +225,9 @@ async def maybe_send_ops_alert(
         return False
     queue_hot = int(report.get("queue_length") or 0) >= settings.alert_queue_threshold
     err_hot = float(report.get("error_rate_pct") or 0) >= settings.alert_error_rate_pct
-    if not (queue_hot or err_hot):
+    minutes_hot = int(report.get("minutes_failed_24h") or 0) > 0
+    llm_hot = report.get("llm_ok") is False
+    if not (queue_hot or err_hot or minutes_hot or llm_hot):
         return False
     if not await _redis_alert_cooldown_ok(settings):
         return False
@@ -205,6 +238,8 @@ async def maybe_send_ops_alert(
         f"Running: {report.get('running')}\n"
         f"Error rate 24h: {report.get('error_rate_pct')}%\n"
         f"Failed 24h: {report.get('failed_24h')}\n"
+        f"Minutes LLM failed 24h: {report.get('minutes_failed_24h')}\n"
+        f"LLM ok: {report.get('llm_ok')} model={report.get('llm_model')}\n"
         f"Disk free GB: {report.get('disk_free_gb')}\n"
     )
     if not settings.smtp_host.strip():

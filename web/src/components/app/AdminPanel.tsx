@@ -36,6 +36,10 @@ export type AdminCopy = {
   opsAvgProcess: string;
   opsDisk: string;
   opsStorage: string;
+  opsMinutesFailed: string;
+  opsLlm: string;
+  opsLlmOk: string;
+  opsLlmDown: string;
   funnelUsers: string;
   funnelStep: string;
   funnelPctSignups: string;
@@ -682,6 +686,24 @@ export function AdminPanel({ copy }: Props) {
           <div>
             <dt>{copy.opsFailed}</dt>
             <dd className="dy-time">{ops.failed_24h}</dd>
+          </div>
+          <div data-admin="ops-minutes-failed">
+            <dt>{copy.opsMinutesFailed}</dt>
+            <dd
+              className={`dy-time${(ops.minutes_failed_24h ?? 0) > 0 ? " admin-ops__hot" : ""}`}
+            >
+              {ops.minutes_failed_24h ?? 0}
+            </dd>
+          </div>
+          <div data-admin="ops-llm">
+            <dt>{copy.opsLlm}</dt>
+            <dd
+              className={`dy-time${ops.llm_ok === false ? " admin-ops__hot" : ""}`}
+            >
+              {ops.llm_ok === false
+                ? `${copy.opsLlmDown}${ops.llm_model ? ` (${ops.llm_model})` : ""}`
+                : `${copy.opsLlmOk}${ops.llm_model ? ` (${ops.llm_model})` : ""}`}
+            </dd>
           </div>
           <div>
             <dt>{copy.opsErrorRate}</dt>

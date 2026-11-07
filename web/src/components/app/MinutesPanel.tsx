@@ -8,6 +8,7 @@ import {
   regenerateAnalysis,
   type Analysis,
 } from "@/lib/api";
+import { Alert } from "@/components/ui/Alert";
 import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 
@@ -61,6 +62,8 @@ type Props = {
   onExternalTemplateHandled?: () => void;
   /** Empty minutes → switch to transcript (T-045 S8). */
   onOpenTranscript?: () => void;
+  /** T-051: minutes LLM failed while transcript is ready. */
+  minutesStatus?: string | null;
 };
 
 function formatClock(ms: number): string {
@@ -108,6 +111,7 @@ export function MinutesPanel({
   externalTemplatePick = null,
   onExternalTemplateHandled,
   onOpenTranscript,
+  minutesStatus = null,
 }: Props) {
   const t = useTranslations("app");
   const verifyLabel = t("minutesVerify");
@@ -117,12 +121,23 @@ export function MinutesPanel({
   const [loading, setLoading] = useState(true);
   const [templateConfirm, setTemplateConfirm] = useState<string | null>(null);
   const [regenConfirm, setRegenConfirm] = useState(false);
+  // T-051 S1: local failed state so retry-again stays one block (not error + failed).
+  const [minutesFailed, setMinutesFailed] = useState(minutesStatus === "failed");
+  const [failedAgain, setFailedAgain] = useState(false);
+  const [statusSeen, setStatusSeen] = useState(minutesStatus);
+  if (minutesStatus !== statusSeen) {
+    setStatusSeen(minutesStatus);
+    setMinutesFailed(minutesStatus === "failed");
+    if (minutesStatus !== "failed") setFailedAgain(false);
+  }
 
   const load = useCallback(async () => {
     setError(null);
     try {
       const a = await getAnalysis(mediaId);
       setAnalysis(a);
+      setMinutesFailed(false);
+      setFailedAgain(false);
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
         setAnalysis(null);
@@ -155,11 +170,18 @@ export function MinutesPanel({
     try {
       const a = await regenerateAnalysis(mediaId, { template: nextTemplate });
       setAnalysis(a);
+      setMinutesFailed(false);
+      setFailedAgain(false);
       setTemplateConfirm(null);
       closeRegenConfirm();
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
         setError(limitLabel);
+      } else if (minutesFailed || minutesStatus === "failed") {
+        // S1: stay on the single failed block — no second green error strip.
+        setMinutesFailed(true);
+        setFailedAgain(true);
+        setAnalysis(null);
       } else {
         setError(errorLabel);
       }
@@ -512,26 +534,60 @@ export function MinutesPanel({
           })}
         </p>
       </Dialog>
-      {error ? (
-        <div data-minutes="error-wrap">
-          <p className="sign-in__error" role="alert" data-minutes="error">
-            {error}
-          </p>
-          <button
-            type="button"
-            className="btn-secondary"
-            data-minutes="retry"
-            onClick={() => {
-              setLoading(true);
-              void load();
-            }}
-          >
-            {t("retry")}
-          </button>
-        </div>
+      {error && !minutesFailed ? (
+        <Alert tone="danger" data-minutes="error-wrap">
+          <p data-minutes="error">{error}</p>
+          <div className="dy-minutes__empty-actions">
+            <button
+              type="button"
+              className="btn-secondary"
+              data-minutes="retry"
+              onClick={() => {
+                setLoading(true);
+                void load();
+              }}
+            >
+              {t("retry")}
+            </button>
+          </div>
+        </Alert>
       ) : null}
       {loading ? (
         <p className="dy-muted">…</p>
+      ) : minutesFailed ? (
+        <Alert
+          tone="warning"
+          title={t("minutesFailedTitle")}
+          data-minutes="failed"
+        >
+          <p data-minutes="empty-explain">
+            {failedAgain
+              ? t("minutesFailedAgainExplain")
+              : t("minutesFailedExplain")}
+          </p>
+          <div className="dy-minutes__empty-actions" data-minutes="empty-actions">
+            {onOpenTranscript ? (
+              <button
+                type="button"
+                className="btn-secondary"
+                data-minutes="empty-transcript"
+                onClick={onOpenTranscript}
+              >
+                {t("minutesEmptyOpenTranscript")}
+              </button>
+            ) : null}
+            <Button
+              variant="secondary"
+              loading={busy}
+              data-minutes="failed-retry"
+              onClick={() => {
+                void runRegenerate(serverTemplate);
+              }}
+            >
+              {t("minutesFailedRetry")}
+            </Button>
+          </div>
+        </Alert>
       ) : empty ? (
         <div className="dy-muted" data-minutes="empty">
           <p data-minutes="empty-explain">{t("minutesEmptyExplain")}</p>
@@ -546,15 +602,16 @@ export function MinutesPanel({
                 {t("minutesEmptyOpenTranscript")}
               </button>
             ) : null}
-            <button
-              type="button"
-              className="btn-secondary"
+            <Button
+              variant="secondary"
+              loading={busy}
               data-minutes="empty-regenerate"
-              disabled={busy || (analysis?.regenerations_left ?? 0) <= 0}
-              onClick={() => setRegenConfirm(true)}
+              onClick={() => {
+                setRegenConfirm(true);
+              }}
             >
               {regenerateLabel}
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
